@@ -1,24 +1,24 @@
 package main
 
 import (
-    "github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-    "github.com/pingcap/log"
-    "github.com/zhongzc/tmp/kv"
-    "github.com/zhongzc/tmp/service"
-    "github.com/zhongzc/tmp/vm"
-    "go.uber.org/zap"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/pingcap/log"
+	"github.com/zhongzc/diag_backend/kv"
+	"github.com/zhongzc/diag_backend/service"
+	"github.com/zhongzc/diag_backend/vm"
+	"go.uber.org/zap"
 )
 
 func main() {
-    vm.Init()
-    defer vm.Stop()
+	vm.Init()
+	defer vm.Stop()
 
-    kv.Init()
-    defer kv.Stop()
+	kv.Init()
+	defer kv.Stop()
 
-    service.Init()
-    defer service.Stop()
+	service.Init()
+	defer service.Stop()
 
-    sig := procutil.WaitForSigterm()
-    log.Info("received signal", zap.String("sig", sig.String()))
+	sig := procutil.WaitForSigterm()
+	log.Info("received signal", zap.String("sig", sig.String()))
 }

@@ -1,4 +1,4 @@
-module github.com/zhongzc/tmp
+module github.com/zhongzc/diag_backend
 
 go 1.17
 

@@ -8,7 +8,7 @@ import (
     "strings"
 
     "github.com/pingcap/log"
-    storage "github.com/zhongzc/tmp/kv"
+    storage "github.com/zhongzc/diag_backend/kv"
     "go.uber.org/zap"
 )
 

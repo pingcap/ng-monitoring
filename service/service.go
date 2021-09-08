@@ -10,7 +10,7 @@ import (
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
     "github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
     "github.com/pingcap/log"
-    "github.com/zhongzc/tmp/service/kv"
+    "github.com/zhongzc/diag_backend/service/kv"
     "go.uber.org/zap"
 )
 
