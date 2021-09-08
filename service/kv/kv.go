@@ -4,6 +4,7 @@ import (
     "encoding/json"
     "errors"
     "fmt"
+    "io"
     "net/http"
     "strings"
 
@@ -52,9 +53,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
         var iptReq importRequest
         d := json.NewDecoder(r.Body)
-        if err := d.Decode(&iptReq); err != nil {
-            http.Error(w, err.Error(), http.StatusBadRequest)
-            return true
+        if err := d.Decode(&iptReq); err != nil && err != io.EOF {
+           http.Error(w, err.Error(), http.StatusBadRequest)
+           return true
         }
 
         ipt := storage.NewImporter()
@@ -100,7 +101,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
         var queryReq queryRequest
         d := json.NewDecoder(r.Body)
-        if err := d.Decode(&queryReq); err != nil {
+        if err := d.Decode(&queryReq); err != nil && err != io.EOF {
             http.Error(w, err.Error(), http.StatusBadRequest)
             return true
         } else if len(queryReq.Queries) == 0 {
