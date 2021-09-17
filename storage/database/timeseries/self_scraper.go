@@ -1,4 +1,4 @@
-package vm
+package timeseries
 
 import (
     "flag"

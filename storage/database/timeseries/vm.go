@@ -1,17 +1,13 @@
-package vm
+package timeseries
 
 import (
     "flag"
-    "os"
     "time"
 
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-    "github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
-    "github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
-    "github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
     "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
     "github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
     "github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
@@ -26,11 +22,6 @@ var (
 )
 
 func Init() {
-    // Write flags and help message to stdout, since it is easier to grep or pipe.
-    flag.CommandLine.SetOutput(os.Stdout)
-    flag.Usage = usage
-    envflag.Parse()
-    buildinfo.Init()
     logger.Init()
 
     if promscrape.IsDryRun() {
@@ -67,13 +58,4 @@ func Stop() {
     fs.MustStopDirRemover()
 
     logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
-}
-
-func usage() {
-    const s = `
-victoria-metrics is a time series database and monitoring solution.
-
-See the docs at https://docs.victoriametrics.com/
-`
-    flagutil.Usage(s)
 }
