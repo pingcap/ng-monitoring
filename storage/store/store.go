@@ -73,11 +73,13 @@ func TopSQLRecords(records []*tipb.CPUTimeRecord) error {
 	var err error
 	err = insert(
 		"INSERT INTO instance(instance, job) VALUES ",
-		"(?, ?)", 1,
+		"(?, ?)", len(records),
 		" ON CONFLICT DO NOTHING",
 		func(target *[]interface{}) {
-			*target = append(*target, "TiDB")
-			*target = append(*target, "TiDB")
+			for _, record := range records {
+				*target = append(*target, record.Instance)
+				*target = append(*target, record.Job)
+			}
 		},
 	)
 	if err != nil {
@@ -99,11 +101,13 @@ func ResourceMeteringRecords(records []*rsmetering.CPUTimeRecord) error {
 	var err error
 	err = insert(
 		"INSERT INTO instance(instance, job) VALUES ",
-		"(?, ?)", 1,
+		"(?, ?)", len(records),
 		" ON CONFLICT DO NOTHING",
 		func(target *[]interface{}) {
-			*target = append(*target, "TiKV")
-			*target = append(*target, "TiKV")
+			for _, record := range records {
+				*target = append(*target, record.Instance)
+				*target = append(*target, record.Job)
+			}
 		},
 	)
 	if err != nil {

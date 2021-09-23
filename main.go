@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net"
 
 	"github.com/zhongzc/diag_backend/service"
 	"github.com/zhongzc/diag_backend/storage"
@@ -24,6 +26,10 @@ func main() {
 
 	service.Init(*httpListenAddr, *grpcListenAddr)
 	defer service.Stop()
+
+	conn, _ := net.Dial("udp", "1.2.3.4:1")
+	defer conn.Close()
+	fmt.Println(conn.LocalAddr().(*net.UDPAddr).IP)
 
 	sig := procutil.WaitForSigterm()
 	log.Info("received signal", zap.String("sig", sig.String()))
