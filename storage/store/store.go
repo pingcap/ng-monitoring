@@ -215,16 +215,16 @@ func fillTopSQLProtoToMetric(
 		m := &(*target)[len(*target)-1]
 
 		m.Metric.Name = "cpu_time"
-		m.Metric.Instance = "TiDB" // FIXME
-		m.Metric.Job = "TiDB"      // FIXME
+		m.Metric.Instance = rawRecord.Instance
+		m.Metric.Job = rawRecord.Job
 		m.Metric.SQLDigest = hex.EncodeToString(rawRecord.SqlDigest)
 		m.Metric.PlanDigest = hex.EncodeToString(rawRecord.PlanDigest)
 
 		for i := range rawRecord.RecordListCpuTimeMs {
-			tsInMilliSec := rawRecord.RecordListTimestampSec[i] * 1000
+			tsMillis := rawRecord.RecordListTimestampSec[i] * 1000
 			cpuTime := rawRecord.RecordListCpuTimeMs[i]
 
-			m.Timestamps = append(m.Timestamps, tsInMilliSec)
+			m.Timestamps = append(m.Timestamps, tsMillis)
 			m.Values = append(m.Values, cpuTime)
 		}
 	}
@@ -242,8 +242,8 @@ func fillRsMeteringProtoToMetric(
 		m := &(*target)[len(*target)-1]
 
 		m.Metric.Name = "cpu_time"
-		m.Metric.Instance = "TiKV" // FIXME
-		m.Metric.Job = "TiKV"      // FIXME
+		m.Metric.Instance = rawRecord.Instance
+		m.Metric.Job = rawRecord.Job
 
 		tag.Reset()
 		if err := tag.Unmarshal(rawRecord.ResourceGroupTag); err != nil {
@@ -254,10 +254,10 @@ func fillRsMeteringProtoToMetric(
 		m.Metric.PlanDigest = hex.EncodeToString(tag.PlanDigest)
 
 		for i := range rawRecord.RecordListCpuTimeMs {
-			tsInMilliSec := rawRecord.RecordListTimestampSec[i] * 1000
+			tsMillis := rawRecord.RecordListTimestampSec[i] * 1000
 			cpuTime := rawRecord.RecordListCpuTimeMs[i]
 
-			m.Timestamps = append(m.Timestamps, tsInMilliSec)
+			m.Timestamps = append(m.Timestamps, tsMillis)
 			m.Values = append(m.Values, cpuTime)
 		}
 	}

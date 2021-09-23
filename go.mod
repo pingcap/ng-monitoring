@@ -22,3 +22,8 @@ require (
 	golang.org/x/sys v0.0.0-20210915083310-ed5796bab164 // indirect
 	google.golang.org/grpc v1.40.0
 )
+
+replace (
+	github.com/pingcap/kvproto => github.com/zhongzc/kvproto v0.0.0-20210923091320-34901926eaa1
+	github.com/pingcap/tipb => github.com/zhongzc/tipb v0.0.0-20210923091456-2d029dc0ea80
+)
