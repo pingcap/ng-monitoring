@@ -27,6 +27,7 @@ type metricRespData struct {
 type metricRespDataResult struct {
 	Metric metricRespDataResultMetric  `json:"metric"`
 	Values []metricRespDataResultValue `json:"values"`
+	sum    uint64
 }
 
 type metricRespDataResultMetric struct {

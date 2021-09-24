@@ -7,6 +7,8 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/genjidb/genji v0.13.0
 	github.com/genjidb/genji/engine/badgerengine v0.13.0
+	github.com/gin-contrib/cors v1.3.1
+	github.com/gin-contrib/gzip v0.0.3
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-playground/validator/v10 v10.9.0 // indirect
 	github.com/go-resty/resty/v2 v2.6.0
@@ -16,6 +18,7 @@ require (
 	github.com/pingcap/log v0.0.0-20210906054005-afc726e70354
 	github.com/pingcap/tipb v0.0.0-20210917081614-311f2369c5f7
 	github.com/ugorji/go v1.2.6 // indirect
+	github.com/wangjohn/quickselect v0.0.0-20161129230411-ed8402a42d5f // indirect
 	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20210915214749-c084706c2272 // indirect
 	golang.org/x/net v0.0.0-20210916014120-12bc252f5db8 // indirect

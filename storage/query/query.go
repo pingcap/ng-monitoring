@@ -10,6 +10,7 @@ import (
 	"github.com/genjidb/genji/types"
 	"github.com/go-resty/resty/v2"
 	"github.com/pingcap/log"
+	"github.com/wangjohn/quickselect"
 )
 
 var (
@@ -39,22 +40,19 @@ func initMetricsAPIURL(httpAddr string) {
 	metricsAPIURL = fmt.Sprintf("http://%s/api/v1/query_range", httpAddr)
 }
 
-func TopSQL(startSecs, endSecs, windowSecs, top int64, instance string, fill *[]TopSQLItem) error {
-	var query string
-	if top < 0 {
-		query = fmt.Sprintf("sum_over_time(cpu_time{instance=\"%s\"}[%d])", instance, windowSecs)
-	} else {
-		query = fmt.Sprintf("topk(%d, sum_over_time(cpu_time{instance=\"%s\"}[%d]))", top, instance, windowSecs)
-	}
+func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {
+	query := fmt.Sprintf("sum_over_time(cpu_time{instance=\"%s\"}[%d])", instance, windowSecs)
 
 	metricResponse := metricRespP.Get()
 	defer metricRespP.Put(metricResponse)
 
+	start := strconv.Itoa(startSecs - startSecs%windowSecs)
+	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
 	resp, err := client.R().
 		SetQueryParam("query", query).
-		SetQueryParam("start", strconv.Itoa(int(startSecs))).
-		SetQueryParam("end", strconv.Itoa(int(endSecs))).
-		SetQueryParam("step", strconv.Itoa(int(windowSecs))).
+		SetQueryParam("start", start).
+		SetQueryParam("end", end).
+		SetQueryParam("step", strconv.Itoa(windowSecs)).
 		SetResult(metricResponse).
 		SetHeader("Accept", "application/json").
 		Get(metricsAPIURL)
@@ -65,6 +63,10 @@ func TopSQL(startSecs, endSecs, windowSecs, top int64, instance string, fill *[]
 	result, ok := resp.Result().(*metricResp)
 	if !ok {
 		return errors.New("failed to decode timeseries data")
+	}
+
+	if err = keepTopK(&result.Data.Results, top); err != nil {
+		return err
 	}
 
 	return documentDB.View(func(tx *genji.Tx) error {
@@ -80,13 +82,8 @@ func TopSQL(startSecs, endSecs, windowSecs, top int64, instance string, fill *[]
 					"SELECT sql_text FROM sql_digest WHERE digest = ?",
 					sqlDigest,
 				)
-				if err != nil {
-					continue
-				}
-
-				err = document.Scan(r, &sqlText)
-				if err != nil {
-					continue
+				if err == nil {
+					_ = document.Scan(r, &sqlText)
 				}
 			}
 
@@ -95,13 +92,8 @@ func TopSQL(startSecs, endSecs, windowSecs, top int64, instance string, fill *[]
 					"SELECT plan_text FROM plan_digest WHERE digest = ?",
 					planDigest,
 				)
-				if err != nil {
-					continue
-				}
-
-				err = document.Scan(r, &planText)
-				if err != nil {
-					continue
+				if err == nil {
+					_ = document.Scan(r, &planText)
 				}
 			}
 
@@ -152,4 +144,53 @@ func AllInstances(fill *[]InstanceItem) error {
 		*fill = append(*fill, item)
 		return nil
 	})
+}
+
+func keepTopK(results *[]metricRespDataResult, top int) error {
+	if top <= 0 || len(*results) <= top {
+		return nil
+	}
+
+	for i := range *results {
+		r := &(*results)[i]
+		var sum uint64
+		for _, value := range r.Values {
+			if len(value) != 2 {
+				continue
+			}
+
+			cpu, err := strconv.ParseUint(value[1].(string), 10, 64)
+			if err != nil {
+				continue
+			}
+
+			sum += cpu
+		}
+		r.sum = sum
+	}
+
+	if err := quickselect.QuickSelect(TopKSlice{s:*results}, top); err != nil {
+		return err
+	}
+
+	*results = (*results)[:top]
+
+	return nil
+}
+
+
+type TopKSlice struct {
+	s []metricRespDataResult
+}
+
+func (s TopKSlice) Len() int {
+	return len(s.s)
+}
+
+func (s TopKSlice) Less(i, j int) bool {
+	return s.s[i].sum > s.s[j].sum
+}
+
+func (s TopKSlice) Swap(i, j int) {
+	s.s[i], s.s[j] = s.s[j], s.s[i]
 }
