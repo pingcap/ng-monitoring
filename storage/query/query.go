@@ -1,7 +1,6 @@
 package query
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -43,85 +42,19 @@ func initMetricsAPIURL(httpAddr string) {
 }
 
 func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {
-	query := fmt.Sprintf("sum_over_time(cpu_time{instance=\"%s\"}[%d])", instance, windowSecs)
-
 	metricResponse := metricRespP.Get()
 	defer metricRespP.Put(metricResponse)
-
-	start := strconv.Itoa(startSecs - startSecs%windowSecs)
-	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
-	resp, err := client.R().
-		SetQueryParam("query", query).
-		SetQueryParam("start", start).
-		SetQueryParam("end", end).
-		SetQueryParam("step", strconv.Itoa(windowSecs)).
-		SetResult(metricResponse).
-		SetHeader("Accept", "application/json").
-		Get(metricsAPIURL)
-	if err != nil {
+	if err := fetchTimeseriesDB(startSecs, endSecs, windowSecs, instance, metricResponse); err != nil {
 		return err
-	}
-
-	result, ok := resp.Result().(*metricResp)
-	if !ok {
-		return errors.New("failed to decode timeseries data")
 	}
 
 	sqlGroups := sqlGroupSliceP.Get()
 	defer sqlGroupSliceP.Put(sqlGroups)
-	groupBySQLDigest(result.Data.Results, sqlGroups)
-
-	if err = keepTopK(sqlGroups, top); err != nil {
+	if err := topK(metricResponse.Data.Results, top, sqlGroups); err != nil {
 		return err
 	}
 
-	return documentDB.View(func(tx *genji.Tx) error {
-		for _, group := range *sqlGroups {
-			sqlDigest := group.sqlDigest
-			var sqlText string
-
-			if len(sqlDigest) != 0 {
-				r, err := tx.QueryDocument(
-					"SELECT sql_text FROM sql_digest WHERE digest = ?",
-					sqlDigest,
-				)
-				if err == nil {
-					_ = document.Scan(r, &sqlText)
-				}
-			}
-
-			item := TopSQLItem{
-				SQLDigest: sqlDigest,
-				SQLText:   sqlText,
-			}
-
-			for _, series := range group.planSeries {
-				planDigest := series.planDigest
-				var planText string
-
-				if len(planDigest) != 0 {
-					r, err := tx.QueryDocument(
-						"SELECT plan_text FROM plan_digest WHERE digest = ?",
-						planDigest,
-					)
-					if err == nil {
-						_ = document.Scan(r, &planText)
-					}
-				}
-
-				item.Plans = append(item.Plans, PlanItem{
-					PlanDigest:    planDigest,
-					PlanText:      planText,
-					TimestampSecs: series.timestampSecs,
-					CPUTimeMillis: series.cpuTimeMillis,
-				})
-			}
-
-			*fill = append(*fill, item)
-		}
-
-		return nil
-	})
+	return fillText(sqlGroups, fill)
 }
 
 func AllInstances(fill *[]InstanceItem) error {
@@ -144,20 +77,6 @@ func AllInstances(fill *[]InstanceItem) error {
 	})
 }
 
-func keepTopK(groups *[]sqlGroup, top int) error {
-	if top <= 0 || len(*groups) <= top {
-		return nil
-	}
-
-	if err := quickselect.QuickSelect(TopKSlice{s: *groups}, top); err != nil {
-		return err
-	}
-
-	*groups = (*groups)[:top]
-
-	return nil
-}
-
 type planSeries struct {
 	planDigest    string
 	timestampSecs []uint64
@@ -168,6 +87,30 @@ type sqlGroup struct {
 	sqlDigest  string
 	planSeries []planSeries
 	cpuTimeSum uint32
+}
+
+func fetchTimeseriesDB(startSecs int, endSecs int, windowSecs int, instance string, metricResponse *metricResp) error {
+	query := fmt.Sprintf("sum_over_time(cpu_time{instance=\"%s\"}[%d])", instance, windowSecs)
+	start := strconv.Itoa(startSecs - startSecs%windowSecs)
+	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
+	_, err := client.R().
+		SetQueryParam("query", query).
+		SetQueryParam("start", start).
+		SetQueryParam("end", end).
+		SetQueryParam("step", strconv.Itoa(windowSecs)).
+		SetResult(metricResponse).
+		SetHeader("Accept", "application/json").
+		Get(metricsAPIURL)
+
+	return err
+}
+
+func topK(results []metricRespDataResult, top int, sqlGroups *[]sqlGroup) error {
+	groupBySQLDigest(results, sqlGroups)
+	if err := keepTopK(sqlGroups, top); err != nil {
+		return err
+	}
+	return nil
 }
 
 func groupBySQLDigest(resp []metricRespDataResult, target *[]sqlGroup) {
@@ -220,6 +163,70 @@ func groupBySQLDigest(resp []metricRespDataResult, target *[]sqlGroup) {
 			cpuTimeSum: group.cpuTimeSum,
 		})
 	}
+}
+
+func keepTopK(groups *[]sqlGroup, top int) error {
+	if top <= 0 || len(*groups) <= top {
+		return nil
+	}
+
+	if err := quickselect.QuickSelect(TopKSlice{s: *groups}, top); err != nil {
+		return err
+	}
+
+	*groups = (*groups)[:top]
+
+	return nil
+}
+
+func fillText(sqlGroups *[]sqlGroup, fill *[]TopSQLItem) error {
+	return documentDB.View(func(tx *genji.Tx) error {
+		for _, group := range *sqlGroups {
+			sqlDigest := group.sqlDigest
+			var sqlText string
+
+			if len(sqlDigest) != 0 {
+				r, err := tx.QueryDocument(
+					"SELECT sql_text FROM sql_digest WHERE digest = ?",
+					sqlDigest,
+				)
+				if err == nil {
+					_ = document.Scan(r, &sqlText)
+				}
+			}
+
+			item := TopSQLItem{
+				SQLDigest: sqlDigest,
+				SQLText:   sqlText,
+			}
+
+			for _, series := range group.planSeries {
+				planDigest := series.planDigest
+				var planText string
+
+				if len(planDigest) != 0 {
+					r, err := tx.QueryDocument(
+						"SELECT plan_text FROM plan_digest WHERE digest = ?",
+						planDigest,
+					)
+					if err == nil {
+						_ = document.Scan(r, &planText)
+					}
+				}
+
+				item.Plans = append(item.Plans, PlanItem{
+					PlanDigest:    planDigest,
+					PlanText:      planText,
+					TimestampSecs: series.timestampSecs,
+					CPUTimeMillis: series.cpuTimeMillis,
+				})
+			}
+
+			*fill = append(*fill, item)
+		}
+
+		return nil
+	})
 }
 
 type TopKSlice struct {
