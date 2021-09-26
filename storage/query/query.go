@@ -1,44 +1,36 @@
 package query
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
+
+	"github.com/zhongzc/diag_backend/utils"
 
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/types"
-	"github.com/go-resty/resty/v2"
 	"github.com/pingcap/log"
 	"github.com/wangjohn/quickselect"
+	"go.uber.org/zap"
 )
 
 var (
-	client = resty.New()
+	queryHandler http.HandlerFunc
+	documentDB   *genji.DB
 
-	metricsAPIURL = ""
-	documentDB    *genji.DB
-
+	bytesP         = utils.BytesBufferPool{}
+	headerP        = utils.HeaderPool{}
 	metricRespP    = metricRespPool{}
 	sqlGroupSliceP = sqlGroupSlicePool{}
 	sqlDigestMapP  = sqlDigestMapPool{}
 )
 
-func Init(httpAddr string, db *genji.DB) {
-	initMetricsAPIURL(httpAddr)
+func Init(handler http.HandlerFunc, db *genji.DB) {
+	queryHandler = handler
 	documentDB = db
-}
-
-func initMetricsAPIURL(httpAddr string) {
-	if len(httpAddr) == 0 {
-		log.Fatal("empty listen addr")
-	}
-
-	if (httpAddr)[0] == ':' {
-		metricsAPIURL = fmt.Sprintf("http://0.0.0.0%s/api/v1/query_range", httpAddr)
-		return
-	}
-
-	metricsAPIURL = fmt.Sprintf("http://%s/api/v1/query_range", httpAddr)
 }
 
 func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {
@@ -90,19 +82,40 @@ type sqlGroup struct {
 }
 
 func fetchTimeseriesDB(startSecs int, endSecs int, windowSecs int, instance string, metricResponse *metricResp) error {
+	if queryHandler == nil {
+		return errors.New("empty query handler")
+	}
+
+	bufResp := bytesP.Get()
+	header := headerP.Get()
+
+	defer bytesP.Put(bufResp)
+	defer headerP.Put(header)
+
 	query := fmt.Sprintf("sum_over_time(cpu_time{instance=\"%s\"}[%d])", instance, windowSecs)
 	start := strconv.Itoa(startSecs - startSecs%windowSecs)
 	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
-	_, err := client.R().
-		SetQueryParam("query", query).
-		SetQueryParam("start", start).
-		SetQueryParam("end", end).
-		SetQueryParam("step", strconv.Itoa(windowSecs)).
-		SetResult(metricResponse).
-		SetHeader("Accept", "application/json").
-		Get(metricsAPIURL)
 
-	return err
+	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
+	if err != nil {
+		return err
+	}
+	reqQuery := req.URL.Query()
+	reqQuery.Set("query", query)
+	reqQuery.Set("start", start)
+	reqQuery.Set("end", end)
+	reqQuery.Set("step", strconv.Itoa(windowSecs))
+	req.URL.RawQuery = reqQuery.Encode()
+	req.Header.Set("Accept", "application/json")
+
+	respR := utils.NewRespWriter(bufResp, header)
+	queryHandler(&respR, req)
+
+	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
+		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
+	}
+
+	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
 }
 
 func topK(results []metricRespDataResult, top int, sqlGroups *[]sqlGroup) error {

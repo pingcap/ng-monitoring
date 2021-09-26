@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	"io"
+	"net/http"
 
-	"github.com/genjidb/genji"
-	"github.com/go-resty/resty/v2"
+    "github.com/zhongzc/diag_backend/utils"
+
+    "github.com/genjidb/genji"
 	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
 	"github.com/pingcap/tipb/go-tipb"
@@ -16,53 +16,21 @@ import (
 )
 
 var (
-	client = resty.New()
+	writeHandler http.HandlerFunc
+	documentDB   *genji.DB
 
-	importURL  = ""
-	documentDB *genji.DB
-
-	bytesPool         = BytesBufferPool{}
-	metricsPool       = MetricSlicePool{}
-	stringBuilderPool = StringBuilderPool{}
-	prepareSlicePool  = PrepareSlicePool{}
+	bytesP         = utils.BytesBufferPool{}
+	headerP        = utils.HeaderPool{}
+	metricsP       = MetricSlicePool{}
+	stringBuilderP = StringBuilderPool{}
+	prepareSliceP  = PrepareSlicePool{}
 )
 
-func Init(httpAddr string, documentDB *genji.DB) {
-	initImportURL(httpAddr)
+func Init(handler http.HandlerFunc, documentDB *genji.DB) {
+	writeHandler = handler
 	if err := initDocumentDB(documentDB); err != nil {
 		log.Fatal("cannot init tables", zap.Error(err))
 	}
-}
-
-func initImportURL(httpAddr string) {
-	if len(httpAddr) == 0 {
-		log.Fatal("empty listen addr")
-	}
-
-	if (httpAddr)[0] == ':' {
-		importURL = fmt.Sprintf("http://0.0.0.0%s/api/v1/import", httpAddr)
-		return
-	}
-
-	importURL = fmt.Sprintf("http://%s/api/v1/import", httpAddr)
-}
-
-func initDocumentDB(db *genji.DB) error {
-	documentDB = db
-
-	createTableStmts := []string{
-		"CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
-		"CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
-		"CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
-	}
-
-	for _, stmt := range createTableStmts {
-		if err := db.Exec(stmt); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func TopSQLRecords(records []*tipb.CPUTimeRecord) error {
@@ -157,6 +125,24 @@ func PlanMetas(metas []*tipb.PlanMeta) error {
 	)
 }
 
+func initDocumentDB(db *genji.DB) error {
+    documentDB = db
+
+    createTableStmts := []string{
+        "CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
+        "CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
+        "CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
+    }
+
+    for _, stmt := range createTableStmts {
+        if err := db.Exec(stmt); err != nil {
+            return err
+        }
+    }
+
+    return nil
+}
+
 func insert(
 	header string, // INSERT INTO {table}({fields}...) VALUES
 	elem string, times int, // (?, ?, ... , ?), (?, ?, ... , ?), ... (?, ?, ... , ?)
@@ -172,8 +158,8 @@ func insert(
 }
 
 func buildPrepareStmt(header string, elem string, times int, footer string) string {
-	sb := stringBuilderPool.Get()
-	defer stringBuilderPool.Put(sb)
+	sb := stringBuilderP.Get()
+	defer stringBuilderP.Put(sb)
 
 	sb.WriteString(header)
 	sb.WriteString(elem)
@@ -192,16 +178,16 @@ func execStmt(prepareStmt string, fill func(target *[]interface{})) error {
 		return err
 	}
 
-	ps := prepareSlicePool.Get()
-	defer prepareSlicePool.Put(ps)
+	ps := prepareSliceP.Get()
+	defer prepareSliceP.Put(ps)
 
 	fill(ps)
 	return stmt.Exec(*ps...)
 }
 
 func storeRecords(fill func(target *[]Metric) error) error {
-	metrics := metricsPool.Get()
-	defer metricsPool.Put(metrics)
+	metrics := metricsP.Get()
+	defer metricsP.Put(metrics)
 
 	if err := fill(metrics); err != nil {
 		return err
@@ -270,18 +256,29 @@ func fillRsMeteringProtoToMetric(
 }
 
 func writeTimeseriesDB(metrics []Metric) error {
-	buf := bytesPool.Get()
-	defer bytesPool.Put(buf)
+	bufReq := bytesP.Get()
+	bufResp := bytesP.Get()
+	header := headerP.Get()
 
-	if err := encodeMetrics(buf, metrics); err != nil {
+	defer bytesP.Put(bufReq)
+	defer bytesP.Put(bufResp)
+	defer headerP.Put(header)
+
+	if err := encodeMetrics(bufReq, metrics); err != nil {
 		return err
 	}
 
-	_, err := client.R().SetBody(buf).Post(importURL)
-	if err == io.EOF {
-		return nil
+	respR := utils.NewRespWriter(bufResp, header)
+	req, err := http.NewRequest("POST", "/api/v1/import", bufReq)
+	if err != nil {
+		return err
 	}
-	return err
+	writeHandler(&respR, req)
+
+	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
+		log.Warn("failed to write timeseries db", zap.String("error", respR.Body.String()))
+	}
+	return nil
 }
 
 func encodeMetrics(buf *bytes.Buffer, metrics []Metric) error {

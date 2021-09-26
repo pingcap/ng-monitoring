@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+
 	"github.com/zhongzc/diag_backend/service"
 	"github.com/zhongzc/diag_backend/storage"
 
@@ -18,7 +19,7 @@ var (
 func main() {
 	flag.Parse()
 
-	storage.Init(*httpListenAddr)
+	storage.Init()
 	defer storage.Stop()
 
 	service.Init(*httpListenAddr, *grpcListenAddr)

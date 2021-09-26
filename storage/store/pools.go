@@ -1,27 +1,9 @@
 package store
 
 import (
-	"bytes"
 	"strings"
 	"sync"
 )
-
-type BytesBufferPool struct {
-	p sync.Pool
-}
-
-func (bbp *BytesBufferPool) Get() *bytes.Buffer {
-	bbv := bbp.p.Get()
-	if bbv == nil {
-		return &bytes.Buffer{}
-	}
-	return bbv.(*bytes.Buffer)
-}
-
-func (bbp *BytesBufferPool) Put(bb *bytes.Buffer) {
-	bb.Reset()
-	bbp.p.Put(bb)
-}
 
 type MetricSlicePool struct {
 	p sync.Pool
