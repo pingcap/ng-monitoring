@@ -1,9 +1,13 @@
 package query
 
 type TopSQLItem struct {
-	SQLDigest     string   `json:"sql_digest"`
+	SQLDigest string     `json:"sql_digest"`
+	SQLText   string     `json:"sql_text"`
+	Plans     []PlanItem `json:"plans"`
+}
+
+type PlanItem struct {
 	PlanDigest    string   `json:"plan_digest"`
-	SQLText       string   `json:"sql_text"`
 	PlanText      string   `json:"plan_text"`
 	TimestampSecs []uint64 `json:"timestamp_secs"`
 	CPUTimeMillis []uint32 `json:"cpu_time_millis"`
@@ -27,7 +31,6 @@ type metricRespData struct {
 type metricRespDataResult struct {
 	Metric metricRespDataResultMetric  `json:"metric"`
 	Values []metricRespDataResultValue `json:"values"`
-	sum    uint64
 }
 
 type metricRespDataResultMetric struct {

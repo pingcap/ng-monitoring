@@ -19,7 +19,9 @@ var (
 	metricsAPIURL = ""
 	documentDB    *genji.DB
 
-	metricRespP = metricRespPool{}
+	metricRespP    = metricRespPool{}
+	sqlGroupSliceP = sqlGroupSlicePool{}
+	sqlDigestMapP  = sqlDigestMapPool{}
 )
 
 func Init(httpAddr string, db *genji.DB) {
@@ -65,17 +67,18 @@ func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]To
 		return errors.New("failed to decode timeseries data")
 	}
 
-	if err = keepTopK(&result.Data.Results, top); err != nil {
+	sqlGroups := sqlGroupSliceP.Get()
+	defer sqlGroupSliceP.Put(sqlGroups)
+	groupBySQLDigest(result.Data.Results, sqlGroups)
+
+	if err = keepTopK(sqlGroups, top); err != nil {
 		return err
 	}
 
 	return documentDB.View(func(tx *genji.Tx) error {
-		for _, res := range result.Data.Results {
-			sqlDigest := res.Metric.SQLDigest
-			planDigest := res.Metric.PlanDigest
-
+		for _, group := range *sqlGroups {
+			sqlDigest := group.sqlDigest
 			var sqlText string
-			var planText string
 
 			if len(sqlDigest) != 0 {
 				r, err := tx.QueryDocument(
@@ -87,36 +90,31 @@ func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]To
 				}
 			}
 
-			if len(planDigest) != 0 {
-				r, err := tx.QueryDocument(
-					"SELECT plan_text FROM plan_digest WHERE digest = ?",
-					planDigest,
-				)
-				if err == nil {
-					_ = document.Scan(r, &planText)
-				}
-			}
-
 			item := TopSQLItem{
-				SQLDigest:  sqlDigest,
-				PlanDigest: planDigest,
-				SQLText:    sqlText,
-				PlanText:   planText,
+				SQLDigest: sqlDigest,
+				SQLText:   sqlText,
 			}
 
-			for _, value := range res.Values {
-				if len(value) != 2 {
-					continue
+			for _, series := range group.planSeries {
+				planDigest := series.planDigest
+				var planText string
+
+				if len(planDigest) != 0 {
+					r, err := tx.QueryDocument(
+						"SELECT plan_text FROM plan_digest WHERE digest = ?",
+						planDigest,
+					)
+					if err == nil {
+						_ = document.Scan(r, &planText)
+					}
 				}
 
-				ts := uint64(value[0].(float64))
-				cpu, err := strconv.ParseUint(value[1].(string), 10, 64)
-				if err != nil {
-					continue
-				}
-
-				item.TimestampSecs = append(item.TimestampSecs, ts)
-				item.CPUTimeMillis = append(item.CPUTimeMillis, uint32(cpu))
+				item.Plans = append(item.Plans, PlanItem{
+					PlanDigest:    planDigest,
+					PlanText:      planText,
+					TimestampSecs: series.timestampSecs,
+					CPUTimeMillis: series.cpuTimeMillis,
+				})
 			}
 
 			*fill = append(*fill, item)
@@ -146,41 +144,86 @@ func AllInstances(fill *[]InstanceItem) error {
 	})
 }
 
-func keepTopK(results *[]metricRespDataResult, top int) error {
-	if top <= 0 || len(*results) <= top {
+func keepTopK(groups *[]sqlGroup, top int) error {
+	if top <= 0 || len(*groups) <= top {
 		return nil
 	}
 
-	for i := range *results {
-		r := &(*results)[i]
-		var sum uint64
+	if err := quickselect.QuickSelect(TopKSlice{s: *groups}, top); err != nil {
+		return err
+	}
+
+	*groups = (*groups)[:top]
+
+	return nil
+}
+
+type planSeries struct {
+	planDigest    string
+	timestampSecs []uint64
+	cpuTimeMillis []uint32
+}
+
+type sqlGroup struct {
+	sqlDigest  string
+	planSeries []planSeries
+	cpuTimeSum uint32
+}
+
+func groupBySQLDigest(resp []metricRespDataResult, target *[]sqlGroup) {
+	m := sqlDigestMapP.Get()
+	defer sqlDigestMapP.Put(m)
+
+	for _, r := range resp {
+		group := m[r.Metric.SQLDigest]
+		group.sqlDigest = r.Metric.SQLDigest
+
+		var ps *planSeries
+
+		plan := r.Metric.PlanDigest
+		for i, s := range group.planSeries {
+			if s.planDigest == plan {
+				ps = &group.planSeries[i]
+				break
+			}
+		}
+		if ps == nil {
+			group.planSeries = append(group.planSeries, planSeries{
+				planDigest: plan,
+			})
+			ps = &group.planSeries[len(group.planSeries)-1]
+		}
+
 		for _, value := range r.Values {
 			if len(value) != 2 {
 				continue
 			}
 
+			ts := uint64(value[0].(float64))
 			cpu, err := strconv.ParseUint(value[1].(string), 10, 64)
 			if err != nil {
 				continue
 			}
 
-			sum += cpu
+			group.cpuTimeSum += uint32(cpu)
+			ps.timestampSecs = append(ps.timestampSecs, ts)
+			ps.cpuTimeMillis = append(ps.cpuTimeMillis, uint32(cpu))
 		}
-		r.sum = sum
+
+		m[r.Metric.SQLDigest] = group
 	}
 
-	if err := quickselect.QuickSelect(TopKSlice{s:*results}, top); err != nil {
-		return err
+	for _, group := range m {
+		*target = append(*target, sqlGroup{
+			sqlDigest:  group.sqlDigest,
+			planSeries: group.planSeries,
+			cpuTimeSum: group.cpuTimeSum,
+		})
 	}
-
-	*results = (*results)[:top]
-
-	return nil
 }
 
-
 type TopKSlice struct {
-	s []metricRespDataResult
+	s []sqlGroup
 }
 
 func (s TopKSlice) Len() int {
@@ -188,7 +231,14 @@ func (s TopKSlice) Len() int {
 }
 
 func (s TopKSlice) Less(i, j int) bool {
-	return s.s[i].sum > s.s[j].sum
+	si := s.s[i]
+	sj := s.s[j]
+
+	if si.cpuTimeSum != sj.cpuTimeSum {
+		return si.cpuTimeSum > sj.cpuTimeSum
+	}
+
+	return si.sqlDigest > sj.sqlDigest
 }
 
 func (s TopKSlice) Swap(i, j int) {
