@@ -16,11 +16,13 @@ require (
 	github.com/pingcap/kvproto v0.0.0-20210915062418-0f5764a128ad
 	github.com/pingcap/log v0.0.0-20210906054005-afc726e70354
 	github.com/pingcap/tipb v0.0.0-20210917081614-311f2369c5f7
+	github.com/soheilhy/cmux v0.1.5
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/ugorji/go v1.2.6 // indirect
 	github.com/wangjohn/quickselect v0.0.0-20161129230411-ed8402a42d5f
 	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20210915214749-c084706c2272 // indirect
-	golang.org/x/net v0.0.0-20210916014120-12bc252f5db8 // indirect
+	golang.org/x/net v0.0.0-20210924151903-3ad01bbaa167 // indirect
 	golang.org/x/sys v0.0.0-20210915083310-ed5796bab164 // indirect
 	google.golang.org/grpc v1.40.0
 )

@@ -5,9 +5,9 @@ import (
 	"github.com/zhongzc/diag_backend/storage/database/timeseries"
 )
 
-func Init() {
-	document.Init()
-	timeseries.Init()
+func Init(tsdbPath string, docdbPath string) {
+	timeseries.Init(tsdbPath)
+	document.Init(docdbPath)
 }
 
 func Stop() {

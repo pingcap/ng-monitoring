@@ -1,8 +1,6 @@
 package service
 
 import (
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"io"
 	"net"
 
@@ -11,29 +9,41 @@ import (
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
 	"github.com/pingcap/tipb/go-tipb"
+	"github.com/soheilhy/cmux"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 var (
+	server *grpc.Server = nil
+
 	sqlMetaSliceP         = SQLMetaSlicePool{}
 	planMetaSliceP        = PlanMetaSlicePool{}
 	resourceCPUTimeSliceP = ResourceCPUTimeSlicePool{}
 )
 
-func ServeGRPC(addr string) {
-	server := grpc.NewServer()
+func ServeGRPC(listener net.Listener) {
+	server = grpc.NewServer()
 	service := &grpcService{}
 
 	tipb.RegisterTopSQLAgentServer(server, service)
 	resource_usage_agent.RegisterResourceUsageAgentServer(server, service)
 
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatal("failed to listen", zap.String("addr", addr), zap.Error(err))
+	if err := server.Serve(listener); err != nil &&
+		err != cmux.ErrListenerClosed &&
+		err != cmux.ErrServerClosed &&
+		err != grpc.ErrServerStopped {
+		log.Warn("failed to serve grpc", zap.Error(err))
 	}
-	err = server.Serve(listener)
-	if err != nil {
-		log.Fatal("failed to serve grpc", zap.String("addr", addr), zap.Error(err))
+}
+
+func StopGRPC() {
+	if server == nil {
+		return
 	}
+
+	log.Info("shutting down grpc server")
+	server.GracefulStop()
 }
 
 type grpcService struct{}

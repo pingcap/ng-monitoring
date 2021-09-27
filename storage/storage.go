@@ -12,8 +12,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 )
 
-func Init() {
-	database.Init()
+func Init(tsdbPath string, docdbPath string) {
+	database.Init(tsdbPath, docdbPath)
 
 	store.Init(func(writer http.ResponseWriter, request *http.Request) {
 		vminsert.RequestHandler(writer, request)

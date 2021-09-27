@@ -1,33 +1,58 @@
 package service
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"net"
+	"net/http"
+
 	"github.com/pingcap/log"
+	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 )
 
 var (
-	httpListenAddr = ""
-	grpcListenAddr = ""
+	cm cmux.CMux = nil
 )
 
-func Init(httpAddr, grpcAddr string) {
-	httpListenAddr = httpAddr
-	grpcListenAddr = grpcAddr
+func Init(listenAddr string) {
+	l, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		log.Fatal("failed to listen",
+			zap.String("address", listenAddr),
+			zap.Error(err),
+		)
+	}
 
-	go httpserver.Serve(httpListenAddr, requestHandler)
-	go ServeGRPC(grpcListenAddr)
+	cm = cmux.New(l)
+	httpL := cm.Match(cmux.HTTP1Fast())
+	grpcL := cm.Match(cmux.HTTP2())
+
+	go ServeHTTP(httpL)
+	go ServeGRPC(grpcL)
+	go func() {
+		if err := cm.Serve(); err != nil &&
+			err != cmux.ErrServerClosed &&
+			err != cmux.ErrListenerClosed &&
+			err != http.ErrServerClosed {
+			log.Warn("failed to serve http/grpc service",
+				zap.String("address", listenAddr),
+				zap.Error(err),
+			)
+		}
+	}()
 
 	log.Info(
-		"starting webservice",
-		zap.String("http-address", httpListenAddr),
-		zap.String("grpc-address", grpcListenAddr),
+		"starting http/grpc service",
+		zap.String("address", listenAddr),
 	)
 }
 
 func Stop() {
-	log.Info("gracefully shutting down webservice", zap.String("address", httpListenAddr))
-	if err := httpserver.Stop(httpListenAddr); err != nil {
-		log.Info("cannot stop the webservice", zap.Error(err))
+	if cm == nil {
+		return
 	}
+
+	log.Info("shutting down http/grpc service")
+	cm.Close()
+	StopHTTP()
+	StopGRPC()
 }

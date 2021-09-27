@@ -1,52 +1,55 @@
 package service
 
 import (
+	"net"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/zhongzc/diag_backend/storage/query"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/pingcap/log"
+	"github.com/soheilhy/cmux"
+	"go.uber.org/zap"
 )
 
 var (
-	ginEngine = gin.Default()
+	httpServer *http.Server = nil
 
 	cpuTimeSliceP  = CPUTimeSlicePool{}
 	topSQLItemsP   = TopSQLItemsPool{}
 	instanceItemsP = InstanceItemsPool{}
 )
 
-func init() {
+func ServeHTTP(listener net.Listener) {
+	ng := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 
-	ginEngine.Use(cors.New(config))
-	ginEngine.Use(gzip.Gzip(gzip.DefaultCompression))
-	ginEngine.GET("/topsql/v1/cpu_time", topSQLCPUTime)
-	ginEngine.GET("/topsql/v1/instances", topSQLAllInstances)
+	ng.Use(cors.New(config))
+	ng.Use(gzip.Gzip(gzip.DefaultCompression))
+	ng.GET("/topsql/v1/cpu_time", topSQLCPUTime)
+	ng.GET("/topsql/v1/instances", topSQLAllInstances)
 
+	httpServer = &http.Server{Handler: ng}
+	if err := httpServer.Serve(listener); err != nil &&
+		err != cmux.ErrListenerClosed &&
+		err != cmux.ErrServerClosed &&
+		err != http.ErrServerClosed {
+		log.Warn("failed to serve http service", zap.Error(err))
+	}
 }
 
-func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	if vminsert.RequestHandler(w, r) {
-		return true
-	}
-	if vmselect.RequestHandler(w, r) {
-		return true
-	}
-	if vmstorage.RequestHandler(w, r) {
-		return true
+func StopHTTP() {
+	if httpServer == nil {
+		return
 	}
 
-	ginEngine.ServeHTTP(w, r)
-	return true
+	log.Info("shutting down http server")
+	_ = httpServer.Close()
 }
 
 func topSQLCPUTime(c *gin.Context) {
@@ -67,7 +70,8 @@ func topSQLCPUTime(c *gin.Context) {
 	var top int64
 	var windowSecs int64
 
-	defaultStart := strconv.Itoa(int(now - 6*60*60))
+	const weekSecs = 7 * 24 * 60 * 60
+	defaultStart := strconv.Itoa(int(now - 2*weekSecs))
 	defaultEnd := strconv.Itoa(int(now))
 	defaultTop := "-1"
 	defaultWindow := "1m"

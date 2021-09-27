@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-    "github.com/zhongzc/diag_backend/utils"
+	"github.com/zhongzc/diag_backend/utils"
 
-    "github.com/genjidb/genji"
+	"github.com/genjidb/genji"
 	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
 	"github.com/pingcap/tipb/go-tipb"
@@ -126,21 +126,21 @@ func PlanMetas(metas []*tipb.PlanMeta) error {
 }
 
 func initDocumentDB(db *genji.DB) error {
-    documentDB = db
+	documentDB = db
 
-    createTableStmts := []string{
-        "CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
-        "CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
-        "CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
-    }
+	createTableStmts := []string{
+		"CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
+		"CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
+		"CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
+	}
 
-    for _, stmt := range createTableStmts {
-        if err := db.Exec(stmt); err != nil {
-            return err
-        }
-    }
+	for _, stmt := range createTableStmts {
+		if err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func insert(
