@@ -9,23 +9,6 @@ import (
 	"github.com/pingcap/tipb/go-tipb"
 )
 
-type CPUTimeSlicePool struct {
-	p sync.Pool
-}
-
-func (csp *CPUTimeSlicePool) Get() *[]*tipb.CPUTimeRecord {
-	csv := csp.p.Get()
-	if csv == nil {
-		return &[]*tipb.CPUTimeRecord{}
-	}
-	return csv.(*[]*tipb.CPUTimeRecord)
-}
-
-func (csp *CPUTimeSlicePool) Put(cs *[]*tipb.CPUTimeRecord) {
-	*cs = (*cs)[:0]
-	csp.p.Put(cs)
-}
-
 type SQLMetaSlicePool struct {
 	p sync.Pool
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -12,33 +13,44 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
-	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 )
 
 var (
 	httpServer *http.Server = nil
 
-	cpuTimeSliceP  = CPUTimeSlicePool{}
 	topSQLItemsP   = TopSQLItemsPool{}
 	instanceItemsP = InstanceItemsPool{}
 )
 
-func ServeHTTP(listener net.Listener) {
-	ng := gin.Default()
+func ServeHTTP(logFileName string, listener net.Listener) {
+	gin.SetMode(gin.ReleaseMode)
+	ng := gin.New()
+	ng.Use(gin.Logger(), gin.Recovery())
+
+	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		log.Fatal("Failed to open the log file", zap.String("filename", logFileName))
+	}
+	ng.Use(gin.LoggerWithWriter(file))
+
+	// recovery
+	ng.Use(gin.Recovery())
+
+	// cors
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-
 	ng.Use(cors.New(config))
+
+	// gzip
 	ng.Use(gzip.Gzip(gzip.DefaultCompression))
+
+	// route
 	ng.GET("/topsql/v1/cpu_time", topSQLCPUTime)
 	ng.GET("/topsql/v1/instances", topSQLAllInstances)
 
 	httpServer = &http.Server{Handler: ng}
-	if err := httpServer.Serve(listener); err != nil &&
-		err != cmux.ErrListenerClosed &&
-		err != cmux.ErrServerClosed &&
-		err != http.ErrServerClosed {
+	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Warn("failed to serve http service", zap.Error(err))
 	}
 }

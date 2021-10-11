@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"github.com/pingcap/log"
+	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/zhongzc/diag_backend/storage/database"
@@ -12,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 )
 
-func Init(tsdbPath string, docdbPath string) {
-	database.Init(tsdbPath, docdbPath)
+func Init(logPath string, logLevel, dataPath string) {
+	database.Init(logPath, logLevel, dataPath)
 
 	store.Init(func(writer http.ResponseWriter, request *http.Request) {
 		vminsert.RequestHandler(writer, request)
@@ -21,8 +23,11 @@ func Init(tsdbPath string, docdbPath string) {
 	query.Init(func(writer http.ResponseWriter, request *http.Request) {
 		vmselect.RequestHandler(writer, request)
 	}, document.Get())
+
+	log.Info("initialize storage successfully", zap.String("path", dataPath))
 }
 
 func Stop() {
 	database.Stop()
+	log.Info("initialize storage successfully")
 }

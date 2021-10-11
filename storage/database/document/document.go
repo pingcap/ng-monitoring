@@ -11,17 +11,27 @@ import (
 )
 
 var documentDB *genji.DB
+var l *logger
 
-func Init(path string) {
+func Init(logFileName string, logLevel string, dataPath string) {
 	var err error
-	engine, err := badgerengine.NewEngine(badger.DefaultOptions(path))
+
+	l, err = simpleLogger(logFileName, logLevel)
 	if err != nil {
-		log.Fatal("cannot open a badger storage", zap.String("path", path), zap.Error(err))
+		// Need to log via the default logger due to `l` is not initialized.
+		log.Fatal("Failed to init logger", zap.String("filename", logFileName))
+	}
+
+	option := badger.DefaultOptions(dataPath)
+	option.Logger = l
+	engine, err := badgerengine.NewEngine(option)
+	if err != nil {
+		l.Fatalf("Failed to open a badger storage, path: %s, err: %v", dataPath, err)
 	}
 
 	db, err := genji.New(context.Background(), engine)
 	if err != nil {
-		log.Fatal("cannot open a document database", zap.String("path", path), zap.Error(err))
+		l.Fatalf("Failed to open a document database, path: %s, err: %v", dataPath, err)
 	}
 	documentDB = db
 }
@@ -32,6 +42,6 @@ func Get() *genji.DB {
 
 func Stop() {
 	if err := documentDB.Close(); err != nil {
-		log.Fatal("cannot close the document database", zap.Error(err))
+		l.Fatalf("cannot close the document database, err: %v", err)
 	}
 }

@@ -2,18 +2,13 @@ package service
 
 import (
 	"net"
-	"net/http"
+	"path"
 
 	"github.com/pingcap/log"
-	"github.com/soheilhy/cmux"
 	"go.uber.org/zap"
 )
 
-var (
-	cm cmux.CMux = nil
-)
-
-func Init(listenAddr string) {
+func Init(logPath string, _logLevel string, listenAddr string) {
 	l, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		log.Fatal("failed to listen",
@@ -22,37 +17,15 @@ func Init(listenAddr string) {
 		)
 	}
 
-	cm = cmux.New(l)
-	httpL := cm.Match(cmux.HTTP1Fast())
-	grpcL := cm.Match(cmux.HTTP2())
-
-	go ServeHTTP(httpL)
-	go ServeGRPC(grpcL)
-	go func() {
-		if err := cm.Serve(); err != nil &&
-			err != cmux.ErrServerClosed &&
-			err != cmux.ErrListenerClosed &&
-			err != http.ErrServerClosed {
-			log.Warn("failed to serve http/grpc service",
-				zap.String("address", listenAddr),
-				zap.Error(err),
-			)
-		}
-	}()
+	go ServeHTTP(path.Join(logPath, "service.log"), l)
 
 	log.Info(
-		"starting http/grpc service",
+		"starting http service",
 		zap.String("address", listenAddr),
 	)
 }
 
 func Stop() {
-	if cm == nil {
-		return
-	}
-
-	log.Info("shutting down http/grpc service")
-	cm.Close()
+	log.Info("shutting down http service")
 	StopHTTP()
-	StopGRPC()
 }
