@@ -3,15 +3,17 @@ package topsql
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
+	"github.com/zhongzc/ng_monitoring/utils"
+
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
 	"github.com/wangjohn/quickselect"
-	"github.com/zhongzc/ng_monitoring/utils"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 var (

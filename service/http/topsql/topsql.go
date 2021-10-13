@@ -1,4 +1,4 @@
-package http
+package topsql
 
 import (
 	"net/http"
@@ -10,7 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func topSQL(g *gin.RouterGroup) {
+var (
+	topSQLItemsP   = TopSQLItemsPool{}
+	instanceItemsP = InstanceItemsPool{}
+)
+
+func TopSQL(g *gin.RouterGroup) {
 	g.GET("/v1/cpu_time", cpuTime)
 	g.GET("/v1/instances", instances)
 }

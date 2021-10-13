@@ -7,6 +7,7 @@ import (
 	"path"
 
 	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/service/http/topsql"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
@@ -17,9 +18,6 @@ import (
 
 var (
 	httpServer *http.Server = nil
-
-	topSQLItemsP   = TopSQLItemsPool{}
-	instanceItemsP = InstanceItemsPool{}
 )
 
 func ServeHTTP(l *config.Log, listener net.Listener) {
@@ -46,7 +44,7 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 
 	// route
 	topSQLGroup := ng.Group("/topsql")
-	topSQL(topSQLGroup)
+	topsql.TopSQL(topSQLGroup)
 
 	httpServer = &http.Server{Handler: ng}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {

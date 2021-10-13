@@ -1,8 +1,9 @@
-package http
+package topsql
 
 import (
-	"github.com/zhongzc/ng_monitoring/storage/query/topsql"
 	"sync"
+
+	"github.com/zhongzc/ng_monitoring/storage/query/topsql"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/tipb/go-tipb"
