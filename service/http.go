@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zhongzc/ng_monitoring_server/config"
-	"github.com/zhongzc/ng_monitoring_server/storage/query"
+	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/storage/query"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"

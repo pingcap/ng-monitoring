@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zhongzc/ng_monitoring_server/config"
+	"github.com/zhongzc/ng_monitoring/config"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"

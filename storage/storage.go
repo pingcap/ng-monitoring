@@ -3,11 +3,11 @@ package storage
 import (
 	"net/http"
 
-	"github.com/zhongzc/ng_monitoring_server/config"
-	"github.com/zhongzc/ng_monitoring_server/storage/database"
-	"github.com/zhongzc/ng_monitoring_server/storage/database/document"
-	"github.com/zhongzc/ng_monitoring_server/storage/query"
-	"github.com/zhongzc/ng_monitoring_server/storage/store"
+	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/storage/database"
+	"github.com/zhongzc/ng_monitoring/storage/database/document"
+	"github.com/zhongzc/ng_monitoring/storage/query"
+	"github.com/zhongzc/ng_monitoring/storage/store"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"

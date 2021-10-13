@@ -1,4 +1,4 @@
-module github.com/zhongzc/ng_monitoring_server
+module github.com/zhongzc/ng_monitoring
 
 go 1.16
 

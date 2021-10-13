@@ -5,9 +5,9 @@ import (
 	stdlog "log"
 	"os"
 
-	"github.com/zhongzc/ng_monitoring_server/config"
-	"github.com/zhongzc/ng_monitoring_server/service"
-	"github.com/zhongzc/ng_monitoring_server/storage"
+	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/service"
+	"github.com/zhongzc/ng_monitoring/storage"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"

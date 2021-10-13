@@ -5,7 +5,7 @@ import (
 	"log"
 	"path"
 
-	"github.com/zhongzc/ng_monitoring_server/config"
+	"github.com/zhongzc/ng_monitoring/config"
 
 	"github.com/dgraph-io/badger/v3"
 	"github.com/genjidb/genji"

@@ -3,7 +3,7 @@ package service
 import (
 	"sync"
 
-	"github.com/zhongzc/ng_monitoring_server/storage/query"
+	"github.com/zhongzc/ng_monitoring/storage/query"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/tipb/go-tipb"
