@@ -12,7 +12,7 @@ import (
 
 func topSQL(g *gin.RouterGroup) {
 	g.GET("/v1/cpu_time", cpuTime)
-	g.Group("/v1/instances", instances)
+	g.GET("/v1/instances", instances)
 }
 
 func cpuTime(c *gin.Context) {
