@@ -164,7 +164,7 @@ func ReloadRoutine(ctx context.Context, configPath string, cfg *Config) {
 			continue
 		}
 
-		if configsEqual(cfg, config) {
+		if !configsEqual(cfg, config) {
 			log.Info("PD endpoints changed", zap.Strings("endpoints", config.PD.Endpoints))
 		}
 
