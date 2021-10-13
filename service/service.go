@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/service/http"
 
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
@@ -18,7 +19,7 @@ func Init(cfg *config.Config) {
 		)
 	}
 
-	go ServeHTTP(&cfg.Log, listener)
+	go http.ServeHTTP(&cfg.Log, listener)
 
 	log.Info(
 		"starting http service",
@@ -27,5 +28,5 @@ func Init(cfg *config.Config) {
 }
 
 func Stop() {
-	StopHTTP()
+	http.StopHTTP()
 }
