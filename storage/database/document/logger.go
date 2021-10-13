@@ -1,8 +1,14 @@
 package document
 
 import (
-	"log"
+	stdlog "log"
 	"os"
+	"path"
+
+	"github.com/zhongzc/ng_monitoring_server/config"
+
+	"github.com/pingcap/log"
+	"go.uber.org/zap"
 )
 
 type loggingLevel int
@@ -15,20 +21,21 @@ const (
 )
 
 type logger struct {
-	*log.Logger
+	*stdlog.Logger
 	level loggingLevel
 }
 
-func simpleLogger(logFile string, logLevel string) (*logger, error) {
-	file, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE, 0644)
+func simpleLogger(l *config.Log) (*logger, error) {
+	logFileName := path.Join(l.Path, "docdb.log")
+	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
+		// Need to log via the default logger due to `l` is not initialized.
+		log.Warn("Failed to init logger", zap.String("filename", logFileName))
 		return nil, err
 	}
 
 	var level loggingLevel
-	switch logLevel {
-	case "DEBUG":
-		level = DEBUG
+	switch l.Level {
 	case "INFO":
 		level = INFO
 	case "WARN":
@@ -36,10 +43,10 @@ func simpleLogger(logFile string, logLevel string) (*logger, error) {
 	case "ERROR":
 		level = ERROR
 	default:
-		log.Fatal("Unsupported log level", logLevel)
+		log.Fatal("Unsupported log level", zap.String("level", l.Level))
 	}
 
-	return &logger{Logger: log.New(file, "badger ", log.LstdFlags), level: level}, nil
+	return &logger{Logger: stdlog.New(file, "badger ", stdlog.LstdFlags), level: level}, nil
 }
 
 func (l *logger) Errorf(f string, v ...interface{}) {

@@ -1,0 +1,19 @@
+# NG Monitoring Server Configuration.
+
+# Server address.
+addr = "0.0.0.0:8428"
+
+[log]
+# Log path
+path = "log"
+
+# Log level: INFO, WARN, ERROR
+level = "INFO"
+
+[pd]
+# Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. ["10.0.0.1:2379","10.0.0.2:2379"]
+endpoints = ["127.0.0.1:2379"]
+
+[storage]
+# Storage path of ng monitoring server
+path = "data"

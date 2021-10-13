@@ -4,10 +4,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"time"
 
-	"github.com/zhongzc/diag_backend/storage/query"
+	"github.com/zhongzc/ng_monitoring_server/config"
+	"github.com/zhongzc/ng_monitoring_server/storage/query"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
@@ -23,12 +25,13 @@ var (
 	instanceItemsP = InstanceItemsPool{}
 )
 
-func ServeHTTP(logFileName string, listener net.Listener) {
+func ServeHTTP(l *config.Log, listener net.Listener) {
 	gin.SetMode(gin.ReleaseMode)
 	ng := gin.New()
 	ng.Use(gin.Logger(), gin.Recovery())
 
-	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE, 0644)
+	logFileName := path.Join(l.Path, "service.log")
+	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatal("Failed to open the log file", zap.String("filename", logFileName))
 	}

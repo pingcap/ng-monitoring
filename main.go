@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	stdlog "log"
 	"os"
-	"path"
-	"strings"
 
-	"github.com/zhongzc/diag_backend/service"
-	"github.com/zhongzc/diag_backend/storage"
+	"github.com/zhongzc/ng_monitoring_server/config"
+	"github.com/zhongzc/ng_monitoring_server/service"
+	"github.com/zhongzc/ng_monitoring_server/storage"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"
@@ -15,11 +15,20 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	nmAddr        = "addr"
+	nmPdEndpoints = "pd.endpoints"
+	nmLogPath     = "log.path"
+	nmStoragePath = "storage.path"
+	nmConfig      = "config"
+)
+
 var (
-	listenAddr  = pflag.String("addr", ":8428", "TCP address to listen for http connections")
-	pdEndpoints = pflag.StringArray("pd.endpoints", nil, "Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. [10.0.0.1:2379,10.0.0.2:2379]")
-	logPath     = pflag.String("log.path", "log", "Log path of ng monitoring server")
-	dataPath    = pflag.String("storage.path", "data", "Storage path of ng monitoring server")
+	listenAddr  = pflag.String(nmAddr, "", "TCP address to listen for http connections")
+	pdEndpoints = pflag.StringArray(nmPdEndpoints, nil, "Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. [10.0.0.1:2379,10.0.0.2:2379]")
+	logPath     = pflag.String(nmLogPath, "", "Log path of ng monitoring server")
+	storagePath = pflag.String(nmStoragePath, "", "Storage path of ng monitoring server")
+	configPath  = pflag.String(nmConfig, "", "config file path")
 )
 
 func main() {
@@ -27,64 +36,51 @@ func main() {
 	// For isolation and avoiding conflict, we use another command line parser package `pflag`.
 	pflag.Parse()
 
-	checkArgs()
-	mustCreateDirs()
+	cfg, err := config.InitConfig(*configPath, overrideConfig)
+	if err != nil {
+		stdlog.Fatalf("Failed to initialize config, err: %s", err.Error())
+	}
 
-	logLevel := "INFO"
-	initDefaultLogger(path.Join(*logPath, "ng.log"), logLevel)
+	cfg.Log.InitDefaultLogger()
+	log.Info("config", zap.Any("config", cfg))
 
-	logConfig()
+	mustCreateDirs(cfg)
 
-	storage.Init(*logPath, logLevel, *dataPath)
+	storage.Init(cfg)
 	defer storage.Stop()
 
-	service.Init(*logPath, logLevel, *listenAddr)
+	service.Init(cfg)
 	defer service.Stop()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go config.ReloadRoutine(ctx, *configPath, cfg)
 	sig := procutil.WaitForSigterm()
 	log.Info("received signal", zap.String("sig", sig.String()))
 }
 
-func checkArgs() {
-	if len(*pdEndpoints) == 0 {
-		stdlog.Fatal("Unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"[127.0.0.1:2379]\"")
-	}
-
-	if len(*logPath) == 0 {
-		stdlog.Fatal("Unexpected empty log path")
-	}
-
-	if len(*dataPath) == 0 {
-		stdlog.Fatal("Unexpected empty data path")
-	}
-}
-
-func mustCreateDirs() {
-	if err := os.MkdirAll(*logPath, os.ModePerm); err != nil {
-		stdlog.Fatal("failed to init log path", err)
-	}
-
-	if err := os.MkdirAll(*dataPath, os.ModePerm); err != nil {
-		stdlog.Fatal("failed to init storage path", err)
-	}
-}
-
-func initDefaultLogger(logPath, logLevel string) {
-	l, p, err := log.InitLogger(&log.Config{
-		Level: strings.ToLower(logLevel),
-		File:  log.FileLogConfig{Filename: logPath},
+func overrideConfig(config *config.Config) {
+	pflag.Visit(func(f *pflag.Flag) {
+		switch f.Name {
+		case nmAddr:
+			config.Addr = *listenAddr
+		case nmPdEndpoints:
+			config.PD.Endpoints = *pdEndpoints
+		case nmLogPath:
+			config.Log.Path = *logPath
+		case nmStoragePath:
+			config.Storage.Path = *storagePath
+		}
 	})
-	if err != nil {
-		stdlog.Fatalf("Failed to init logger, err: %v", err)
-	}
-	log.ReplaceGlobals(l, p)
 }
 
-func logConfig() {
-	log.Info("config",
-		zap.String("addr", *listenAddr),
-		zap.Strings("pd.endpoints", *pdEndpoints),
-		zap.String("log.path", *logPath),
-		zap.String("storage.path", *dataPath),
-	)
+func mustCreateDirs(config *config.Config) {
+	if err := os.MkdirAll(config.Log.Path, os.ModePerm); err != nil {
+		log.Fatal("failed to init log path", zap.Error(err))
+	}
+
+	if err := os.MkdirAll(config.Storage.Path, os.ModePerm); err != nil {
+		log.Fatal("failed to init storage path", zap.Error(err))
+	}
 }

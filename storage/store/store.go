@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/zhongzc/diag_backend/utils"
+	"github.com/zhongzc/ng_monitoring_server/utils"
 
 	"github.com/genjidb/genji"
 	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"

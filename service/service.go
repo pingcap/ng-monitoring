@@ -2,30 +2,30 @@ package service
 
 import (
 	"net"
-	"path"
+
+	"github.com/zhongzc/ng_monitoring_server/config"
 
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
 )
 
-func Init(logPath string, _logLevel string, listenAddr string) {
-	l, err := net.Listen("tcp", listenAddr)
+func Init(cfg *config.Config) {
+	listener, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
 		log.Fatal("failed to listen",
-			zap.String("address", listenAddr),
+			zap.String("address", cfg.Addr),
 			zap.Error(err),
 		)
 	}
 
-	go ServeHTTP(path.Join(logPath, "service.log"), l)
+	go ServeHTTP(&cfg.Log, listener)
 
 	log.Info(
 		"starting http service",
-		zap.String("address", listenAddr),
+		zap.String("address", cfg.Addr),
 	)
 }
 
 func Stop() {
-	log.Info("shutting down http service")
 	StopHTTP()
 }
