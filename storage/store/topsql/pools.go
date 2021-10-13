@@ -1,4 +1,4 @@
-package store
+package topsql
 
 import (
 	"strings"

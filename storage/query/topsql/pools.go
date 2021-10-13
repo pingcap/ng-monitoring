@@ -1,6 +1,8 @@
-package query
+package topsql
 
-import "sync"
+import (
+	"sync"
+)
 
 type metricRespPool struct {
 	p sync.Pool

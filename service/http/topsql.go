@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zhongzc/ng_monitoring/storage/query"
+	"github.com/zhongzc/ng_monitoring/storage/query/topsql"
 
 	"github.com/gin-gonic/gin"
 )
@@ -95,7 +95,7 @@ func cpuTime(c *gin.Context) {
 	items := topSQLItemsP.Get()
 	defer topSQLItemsP.Put(items)
 
-	err = query.TopSQL(int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
+	err = topsql.TopSQL(int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
@@ -114,7 +114,7 @@ func instances(c *gin.Context) {
 	instances := instanceItemsP.Get()
 	defer instanceItemsP.Put(instances)
 
-	if err := query.AllInstances(instances); err != nil {
+	if err := topsql.AllInstances(instances); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
 			"message": err.Error(),

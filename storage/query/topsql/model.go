@@ -1,4 +1,4 @@
-package query
+package topsql
 
 type TopSQLItem struct {
 	SQLDigest string     `json:"sql_digest"`

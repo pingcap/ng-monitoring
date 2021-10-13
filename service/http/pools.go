@@ -1,9 +1,8 @@
 package http
 
 import (
+	"github.com/zhongzc/ng_monitoring/storage/query/topsql"
 	"sync"
-
-	"github.com/zhongzc/ng_monitoring/storage/query"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/tipb/go-tipb"
@@ -64,15 +63,15 @@ type TopSQLItemsPool struct {
 	p sync.Pool
 }
 
-func (tip *TopSQLItemsPool) Get() *[]query.TopSQLItem {
+func (tip *TopSQLItemsPool) Get() *[]topsql.TopSQLItem {
 	tiv := tip.p.Get()
 	if tiv == nil {
-		return &[]query.TopSQLItem{}
+		return &[]topsql.TopSQLItem{}
 	}
-	return tiv.(*[]query.TopSQLItem)
+	return tiv.(*[]topsql.TopSQLItem)
 }
 
-func (tip *TopSQLItemsPool) Put(ti *[]query.TopSQLItem) {
+func (tip *TopSQLItemsPool) Put(ti *[]topsql.TopSQLItem) {
 	*ti = (*ti)[:0]
 	tip.p.Put(ti)
 }
@@ -81,15 +80,15 @@ type InstanceItemsPool struct {
 	p sync.Pool
 }
 
-func (iip *InstanceItemsPool) Get() *[]query.InstanceItem {
+func (iip *InstanceItemsPool) Get() *[]topsql.InstanceItem {
 	iiv := iip.p.Get()
 	if iiv == nil {
-		return &[]query.InstanceItem{}
+		return &[]topsql.InstanceItem{}
 	}
-	return iiv.(*[]query.InstanceItem)
+	return iiv.(*[]topsql.InstanceItem)
 }
 
-func (iip *InstanceItemsPool) Put(iiv *[]query.InstanceItem) {
+func (iip *InstanceItemsPool) Put(iiv *[]topsql.InstanceItem) {
 	*iiv = (*iiv)[:0]
 	iip.p.Put(iiv)
 }
