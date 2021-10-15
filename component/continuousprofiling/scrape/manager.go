@@ -3,7 +3,6 @@ package scrape
 import (
 	"context"
 	"fmt"
-	"github.com/zhongzc/ng_monitoring/component/topologydiscovery"
 	"sort"
 	"strconv"
 	"sync"
@@ -14,7 +13,9 @@ import (
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/store"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
+	"github.com/zhongzc/ng_monitoring/component/topology"
 	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/utils"
 	"go.uber.org/zap"
 )
 
@@ -22,10 +23,10 @@ import (
 // when receiving new target groups form the discovery manager.
 type Manager struct {
 	store          *store.ProfileStorage
-	topoSubScribe  topologydiscovery.Subscriber
+	topoSubScribe  topology.Subscriber
 	reloadCh       chan struct{}
-	curComponents  map[topologydiscovery.Component]struct{}
-	lastComponents map[topologydiscovery.Component]struct{}
+	curComponents  map[topology.Component]struct{}
+	lastComponents map[topology.Component]struct{}
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -35,13 +36,13 @@ type Manager struct {
 }
 
 // NewManager is the Manager constructor
-func NewManager(store *store.ProfileStorage, topoSubScribe topologydiscovery.Subscriber) *Manager {
+func NewManager(store *store.ProfileStorage, topoSubScribe topology.Subscriber) *Manager {
 	return &Manager{
 		store:          store,
 		topoSubScribe:  topoSubScribe,
 		reloadCh:       make(chan struct{}, 10),
-		curComponents:  map[topologydiscovery.Component]struct{}{},
-		lastComponents: map[topologydiscovery.Component]struct{}{},
+		curComponents:  map[topology.Component]struct{}{},
+		lastComponents: map[topology.Component]struct{}{},
 		scrapeSuites:   make(map[meta.ProfileTarget]*ScrapeSuite),
 	}
 }
@@ -49,11 +50,11 @@ func NewManager(store *store.ProfileStorage, topoSubScribe topologydiscovery.Sub
 func (m *Manager) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
-	go util.GoWithRecovery(func() {
+	go utils.GoWithRecovery(func() {
 		m.run(ctx)
 	}, nil)
 
-	go util.GoWithRecovery(func() {
+	go utils.GoWithRecovery(func() {
 		m.updateTargetMetaLoop(ctx)
 	}, nil)
 	log.Info("continuous profiling manager started")
@@ -66,8 +67,8 @@ func (m *Manager) NotifyReload() {
 	}
 }
 
-func (m *Manager) GetCurrentScrapeComponents() []topologydiscovery.Component {
-	components := make([]topologydiscovery.Component, 0, len(m.curComponents))
+func (m *Manager) GetCurrentScrapeComponents() []topology.Component {
+	components := make([]topology.Component, 0, len(m.curComponents))
 	for comp := range m.curComponents {
 		components = append(components, comp)
 	}
@@ -85,6 +86,7 @@ func (m *Manager) GetCurrentScrapeComponents() []topologydiscovery.Component {
 
 func (m *Manager) updateTargetMetaLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -119,8 +121,8 @@ func (m *Manager) updateTargetMeta() {
 }
 
 func (m *Manager) run(ctx context.Context) {
-	buildMap := func(components []topologydiscovery.Component) map[topologydiscovery.Component]struct{} {
-		m := make(map[topologydiscovery.Component]struct{}, len(components))
+	buildMap := func(components []topology.Component) map[topology.Component]struct{} {
+		m := make(map[topology.Component]struct{}, len(components))
 		for _, comp := range components {
 			m[comp] = struct{}{}
 		}
@@ -174,7 +176,7 @@ func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProf
 	}
 }
 
-func (m *Manager) startScrape(ctx context.Context, component topologydiscovery.Component, continueProfilingCfg config.ContinueProfilingConfig) error {
+func (m *Manager) startScrape(ctx context.Context, component topology.Component, continueProfilingCfg config.ContinueProfilingConfig) error {
 	if !continueProfilingCfg.Enable {
 		return nil
 	}
@@ -199,7 +201,7 @@ func (m *Manager) startScrape(ctx context.Context, component topologydiscovery.C
 		interval := time.Duration(continueProfilingCfg.IntervalSeconds) * time.Second
 		timeout := time.Duration(continueProfilingCfg.TimeoutSeconds) * time.Second
 		m.wg.Add(1)
-		go util.GoWithRecovery(func() {
+		go utils.GoWithRecovery(func() {
 			defer m.wg.Done()
 			scrapeSuite.run(interval, timeout)
 		}, nil)
@@ -212,7 +214,7 @@ func (m *Manager) startScrape(ctx context.Context, component topologydiscovery.C
 	return nil
 }
 
-func (m *Manager) stopScrape(component topologydiscovery.Component) {
+func (m *Manager) stopScrape(component topology.Component) {
 	delete(m.curComponents, component)
 	addr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
 	log.Info("stop component scrape",
@@ -233,9 +235,9 @@ func (m *Manager) stopScrape(component topologydiscovery.Component) {
 	}
 }
 
-func (m *Manager) getProfilingConfig(component topologydiscovery.Component) *config.ProfilingConfig {
+func (m *Manager) getProfilingConfig(component topology.Component) *config.ProfilingConfig {
 	switch component.Name {
-	case topologydiscovery.ComponentTiDB, topologydiscovery.ComponentPD:
+	case topology.ComponentTiDB, topology.ComponentPD:
 		return goAppProfilingConfig()
 	default:
 		return nonGoAppProfilingConfig()

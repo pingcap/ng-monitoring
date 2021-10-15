@@ -19,6 +19,7 @@ const (
 
 func (s *ProfileStorage) doGCLoop() {
 	ticker := time.NewTicker(gcInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:

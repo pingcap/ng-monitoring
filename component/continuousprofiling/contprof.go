@@ -4,29 +4,22 @@ import (
 	"github.com/genjidb/genji"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/scrape"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/store"
-	"github.com/zhongzc/ng_monitoring/component/topologydiscovery"
-	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/component/topology"
 )
 
 var (
-	storage  *store.ProfileStorage
-	discover *topologydiscovery.TopologyDiscoverer
-	manager  *scrape.Manager
+	storage *store.ProfileStorage
+	manager *scrape.Manager
 )
 
-func Init(db *genji.DB, cfg *config.Config) error {
+func Init(db *genji.DB, subscriber topology.Subscriber) error {
 	var err error
 	storage, err = store.NewProfileStorage(db)
 	if err != nil {
 		return err
 	}
-	discover, err = topologydiscovery.NewTopologyDiscoverer(cfg.PD.Endpoints[0], cfg.Security.GetTLSConfig())
-	if err != nil {
-		return err
-	}
-	manager = scrape.NewManager(storage, discover.Subscribe())
+	manager = scrape.NewManager(storage, subscriber)
 	manager.Start()
-	discover.Start()
 	return nil
 }
 

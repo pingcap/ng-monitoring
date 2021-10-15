@@ -12,6 +12,7 @@ import (
 	"github.com/pingcap/log"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
+	"github.com/zhongzc/ng_monitoring/utils"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -42,7 +43,7 @@ func NewProfileStorage(db *genji.DB) (*ProfileStorage, error) {
 		return nil, err
 	}
 
-	go util.GoWithRecovery(store.doGCLoop, nil)
+	go utils.GoWithRecovery(store.doGCLoop, nil)
 
 	return store, nil
 }

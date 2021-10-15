@@ -1,4 +1,4 @@
-package topologydiscovery
+package topology
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/pingcap/tidb-dashboard/pkg/httpc"
 	"github.com/pingcap/tidb-dashboard/pkg/pd"
 	"github.com/pingcap/tidb-dashboard/pkg/utils/topology"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
+	"github.com/zhongzc/ng_monitoring/utils"
 	"go.etcd.io/etcd/clientv3"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -28,8 +28,8 @@ const (
 
 type TopologyDiscoverer struct {
 	sync.Mutex
-	PDClient   *pd.Client
-	EtcdClient *clientv3.Client
+	pdCli      *pd.Client
+	etcdCli    *clientv3.Client
 	subscriber []chan []Component
 	closed     chan struct{}
 }
@@ -53,9 +53,9 @@ func NewTopologyDiscoverer(pdAddr string, tlsConfig *tls.Config) (*TopologyDisco
 		return nil, err
 	}
 	d := &TopologyDiscoverer{
-		PDClient:   pdCli,
-		EtcdClient: etcdCli,
-		closed:     make(chan struct{}),
+		pdCli:   pdCli,
+		etcdCli: etcdCli,
+		closed:  make(chan struct{}),
 	}
 	return d, nil
 }
@@ -69,17 +69,18 @@ func (d *TopologyDiscoverer) Subscribe() chan []Component {
 }
 
 func (d *TopologyDiscoverer) Start() {
-	go util.GoWithRecovery(d.loadTopologyLoop, nil)
+	go utils.GoWithRecovery(d.loadTopologyLoop, nil)
 }
 
 func (d *TopologyDiscoverer) Close() error {
 	close(d.closed)
-	return d.EtcdClient.Close()
+	return d.etcdCli.Close()
 }
 
 func (d *TopologyDiscoverer) loadTopologyLoop() {
 	d.loadTopology()
 	ticker := time.NewTicker(discoverInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-d.closed:
@@ -129,7 +130,7 @@ func (d *TopologyDiscoverer) getAllScrapeTargets(ctx context.Context) ([]Compone
 }
 
 func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topology.FetchTiDBTopology(ctx, d.EtcdClient)
+	instances, err := topology.FetchTiDBTopology(ctx, d.etcdCli)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +150,7 @@ func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component
 }
 
 func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topology.FetchPDTopology(d.PDClient)
+	instances, err := topology.FetchPDTopology(d.pdCli)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +170,7 @@ func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, 
 }
 
 func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Component, error) {
-	tikvInstances, tiflashInstances, err := topology.FetchStoreTopology(d.PDClient)
+	tikvInstances, tiflashInstances, err := topology.FetchStoreTopology(d.pdCli)
 	if err != nil {
 		return nil, err
 	}

@@ -4,15 +4,16 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
 	"github.com/zhongzc/ng_monitoring/config"
 	"go.uber.org/zap"
-	"io"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 func HTTPService(g *gin.RouterGroup) {

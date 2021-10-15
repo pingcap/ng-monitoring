@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-
 	stdlog "log"
 	"os"
 
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
+	"github.com/zhongzc/ng_monitoring/component/topology"
 	"github.com/zhongzc/ng_monitoring/component/topsql"
 	"github.com/zhongzc/ng_monitoring/config"
 	"github.com/zhongzc/ng_monitoring/database"
@@ -21,19 +21,21 @@ import (
 )
 
 const (
-	nmAddr        = "addr"
-	nmPdEndpoints = "pd.endpoints"
-	nmLogPath     = "log.path"
-	nmStoragePath = "storage.path"
-	nmConfig      = "config"
+	nmAddr             = "addr"
+	nmPdEndpoints      = "pd.endpoints"
+	nmLogPath          = "log.path"
+	nmStoragePath      = "storage.path"
+	nmConfig           = "config"
+	nmAdvertiseAddress = "advertise-address"
 )
 
 var (
-	listenAddr  = pflag.String(nmAddr, "", "TCP address to listen for http connections")
-	pdEndpoints = pflag.StringArray(nmPdEndpoints, nil, "Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. [10.0.0.1:2379,10.0.0.2:2379]")
-	logPath     = pflag.String(nmLogPath, "", "Log path of ng monitoring server")
-	storagePath = pflag.String(nmStoragePath, "", "Storage path of ng monitoring server")
-	configPath  = pflag.String(nmConfig, "", "config file path")
+	listenAddr       = pflag.String(nmAddr, "", "TCP address to listen for http connections")
+	pdEndpoints      = pflag.StringArray(nmPdEndpoints, nil, "Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. [10.0.0.1:2379,10.0.0.2:2379]")
+	logPath          = pflag.String(nmLogPath, "", "Log path of ng monitoring server")
+	storagePath      = pflag.String(nmStoragePath, "", "Storage path of ng monitoring server")
+	configPath       = pflag.String(nmConfig, "", "config file path")
+	advertiseAddress = pflag.String(nmAdvertiseAddress, "", "tidb server advertise IP")
 )
 
 func main() {
@@ -54,10 +56,16 @@ func main() {
 	database.Init(cfg)
 	defer database.Stop()
 
+	err = topology.Init()
+	if err != nil {
+		stdlog.Fatalf("Failed to initialize topology, err: %s", err.Error())
+	}
+	defer topology.Stop()
+
 	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler)
 	defer topsql.Stop()
 
-	err = continuousprofiling.Init(document.Get(), cfg)
+	err = continuousprofiling.Init(document.Get(), topology.Subscribe())
 	if err != nil {
 		stdlog.Fatalf("Failed to initialize continuous profiling, err: %s", err.Error())
 	}
@@ -85,6 +93,8 @@ func overrideConfig(config *config.Config) {
 			config.Log.Path = *logPath
 		case nmStoragePath:
 			config.Storage.Path = *storagePath
+		case nmAdvertiseAddress:
+			config.AdvertiseAddress = *advertiseAddress
 		}
 	})
 }
