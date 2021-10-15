@@ -1,4 +1,4 @@
-package topsql
+package store
 
 type Metric struct {
 	Metric     topSQLTags `json:"metric"`

@@ -3,13 +3,15 @@ package main
 import (
 	"context"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
-	"github.com/zhongzc/ng_monitoring/storage/database/document"
+	"github.com/zhongzc/ng_monitoring/component/topsql"
+	"github.com/zhongzc/ng_monitoring/database"
+	"github.com/zhongzc/ng_monitoring/database/document"
+	"github.com/zhongzc/ng_monitoring/database/timeseries"
 	stdlog "log"
 	"os"
 
 	"github.com/zhongzc/ng_monitoring/config"
 	"github.com/zhongzc/ng_monitoring/service"
-	"github.com/zhongzc/ng_monitoring/storage"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"
@@ -48,10 +50,13 @@ func main() {
 
 	mustCreateDirs(cfg)
 
-	storage.Init(cfg)
-	defer storage.Stop()
+	database.Init(cfg)
+	defer database.Stop()
 
-	err = continuousprofiling.Init(document.Get(),cfg)
+	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler)
+	defer topsql.Stop()
+
+	err = continuousprofiling.Init(document.Get(), cfg)
 	if err != nil {
 		stdlog.Fatalf("Failed to initialize continuous profiling, err: %s", err.Error())
 	}

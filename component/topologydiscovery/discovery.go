@@ -1,4 +1,4 @@
-package discovery
+package topologydiscovery
 
 import (
 	"context"
@@ -95,10 +95,10 @@ func (d *TopologyDiscoverer) loadTopology() {
 	defer cancel()
 	components, err := d.getAllScrapeTargets(ctx)
 	if err != nil {
-		log.Error("load topology failed", zap.Error(err))
+		log.Error("load topologydiscovery failed", zap.Error(err))
 		return
 	}
-	log.Info("load topology success", zap.Reflect("component", components))
+	log.Info("load topologydiscovery success", zap.Reflect("component", components))
 	d.notifySubscriber(components)
 }
 

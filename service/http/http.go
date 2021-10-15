@@ -1,14 +1,14 @@
 package http
 
 import (
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
 	"net"
 	"net/http"
 	"os"
 	"path"
 
+	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
+	topsqlsvc "github.com/zhongzc/ng_monitoring/component/topsql/service"
 	"github.com/zhongzc/ng_monitoring/config"
-	"github.com/zhongzc/ng_monitoring/service/http/topsql"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
@@ -47,7 +47,7 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	configGroup := ng.Group("/config")
 	configService(configGroup)
 	topSQLGroup := ng.Group("/topsql")
-	topsql.TopSQL(topSQLGroup)
+	topsqlsvc.HTTPService(topSQLGroup)
 	continuousProfilingGroup := ng.Group("/continuous-profiling")
 	continuousprofiling.HTTPService(continuousProfilingGroup)
 

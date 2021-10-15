@@ -19,7 +19,6 @@ require (
 	github.com/pingcap/tidb-dashboard v0.0.0-20211008050453-a25c25809529
 	github.com/pingcap/tipb v0.0.0-20210917081614-311f2369c5f7
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/common v0.31.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0

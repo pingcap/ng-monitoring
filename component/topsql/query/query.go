@@ -1,4 +1,4 @@
-package topsql
+package query
 
 import (
 	"encoding/json"
@@ -31,6 +31,10 @@ var (
 func Init(vmselectHandler_ http.HandlerFunc, db *genji.DB) {
 	vmselectHandler = vmselectHandler_
 	documentDB = db
+}
+
+func Stop() {
+
 }
 
 func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {
@@ -83,7 +87,7 @@ type sqlGroup struct {
 
 func fetchTimeseriesDB(startSecs int, endSecs int, windowSecs int, instance string, metricResponse *metricResp) error {
 	if vmselectHandler == nil {
-		return fmt.Errorf("empty query handler")
+		return fmt.Errorf("empty store handler")
 	}
 
 	bufResp := bytesP.Get()
@@ -101,7 +105,7 @@ func fetchTimeseriesDB(startSecs int, endSecs int, windowSecs int, instance stri
 		return err
 	}
 	reqQuery := req.URL.Query()
-	reqQuery.Set("query", query)
+	reqQuery.Set("store", query)
 	reqQuery.Set("start", start)
 	reqQuery.Set("end", end)
 	reqQuery.Set("step", strconv.Itoa(windowSecs))

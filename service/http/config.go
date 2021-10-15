@@ -83,7 +83,7 @@ func handleContinueProfilingConfigModify(reqNested map[string]interface{}) error
 	}
 
 	data, err := json.Marshal(currentNested)
-	if err != err {
+	if err != nil {
 		return err
 	}
 	var newCfg config.ContinueProfilingConfig

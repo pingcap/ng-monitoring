@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/pingcap/log"
+	"github.com/pkg/errors"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/store"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
-	"github.com/pingcap/log"
-	"github.com/pkg/errors"
+	"github.com/zhongzc/ng_monitoring/config"
 	"go.uber.org/zap"
 	"golang.org/x/net/context/ctxhttp"
 )

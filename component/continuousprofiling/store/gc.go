@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zhongzc/ng_monitoring/config"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
-	"github.com/pingcap/log"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/types"
+	"github.com/pingcap/log"
+	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
+	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
+	"github.com/zhongzc/ng_monitoring/config"
 	"go.uber.org/zap"
 )
 
