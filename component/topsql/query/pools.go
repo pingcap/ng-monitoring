@@ -1,4 +1,4 @@
-package topsql
+package query
 
 import (
 	"sync"

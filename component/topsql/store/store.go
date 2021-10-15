@@ -1,4 +1,4 @@
-package topsql
+package store
 
 import (
 	"bytes"
@@ -31,6 +31,10 @@ func Init(vminsertHandler_ http.HandlerFunc, documentDB *genji.DB) {
 	if err := initDocumentDB(documentDB); err != nil {
 		log.Fatal("cannot init tables", zap.Error(err))
 	}
+}
+
+func Stop() {
+
 }
 
 func TopSQLRecords(records []*tipb.CPUTimeRecord) error {

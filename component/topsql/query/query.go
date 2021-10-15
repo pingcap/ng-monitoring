@@ -1,4 +1,4 @@
-package topsql
+package query
 
 import (
 	"encoding/json"
@@ -31,6 +31,10 @@ var (
 func Init(vmselectHandler_ http.HandlerFunc, db *genji.DB) {
 	vmselectHandler = vmselectHandler_
 	documentDB = db
+}
+
+func Stop() {
+
 }
 
 func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {

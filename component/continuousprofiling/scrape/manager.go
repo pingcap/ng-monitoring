@@ -3,6 +3,7 @@ package scrape
 import (
 	"context"
 	"fmt"
+	"github.com/zhongzc/ng_monitoring/component/topologydiscovery"
 	"sort"
 	"strconv"
 	"sync"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/pingcap/log"
 	commonconfig "github.com/prometheus/common/config"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/discovery"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/store"
 	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
@@ -22,10 +22,10 @@ import (
 // when receiving new target groups form the discovery manager.
 type Manager struct {
 	store          *store.ProfileStorage
-	topoSubScribe  discovery.Subscriber
+	topoSubScribe  topologydiscovery.Subscriber
 	reloadCh       chan struct{}
-	curComponents  map[discovery.Component]struct{}
-	lastComponents map[discovery.Component]struct{}
+	curComponents  map[topologydiscovery.Component]struct{}
+	lastComponents map[topologydiscovery.Component]struct{}
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -35,13 +35,13 @@ type Manager struct {
 }
 
 // NewManager is the Manager constructor
-func NewManager(store *store.ProfileStorage, topoSubScribe discovery.Subscriber) *Manager {
+func NewManager(store *store.ProfileStorage, topoSubScribe topologydiscovery.Subscriber) *Manager {
 	return &Manager{
 		store:          store,
 		topoSubScribe:  topoSubScribe,
 		reloadCh:       make(chan struct{}, 10),
-		curComponents:  map[discovery.Component]struct{}{},
-		lastComponents: map[discovery.Component]struct{}{},
+		curComponents:  map[topologydiscovery.Component]struct{}{},
+		lastComponents: map[topologydiscovery.Component]struct{}{},
 		scrapeSuites:   make(map[meta.ProfileTarget]*ScrapeSuite),
 	}
 }
@@ -66,8 +66,8 @@ func (m *Manager) NotifyReload() {
 	}
 }
 
-func (m *Manager) GetCurrentScrapeComponents() []discovery.Component {
-	components := make([]discovery.Component, 0, len(m.curComponents))
+func (m *Manager) GetCurrentScrapeComponents() []topologydiscovery.Component {
+	components := make([]topologydiscovery.Component, 0, len(m.curComponents))
 	for comp := range m.curComponents {
 		components = append(components, comp)
 	}
@@ -119,8 +119,8 @@ func (m *Manager) updateTargetMeta() {
 }
 
 func (m *Manager) run(ctx context.Context) {
-	buildMap := func(components []discovery.Component) map[discovery.Component]struct{} {
-		m := make(map[discovery.Component]struct{}, len(components))
+	buildMap := func(components []topologydiscovery.Component) map[topologydiscovery.Component]struct{} {
+		m := make(map[topologydiscovery.Component]struct{}, len(components))
 		for _, comp := range components {
 			m[comp] = struct{}{}
 		}
@@ -174,7 +174,7 @@ func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProf
 	}
 }
 
-func (m *Manager) startScrape(ctx context.Context, component discovery.Component, continueProfilingCfg config.ContinueProfilingConfig) error {
+func (m *Manager) startScrape(ctx context.Context, component topologydiscovery.Component, continueProfilingCfg config.ContinueProfilingConfig) error {
 	if !continueProfilingCfg.Enable {
 		return nil
 	}
@@ -212,7 +212,7 @@ func (m *Manager) startScrape(ctx context.Context, component discovery.Component
 	return nil
 }
 
-func (m *Manager) stopScrape(component discovery.Component) {
+func (m *Manager) stopScrape(component topologydiscovery.Component) {
 	delete(m.curComponents, component)
 	addr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
 	log.Info("stop component scrape",
@@ -233,9 +233,9 @@ func (m *Manager) stopScrape(component discovery.Component) {
 	}
 }
 
-func (m *Manager) getProfilingConfig(component discovery.Component) *config.ProfilingConfig {
+func (m *Manager) getProfilingConfig(component topologydiscovery.Component) *config.ProfilingConfig {
 	switch component.Name {
-	case discovery.ComponentTiDB, discovery.ComponentPD:
+	case topologydiscovery.ComponentTiDB, topologydiscovery.ComponentPD:
 		return goAppProfilingConfig()
 	default:
 		return nonGoAppProfilingConfig()

@@ -1,4 +1,4 @@
-package http
+package config
 
 import (
 	"bytes"
@@ -6,18 +6,17 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
-	"github.com/zhongzc/ng_monitoring/config"
 	"go.uber.org/zap"
 	"net/http"
 )
 
-func configService(g *gin.RouterGroup) {
+func HTTPService(g *gin.RouterGroup) {
 	g.GET("", handleGetConfig)
 	g.POST("", handlePostConfig)
 }
 
 func handleGetConfig(c *gin.Context) {
-	cfg := config.GetGlobalConfig()
+	cfg := GetGlobalConfig()
 	c.JSON(http.StatusOK, cfg)
 }
 
@@ -56,7 +55,7 @@ func handleModifyConfig(c *gin.Context) error {
 }
 
 func handleContinueProfilingConfigModify(reqNested map[string]interface{}) error {
-	cfg := config.GetGlobalConfig()
+	cfg := GetGlobalConfig()
 	current, err := json.Marshal(cfg.ContinueProfiling)
 	if err != nil {
 		return err
@@ -83,17 +82,17 @@ func handleContinueProfilingConfigModify(reqNested map[string]interface{}) error
 	}
 
 	data, err := json.Marshal(currentNested)
-	if err != err {
+	if err != nil {
 		return err
 	}
-	var newCfg config.ContinueProfilingConfig
+	var newCfg ContinueProfilingConfig
 	err = json.NewDecoder(bytes.NewReader(data)).Decode(&newCfg)
 	if err != nil {
 		return err
 	}
 
 	cfg.ContinueProfiling = newCfg
-	config.StoreGlobalConfig(cfg)
+	StoreGlobalConfig(cfg)
 	// todo: notify reload.
 	//s.scraper.NotifyReload()
 	return nil
