@@ -20,7 +20,7 @@ func HTTPService(g *gin.RouterGroup) {
 	g.POST("/list", handleQueryList)
 	g.POST("/download", handleDownload)
 	g.GET("/components", handleComponents)
-	g.GET("/estimate_size", handleEstimateSize)
+	g.GET("/estimate-size", handleEstimateSize)
 }
 
 func handleQueryList(c *gin.Context) {

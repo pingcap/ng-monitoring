@@ -8,7 +8,7 @@ curl http://0.0.0.0:10092/config
 curl -X POST -d '{"continuous_profiling": {"enable": false,"profile_seconds":6,"interval_seconds":11}}' http://0.0.0.0:10092/config
 
 # estimate size profile data size
-curl http://0.0.0.0:10092/continuous-profiling/estimate_size\?days\=3
+curl http://0.0.0.0:10092/continuous-profiling/estimate-size\?days\=3
 
 # query profile list
 curl -X POST -d '{"begin_time":1634182783, "end_time":1634182883}' http://0.0.0.0:10092/continuous-profiling/list
