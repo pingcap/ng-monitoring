@@ -36,16 +36,16 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	ng.Use(gin.Recovery())
 
 	// cors
-	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
-	ng.Use(cors.New(config))
+	crs := cors.DefaultConfig()
+	crs.AllowAllOrigins = true
+	ng.Use(cors.New(crs))
 
 	// gzip
 	ng.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	// route
 	configGroup := ng.Group("/config")
-	configService(configGroup)
+	config.HTTPService(configGroup)
 	topSQLGroup := ng.Group("/topsql")
 	topsqlsvc.HTTPService(topSQLGroup)
 	continuousProfilingGroup := ng.Group("/continuous-profiling")
