@@ -1,9 +1,10 @@
 package timeseries
 
 import (
+	"net/http"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
-	"net/http"
 )
 
 var _ http.HandlerFunc = InsertHandler

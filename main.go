@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
-	"github.com/zhongzc/ng_monitoring/component/topsql"
-	"github.com/zhongzc/ng_monitoring/database"
-	"github.com/zhongzc/ng_monitoring/database/document"
-	"github.com/zhongzc/ng_monitoring/database/timeseries"
+
 	stdlog "log"
 	"os"
 
+	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
+	"github.com/zhongzc/ng_monitoring/component/topsql"
 	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/database"
+	"github.com/zhongzc/ng_monitoring/database/document"
+	"github.com/zhongzc/ng_monitoring/database/timeseries"
 	"github.com/zhongzc/ng_monitoring/service"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
