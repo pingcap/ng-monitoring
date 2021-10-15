@@ -2,23 +2,39 @@ package config
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
-	"go.uber.org/zap"
 	stdlog "log"
 	"path"
 	"sort"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"
+	commonconfig "github.com/prometheus/common/config"
+	"go.etcd.io/etcd/pkg/transport"
+	"go.uber.org/zap"
+)
+
+const (
+	DefProfilingEnable               = true
+	DefProfilingIntervalSeconds      = 10
+	DefProfileSeconds                = 5
+	DefProfilingTimeoutSeconds       = 120
+	DefProfilingDataRetentionSeconds = 3 * 24 * 60 * 60 // 3 days
 )
 
 type Config struct {
-	Addr    string  `toml:"addr" json:"addr"`
-	PD      PD      `toml:"pd" json:"pd"`
-	Log     Log     `toml:"log" json:"log"`
-	Storage Storage `toml:"storage" json:"storage"`
+	Addr              string                  `toml:"addr" json:"addr"`
+	AdvertiseAddress  string                  `toml:"advertise_address" json:"advertise_address"`
+	PD                PD                      `toml:"pd" json:"pd"`
+	Log               Log                     `toml:"log" json:"log"`
+	Storage           Storage                 `toml:"storage" json:"storage"`
+	ContinueProfiling ContinueProfilingConfig `toml:"-" json:"continuous_profiling"`
+	Security          Security                `toml:"security" json:"security"`
 }
 
 var defaultConfig = Config{
@@ -33,6 +49,24 @@ var defaultConfig = Config{
 	Storage: Storage{
 		Path: "data",
 	},
+	ContinueProfiling: ContinueProfilingConfig{
+		Enable:               DefProfilingEnable,
+		ProfileSeconds:       DefProfileSeconds,
+		IntervalSeconds:      DefProfilingIntervalSeconds,
+		TimeoutSeconds:       DefProfilingTimeoutSeconds,
+		DataRetentionSeconds: DefProfilingDataRetentionSeconds,
+	},
+}
+
+var globalConf atomic.Value
+
+func GetGlobalConfig() *Config {
+	return globalConf.Load().(*Config)
+}
+
+// StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
+func StoreGlobalConfig(config *Config) {
+	globalConf.Store(config)
 }
 
 func InitConfig(configPath string, override func(config *Config)) (*Config, error) {
@@ -48,7 +82,7 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 	if err := config.valid(); err != nil {
 		return nil, err
 	}
-
+	StoreGlobalConfig(&config)
 	return &config, nil
 }
 
@@ -170,6 +204,7 @@ func ReloadRoutine(ctx context.Context, configPath string, cfg *Config) {
 
 		// TODO: apply config change
 		cfg = config
+		StoreGlobalConfig(config)
 	}
 }
 
@@ -187,4 +222,85 @@ func configsEqual(a, b *Config) bool {
 	}
 
 	return true
+}
+
+func (c *Config) GetHTTPScheme() string {
+	if c.Security.GetTLSConfig() != nil {
+		return "https"
+	}
+	return "http"
+}
+
+type Security struct {
+	SSLCA     string      `toml:"ssl_ca" json:"ssl_ca"`
+	SSLCert   string      `toml:"ssl_cert" json:"ssl_cert"`
+	SSLKey    string      `toml:"ssl_key" json:"ssl_key"`
+	tlsConfig *tls.Config `toml:"-" json:"-"`
+}
+
+func (s *Security) GetTLSConfig() *tls.Config {
+	if s.tlsConfig != nil {
+		return s.tlsConfig
+	}
+	if s.SSLCA == "" || s.SSLCert == "" || s.SSLKey == "" {
+		return nil
+	}
+	s.tlsConfig = buildTLSConfig(s.SSLCA, s.SSLKey, s.SSLCert)
+	return s.tlsConfig
+}
+
+func (s *Security) GetHTTPClientConfig() commonconfig.HTTPClientConfig {
+	return commonconfig.HTTPClientConfig{
+		TLSConfig: commonconfig.TLSConfig{
+			CAFile:   s.SSLCA,
+			CertFile: s.SSLCert,
+			KeyFile:  s.SSLKey,
+		},
+	}
+}
+
+func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
+	tlsInfo := transport.TLSInfo{
+		TrustedCAFile: caPath,
+		KeyFile:       keyPath,
+		CertFile:      certPath,
+	}
+	tlsConfig, err := tlsInfo.ClientConfig()
+	if err != nil {
+		log.Fatal("Failed to load certificates", zap.Error(err))
+	}
+	return tlsConfig
+}
+
+type ContinueProfilingConfig struct {
+	Enable               bool `json:"enable"`
+	ProfileSeconds       int  `json:"profile_seconds"`
+	IntervalSeconds      int  `json:"interval_seconds"`
+	TimeoutSeconds       int  `json:"timeout_seconds"`
+	DataRetentionSeconds int  `json:"data_retention_seconds"`
+}
+
+// ScrapeConfig configures a scraping unit for conprof.
+type ScrapeConfig struct {
+	ComponentName string `yaml:"component_name,omitempty"`
+	// How frequently to scrape the targets of this scrape config.
+	ScrapeInterval time.Duration `yaml:"scrape_interval,omitempty"`
+	// The timeout for scraping targets of this config.
+	ScrapeTimeout time.Duration `yaml:"scrape_timeout,omitempty"`
+
+	ProfilingConfig *ProfilingConfig `yaml:"profiling_config,omitempty"`
+	Targets         []string         `yaml:"targets"`
+}
+
+type ProfilingConfig struct {
+	PprofConfig PprofConfig `yaml:"pprof_config,omitempty"`
+}
+
+type PprofConfig map[string]*PprofProfilingConfig
+
+type PprofProfilingConfig struct {
+	Path    string            `yaml:"path,omitempty"`
+	Seconds int               `yaml:"seconds"`
+	Header  map[string]string `yaml:"header,omitempty"`
+	Params  map[string]string `yaml:"params,omitempty"`
 }

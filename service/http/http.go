@@ -1,6 +1,7 @@
 package http
 
 import (
+	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
 	"net"
 	"net/http"
 	"os"
@@ -43,8 +44,12 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	ng.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	// route
+	configGroup := ng.Group("/config")
+	configService(configGroup)
 	topSQLGroup := ng.Group("/topsql")
 	topsql.TopSQL(topSQLGroup)
+	continuousProfilingGroup := ng.Group("/continuous-profiling")
+	continuousprofiling.HTTPService(continuousProfilingGroup)
 
 	httpServer = &http.Server{Handler: ng}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {

@@ -2,6 +2,7 @@ package document
 
 import (
 	"context"
+	"github.com/dgraph-io/badger/v3/options"
 	"log"
 	"path"
 
@@ -17,11 +18,15 @@ var documentDB *genji.DB
 
 func Init(cfg *config.Config) {
 	dataPath := path.Join(cfg.Storage.Path, "docdb")
-	option := badger.DefaultOptions(dataPath)
 	l, _ := simpleLogger(&cfg.Log)
-	option.Logger = l
+	opts := badger.DefaultOptions(dataPath).
+		WithCompression(options.ZSTD).
+		WithZSTDCompressionLevel(3).
+		WithBlockSize(8 * 1024 * 1024).
+		WithValueThreshold(8 * 1024 * 1024).
+		WithLogger(l)
 
-	engine, err := badgerengine.NewEngine(option)
+	engine, err := badgerengine.NewEngine(opts)
 	if err != nil {
 		log.Fatal("Failed to open a badger storage", zap.String("path", dataPath), zap.Error(err))
 	}

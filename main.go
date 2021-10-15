@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
+	"github.com/zhongzc/ng_monitoring/storage/database/document"
 	stdlog "log"
 	"os"
 
@@ -48,6 +50,12 @@ func main() {
 
 	storage.Init(cfg)
 	defer storage.Stop()
+
+	err = continuousprofiling.Init(document.Get(),cfg)
+	if err != nil {
+		stdlog.Fatalf("Failed to initialize continuous profiling, err: %s", err.Error())
+	}
+	defer continuousprofiling.Stop()
 
 	service.Init(cfg)
 	defer service.Stop()
