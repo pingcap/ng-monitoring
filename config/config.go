@@ -59,6 +59,22 @@ var defaultConfig = Config{
 }
 
 var globalConf atomic.Value
+var configChangeSubscribers []chan struct{}
+
+func SubscribeConfigChange() chan struct{} {
+	ch := make(chan struct{})
+	configChangeSubscribers = append(configChangeSubscribers, ch)
+	return ch
+}
+
+func notifyConfigChange() {
+	for _, ch := range configChangeSubscribers {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
+}
 
 func GetGlobalConfig() *Config {
 	return globalConf.Load().(*Config)
@@ -67,6 +83,7 @@ func GetGlobalConfig() *Config {
 // StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
 func StoreGlobalConfig(config *Config) {
 	globalConf.Store(config)
+	notifyConfigChange()
 }
 
 func InitConfig(configPath string, override func(config *Config)) (*Config, error) {

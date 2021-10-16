@@ -24,7 +24,7 @@ import (
 type Manager struct {
 	store          *store.ProfileStorage
 	topoSubScribe  topology.Subscriber
-	reloadCh       chan struct{}
+	configChangeCh chan struct{}
 	curComponents  map[topology.Component]struct{}
 	lastComponents map[topology.Component]struct{}
 
@@ -40,7 +40,7 @@ func NewManager(store *store.ProfileStorage, topoSubScribe topology.Subscriber) 
 	return &Manager{
 		store:          store,
 		topoSubScribe:  topoSubScribe,
-		reloadCh:       make(chan struct{}, 10),
+		configChangeCh: config.SubscribeConfigChange(),
 		curComponents:  map[topology.Component]struct{}{},
 		lastComponents: map[topology.Component]struct{}{},
 		scrapeSuites:   make(map[meta.ProfileTarget]*ScrapeSuite),
@@ -58,13 +58,6 @@ func (m *Manager) Start() {
 		m.updateTargetMetaLoop(ctx)
 	}, nil)
 	log.Info("continuous profiling manager started")
-}
-
-func (m *Manager) NotifyReload() {
-	select {
-	case m.reloadCh <- struct{}{}:
-	default:
-	}
 }
 
 func (m *Manager) GetCurrentScrapeComponents() []topology.Component {
@@ -135,7 +128,7 @@ func (m *Manager) run(ctx context.Context) {
 			return
 		case components := <-m.topoSubScribe:
 			m.lastComponents = buildMap(components)
-		case <-m.reloadCh:
+		case <-m.configChangeCh:
 			break
 		}
 

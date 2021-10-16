@@ -31,6 +31,8 @@ type TopologyDiscoverer struct {
 	pdCli      *pd.Client
 	etcdCli    *clientv3.Client
 	subscriber []chan []Component
+	components []Component
+	notifyCh   chan struct{}
 	closed     chan struct{}
 }
 
@@ -53,18 +55,24 @@ func NewTopologyDiscoverer(pdAddr string, tlsConfig *tls.Config) (*TopologyDisco
 		return nil, err
 	}
 	d := &TopologyDiscoverer{
-		pdCli:   pdCli,
-		etcdCli: etcdCli,
-		closed:  make(chan struct{}),
+		pdCli:    pdCli,
+		etcdCli:  etcdCli,
+		notifyCh: make(chan struct{}, 1),
+		closed:   make(chan struct{}),
 	}
 	return d, nil
 }
 
 func (d *TopologyDiscoverer) Subscribe() chan []Component {
-	ch := make(chan []Component)
+	ch := make(chan []Component, 1)
 	d.Lock()
 	d.subscriber = append(d.subscriber, ch)
 	d.Unlock()
+
+	select {
+	case d.notifyCh <- struct{}{}:
+	default:
+	}
 	return ch
 }
 
@@ -87,6 +95,9 @@ func (d *TopologyDiscoverer) loadTopologyLoop() {
 			return
 		case <-ticker.C:
 			d.loadTopology()
+			d.notifySubscriber()
+		case <-d.notifyCh:
+			d.notifySubscriber()
 		}
 	}
 }
@@ -99,14 +110,14 @@ func (d *TopologyDiscoverer) loadTopology() {
 		log.Error("load topology failed", zap.Error(err))
 		return
 	}
+	d.components = components
 	log.Info("load topology success", zap.Reflect("component", components))
-	d.notifySubscriber(components)
 }
 
-func (d *TopologyDiscoverer) notifySubscriber(components []Component) {
+func (d *TopologyDiscoverer) notifySubscriber() {
 	for _, ch := range d.subscriber {
 		select {
-		case ch <- components:
+		case ch <- d.components:
 		default:
 		}
 	}

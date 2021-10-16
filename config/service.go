@@ -93,7 +93,5 @@ func handleContinueProfilingConfigModify(reqNested map[string]interface{}) error
 
 	cfg.ContinueProfiling = newCfg
 	StoreGlobalConfig(cfg)
-	// todo: notify reload.
-	//s.scraper.NotifyReload()
 	return nil
 }
