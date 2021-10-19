@@ -64,4 +64,5 @@ func StopHTTP() {
 
 	log.Info("shutting down http server")
 	_ = httpServer.Close()
+	log.Info("http server is down")
 }

@@ -44,8 +44,10 @@ func Init(topoSubscriber topology.Subscriber) {
 }
 
 func Stop() {
+	log.Info("stopping subscribers")
 	close(globalStopCh)
 	scraperWG.Wait()
+	log.Info("stop subscribers successfully")
 }
 
 type Manager struct {
@@ -61,6 +63,7 @@ func (m *Manager) run() {
 		}
 	}()
 
+out:
 	for {
 		select {
 		case coms := <-m.topoSubscriber:
@@ -95,7 +98,7 @@ func (m *Manager) run() {
 				}(ch, in[i])
 			}
 		case <-globalStopCh:
-			break
+			break out
 		}
 	}
 }

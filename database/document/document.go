@@ -2,15 +2,15 @@ package document
 
 import (
 	"context"
-	"github.com/dgraph-io/badger/v3/options"
-	"log"
 	"path"
 
 	"github.com/zhongzc/ng_monitoring/config"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v3/options"
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/engine/badgerengine"
+	"github.com/pingcap/log"
 	"go.uber.org/zap"
 )
 
@@ -28,12 +28,12 @@ func Init(cfg *config.Config) {
 
 	engine, err := badgerengine.NewEngine(opts)
 	if err != nil {
-		log.Fatal("Failed to open a badger storage", zap.String("path", dataPath), zap.Error(err))
+		log.Fatal("failed to open a badger storage", zap.String("path", dataPath), zap.Error(err))
 	}
 
 	db, err := genji.New(context.Background(), engine)
 	if err != nil {
-		log.Fatal("Failed to open a document database", zap.String("path", dataPath), zap.Error(err))
+		log.Fatal("failed to open a document database", zap.String("path", dataPath), zap.Error(err))
 	}
 	documentDB = db
 }
@@ -44,6 +44,6 @@ func Get() *genji.DB {
 
 func Stop() {
 	if err := documentDB.Close(); err != nil {
-		log.Fatal("Failed to close the document database", zap.Error(err))
+		log.Fatal("failed to close the document database", zap.Error(err))
 	}
 }

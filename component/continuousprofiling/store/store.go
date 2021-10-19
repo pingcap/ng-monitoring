@@ -244,12 +244,11 @@ func (s *ProfileStorage) getAllTargetsFromCache() []meta.ProfileTarget {
 	return targets
 }
 
-func (s *ProfileStorage) Close() error {
+func (s *ProfileStorage) Close() {
 	if s.isClose() {
-		return nil
+		return
 	}
 	s.closed.Store(true)
-	return s.db.Close()
 }
 
 func (s *ProfileStorage) isClose() bool {
