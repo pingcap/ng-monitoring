@@ -12,6 +12,7 @@ import (
 	"github.com/zhongzc/ng_monitoring/database"
 	"github.com/zhongzc/ng_monitoring/database/document"
 	"github.com/zhongzc/ng_monitoring/database/timeseries"
+	"github.com/zhongzc/ng_monitoring/globalconfig"
 	"github.com/zhongzc/ng_monitoring/service"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -61,6 +62,9 @@ func main() {
 		stdlog.Fatalf("Failed to initialize topology, err: %s", err.Error())
 	}
 	defer topology.Stop()
+
+	globalconfig.Init(topology.GetEtcdClient())
+	defer globalconfig.Stop()
 
 	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler)
 	defer topsql.Stop()

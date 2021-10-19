@@ -2,6 +2,7 @@ package topology
 
 import (
 	"github.com/zhongzc/ng_monitoring/config"
+	"go.etcd.io/etcd/clientv3"
 )
 
 var (
@@ -23,6 +24,10 @@ func Init() error {
 	}
 	discover.Start()
 	return err
+}
+
+func GetEtcdClient() *clientv3.Client {
+	return discover.etcdCli
 }
 
 func Subscribe() Subscriber {
