@@ -5,23 +5,6 @@ import (
 	"sync"
 )
 
-type MetricSlicePool struct {
-	p sync.Pool
-}
-
-func (msp *MetricSlicePool) Get() *[]Metric {
-	bbv := msp.p.Get()
-	if bbv == nil {
-		return &[]Metric{}
-	}
-	return bbv.(*[]Metric)
-}
-
-func (msp *MetricSlicePool) Put(bb *[]Metric) {
-	*bb = (*bb)[:0]
-	msp.p.Put(bb)
-}
-
 type StringBuilderPool struct {
 	p sync.Pool
 }

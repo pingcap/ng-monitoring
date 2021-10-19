@@ -64,19 +64,19 @@ func main() {
 
 	err = topology.Init()
 	if err != nil {
-		stdlog.Fatalf("Failed to initialize topology, err: %s", err.Error())
+		log.Fatal("Failed to initialize topology", zap.Error(err))
 	}
 	defer topology.Stop()
 
 	globalconfig.Init(topology.GetEtcdClient())
 	defer globalconfig.Stop()
 
-	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler)
+	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe())
 	defer topsql.Stop()
 
 	err = continuousprofiling.Init(document.Get(), topology.Subscribe())
 	if err != nil {
-		stdlog.Fatalf("Failed to initialize continuous profiling, err: %s", err.Error())
+		log.Fatal("Failed to initialize continuous profiling", zap.Error(err))
 	}
 	defer continuousprofiling.Stop()
 

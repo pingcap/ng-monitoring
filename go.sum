@@ -1108,10 +1108,10 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
-github.com/zhongzc/kvproto v0.0.0-20210923091320-34901926eaa1 h1:szToINf2KK+gSQovCDnHg6UmvrQONU6yTNjxISCB6FU=
-github.com/zhongzc/kvproto v0.0.0-20210923091320-34901926eaa1/go.mod h1:IOdRDPLyda8GX2hE/jO7gqaCV/PNFh8BZQCQZXfIOqI=
-github.com/zhongzc/tipb v0.0.0-20210923091456-2d029dc0ea80 h1:WHtwNIvzWKWr29nO1g/KxeX62oQ9lW7URBDY+TpvY54=
-github.com/zhongzc/tipb v0.0.0-20210923091456-2d029dc0ea80/go.mod h1:A7mrd7WHBl1o63LE2bIBGEJMTNWXqhgmYiOvMLxozfs=
+github.com/zhongzc/kvproto v0.0.0-20211014161008-5d539b8be018 h1:pvM0foFtJrO4aBtzlmA4q8K4Aem0xEyQCDUckp4mhck=
+github.com/zhongzc/kvproto v0.0.0-20211014161008-5d539b8be018/go.mod h1:IOdRDPLyda8GX2hE/jO7gqaCV/PNFh8BZQCQZXfIOqI=
+github.com/zhongzc/tipb v0.0.0-20211014160942-eb9436129970 h1:WohML5++675c+JxtTteP/voyuLuLwrhVfnkWiPJJRxA=
+github.com/zhongzc/tipb v0.0.0-20211014160942-eb9436129970/go.mod h1:A7mrd7WHBl1o63LE2bIBGEJMTNWXqhgmYiOvMLxozfs=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/bbolt v1.3.5 h1:XAzx9gjCb0Rxj7EoqcClPD1d5ZBxZJk0jbuoPHenBt0=
 go.etcd.io/bbolt v1.3.5/go.mod h1:G5EMThwa9y8QZGBClrRx5EY+Yw9kAhnjy3bSjsnlVTQ=

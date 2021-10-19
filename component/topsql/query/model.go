@@ -14,8 +14,8 @@ type PlanItem struct {
 }
 
 type InstanceItem struct {
-	Instance string `json:"instance"`
-	Job      string `json:"job"`
+	Instance     string `json:"instance"`
+	InstanceType string `json:"instance_type"`
 }
 
 type metricResp struct {
@@ -34,10 +34,10 @@ type metricRespDataResult struct {
 }
 
 type metricRespDataResultMetric struct {
-	Instance   string `json:"instance"`
-	Job        string `json:"job"`
-	SQLDigest  string `json:"sql_digest"`
-	PlanDigest string `json:"plan_digest"`
+	Instance     string `json:"instance"`
+	InstanceType string `json:"instance_type"`
+	SQLDigest    string `json:"sql_digest"`
+	PlanDigest   string `json:"plan_digest"`
 }
 
 type metricRespDataResultValue = []interface{}

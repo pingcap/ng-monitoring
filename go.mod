@@ -31,12 +31,13 @@ require (
 	golang.org/x/crypto v0.0.0-20210915214749-c084706c2272 // indirect
 	golang.org/x/net v0.0.0-20210924151903-3ad01bbaa167
 	golang.org/x/sys v0.0.0-20210915083310-ed5796bab164 // indirect
+	google.golang.org/grpc v1.40.0
 )
 
 replace (
 	github.com/dgraph-io/badger/v3 => github.com/crazycs520/badger/v3 v3.0.0-20210922063928-f25457a6a6fd
-	github.com/pingcap/kvproto => github.com/zhongzc/kvproto v0.0.0-20210923091320-34901926eaa1
+	github.com/pingcap/kvproto => github.com/zhongzc/kvproto v0.0.0-20211014161008-5d539b8be018
 	github.com/pingcap/tidb-dashboard => github.com/crazycs520/tidb-dashboard v0.0.0-20211009060758-44122db89f8c
-	github.com/pingcap/tipb => github.com/zhongzc/tipb v0.0.0-20210923091456-2d029dc0ea80
+	github.com/pingcap/tipb => github.com/zhongzc/tipb v0.0.0-20211014160942-eb9436129970
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 )

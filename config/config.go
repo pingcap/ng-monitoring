@@ -200,22 +200,22 @@ func ReloadRoutine(ctx context.Context, configPath string, cfg *Config) {
 		case <-ctx.Done():
 			return
 		case <-sighupCh:
-			log.Info("Received SIGHUP and ready to reload config")
+			log.Info("received SIGHUP and ready to reload config")
 		}
 		config := new(Config)
 
 		if len(configPath) == 0 {
-			log.Warn("Failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
+			log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
 			continue
 		}
 
 		if err := config.Load(configPath); err != nil {
-			log.Warn("Failed to reload config", zap.Error(err))
+			log.Warn("failed to reload config", zap.Error(err))
 			continue
 		}
 
 		if len(config.PD.Endpoints) == 0 {
-			log.Warn("Unexpected empty PD endpoints")
+			log.Warn("unexpected empty PD endpoints")
 			continue
 		}
 
@@ -223,7 +223,6 @@ func ReloadRoutine(ctx context.Context, configPath string, cfg *Config) {
 			log.Info("PD endpoints changed", zap.Strings("endpoints", config.PD.Endpoints))
 		}
 
-		// TODO: apply config change
 		cfg = config
 		StoreGlobalConfig(config)
 	}
