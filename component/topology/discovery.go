@@ -111,7 +111,7 @@ func (d *TopologyDiscoverer) loadTopology() {
 		return
 	}
 	d.components = components
-	log.Info("load topology success", zap.Reflect("component", components))
+	log.Debug("load topology success", zap.Reflect("component", components))
 }
 
 func (d *TopologyDiscoverer) notifySubscriber() {

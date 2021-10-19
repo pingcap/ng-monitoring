@@ -93,5 +93,5 @@ func handleContinueProfilingConfigModify(reqNested map[string]interface{}) error
 
 	cfg.ContinueProfiling = newCfg
 	StoreGlobalConfig(cfg)
-	return nil
+	return saveConfigIntoStorage()
 }

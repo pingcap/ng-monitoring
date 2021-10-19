@@ -57,6 +57,11 @@ func main() {
 	database.Init(cfg)
 	defer database.Stop()
 
+	err = config.LoadConfigFromStorage(document.Get)
+	if err != nil {
+		stdlog.Fatalf("Failed to load config from storage, err: %s", err.Error())
+	}
+
 	err = topology.Init()
 	if err != nil {
 		stdlog.Fatalf("Failed to initialize topology, err: %s", err.Error())

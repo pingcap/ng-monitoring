@@ -138,8 +138,15 @@ func (m *Manager) run(ctx context.Context) {
 	}
 }
 
+func (m *Manager) isConfigChanged(oldCfg, newCfg config.ContinueProfilingConfig) bool {
+	return oldCfg.Enable != newCfg.Enable ||
+		oldCfg.IntervalSeconds != newCfg.IntervalSeconds ||
+		oldCfg.ProfileSeconds != newCfg.ProfileSeconds ||
+		oldCfg.TimeoutSeconds != newCfg.TimeoutSeconds
+}
+
 func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProfilingConfig) {
-	configChanged := oldCfg != newCfg
+	configChanged := m.isConfigChanged(oldCfg, newCfg)
 	// close for old components
 	for comp := range m.curComponents {
 		_, exist := m.lastComponents[comp]
