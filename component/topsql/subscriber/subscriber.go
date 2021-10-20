@@ -14,6 +14,7 @@ import (
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
+	"github.com/pingcap/tipb/go-tipb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -148,7 +149,75 @@ func (s *Subscriber) run() {
 }
 
 func (s *Subscriber) scrapeTiDB() {
+	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.StatusPort)
+	conn, err := dial(addr)
+	if err != nil {
+		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
+		return
+	}
+	defer conn.Close()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	client := tipb.NewTopSQLPubSubClient(conn)
+	stream, err := client.Subscribe(ctx, &tipb.TopSQLSubRequest{})
+	if err != nil {
+		log.Error("failed to call Subscribe", zap.Any("component", s.component), zap.Error(err))
+		return
+	}
+
+	stopCh := make(chan struct{})
+	go func(instance string) {
+		utils.GoWithRecovery(func() {
+			defer close(stopCh)
+
+			if err := store.Instance(instance, topology.ComponentTiDB); err != nil {
+				log.Warn("failed to store instance", zap.Error(err))
+				return
+			}
+
+			for {
+				r, err := stream.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					log.Warn("failed to receive records from stream", zap.Error(err))
+					break
+				}
+
+				if record := r.GetRecord(); record != nil {
+					err = store.TopSQLRecord(instance, topology.ComponentTiDB, record)
+					if err != nil {
+						log.Warn("failed to store top SQL records", zap.Error(err))
+					}
+					continue
+				}
+
+				if meta := r.GetSqlMeta(); meta != nil {
+					err = store.SQLMeta(meta)
+					if err != nil {
+						log.Warn("failed to store SQL meta", zap.Error(err))
+					}
+					continue
+				}
+
+				if meta := r.GetPlanMeta(); meta != nil {
+					err = store.PlanMeta(meta)
+					if err != nil {
+						log.Warn("failed to store SQL meta", zap.Error(err))
+					}
+				}
+			}
+		}, nil)
+	}(addr)
+
+	select {
+	case <-globalStopCh:
+	case <-stopCh:
+	case <-s.ch:
+	}
 }
 
 func (s *Subscriber) scrapeTiKV() {
@@ -190,7 +259,7 @@ func (s *Subscriber) scrapeTiKV() {
 					break
 				}
 
-				err = store.ResourceMeteringRecords(instance, topology.ComponentTiKV, r)
+				err = store.ResourceMeteringRecord(instance, topology.ComponentTiKV, r)
 				if err != nil {
 					log.Warn("failed to store resource metering records", zap.Error(err))
 				}
