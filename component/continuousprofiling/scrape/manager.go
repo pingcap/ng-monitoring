@@ -272,16 +272,12 @@ func (m *Manager) GetAllCurrentScrapeSuite() ([]meta.ProfileTarget, []*ScrapeSui
 	return targets, suites
 }
 
-func (m *Manager) Close() error {
+func (m *Manager) Close() {
 	if m.cancel != nil {
 		m.cancel()
 	}
-	err := m.store.Close()
-	if err != nil {
-		return err
-	}
+	m.store.Close()
 	m.wg.Wait()
-	return nil
 }
 
 func goAppProfilingConfig() *config.ProfilingConfig {

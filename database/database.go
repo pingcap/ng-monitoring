@@ -17,8 +17,11 @@ func Init(cfg *config.Config) {
 }
 
 func Stop() {
+	log.Info("Stopping timeserires database")
 	timeseries.Stop()
-	document.Stop()
+	log.Info("Stop timeserires database successfully")
 
-	log.Info("Stop database successfully")
+	log.Info("Stopping document database")
+	document.Stop()
+	log.Info("Stop document database successfully")
 }

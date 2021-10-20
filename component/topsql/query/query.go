@@ -54,7 +54,7 @@ func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]To
 }
 
 func AllInstances(fill *[]InstanceItem) error {
-	doc, err := documentDB.Query("SELECT instance, job FROM instance")
+	doc, err := documentDB.Query("SELECT instance, instance_type FROM instance")
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func AllInstances(fill *[]InstanceItem) error {
 	return doc.Iterate(func(d types.Document) error {
 		item := InstanceItem{}
 
-		err := document.Scan(d, &item.Instance, &item.Job)
+		err := document.Scan(d, &item.Instance, &item.InstanceType)
 		if err != nil {
 			return err
 		}

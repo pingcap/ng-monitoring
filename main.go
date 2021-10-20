@@ -32,7 +32,7 @@ const (
 
 var (
 	listenAddr       = pflag.String(nmAddr, "", "TCP address to listen for http connections")
-	pdEndpoints      = pflag.StringArray(nmPdEndpoints, nil, "Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. [10.0.0.1:2379,10.0.0.2:2379]")
+	pdEndpoints      = pflag.StringSlice(nmPdEndpoints, nil, "Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. --pd.endpoints 10.0.0.1:2379,10.0.0.2:2379")
 	logPath          = pflag.String(nmLogPath, "", "Log path of ng monitoring server")
 	storagePath      = pflag.String(nmStoragePath, "", "Storage path of ng monitoring server")
 	configPath       = pflag.String(nmConfig, "", "config file path")
@@ -64,19 +64,19 @@ func main() {
 
 	err = topology.Init()
 	if err != nil {
-		stdlog.Fatalf("Failed to initialize topology, err: %s", err.Error())
+		log.Fatal("Failed to initialize topology", zap.Error(err))
 	}
 	defer topology.Stop()
 
 	globalconfig.Init(topology.GetEtcdClient())
 	defer globalconfig.Stop()
 
-	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler)
+	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe())
 	defer topsql.Stop()
 
 	err = continuousprofiling.Init(document.Get(), topology.Subscribe())
 	if err != nil {
-		stdlog.Fatalf("Failed to initialize continuous profiling, err: %s", err.Error())
+		log.Fatal("Failed to initialize continuous profiling", zap.Error(err))
 	}
 	defer continuousprofiling.Stop()
 

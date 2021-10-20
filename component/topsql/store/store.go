@@ -21,7 +21,6 @@ var (
 
 	bytesP         = utils.BytesBufferPool{}
 	headerP        = utils.HeaderPool{}
-	metricsP       = MetricSlicePool{}
 	stringBuilderP = StringBuilderPool{}
 	prepareSliceP  = PrepareSlicePool{}
 )
@@ -29,67 +28,56 @@ var (
 func Init(vminsertHandler_ http.HandlerFunc, documentDB *genji.DB) {
 	vminsertHandler = vminsertHandler_
 	if err := initDocumentDB(documentDB); err != nil {
-		log.Fatal("cannot init tables", zap.Error(err))
+		log.Fatal("failed to create tables", zap.Error(err))
 	}
+}
+
+func initDocumentDB(db *genji.DB) error {
+	documentDB = db
+
+	createTableStmts := []string{
+		"CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
+		"CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
+		"CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
+	}
+
+	for _, stmt := range createTableStmts {
+		if err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func Stop() {
 
 }
 
-func TopSQLRecords(records []*tipb.CPUTimeRecord) error {
-	if len(records) == 0 {
-		return nil
-	}
-
-	var err error
-	err = insert(
-		"INSERT INTO instance(instance, job) VALUES ",
-		"(?, ?)", len(records),
-		" ON CONFLICT DO NOTHING",
-		func(target *[]interface{}) {
-			for _, record := range records {
-				*target = append(*target, record.Instance)
-				*target = append(*target, record.Job)
-			}
-		},
-	)
+func Instance(instance, instanceType string) error {
+	prepareStmt := "INSERT INTO instance(instance, instance_type) VALUES (?, ?) ON CONFLICT DO NOTHING"
+	prepare, err := documentDB.Prepare(prepareStmt)
 	if err != nil {
 		return err
 	}
 
-	err = storeRecords(func(target *[]Metric) error {
-		fillTopSQLProtoToMetric(records, target)
-		return nil
-	})
-	return err
+	return prepare.Exec(instance, instanceType)
 }
 
-func ResourceMeteringRecords(records []*rsmetering.CPUTimeRecord) error {
-	if len(records) == 0 {
-		return nil
-	}
+func TopSQLRecords(instance, instanceType string, record *tipb.CPUTimeRecord) error {
+	m := topSQLProtoToMetric(instance, instanceType, record)
+	return writeTimeseriesDB(m)
+}
 
-	var err error
-	err = insert(
-		"INSERT INTO instance(instance, job) VALUES ",
-		"(?, ?)", len(records),
-		" ON CONFLICT DO NOTHING",
-		func(target *[]interface{}) {
-			for _, record := range records {
-				*target = append(*target, record.Instance)
-				*target = append(*target, record.Job)
-			}
-		},
-	)
+func ResourceMeteringRecords(
+	instance, instanceType string,
+	record *rsmetering.CPUTimeRecord,
+) error {
+	m, err := rsMeteringProtoToMetric(instance, instanceType, record)
 	if err != nil {
 		return err
 	}
-
-	err = storeRecords(func(target *[]Metric) error {
-		return fillRsMeteringProtoToMetric(records, target)
-	})
-	return err
+	return writeTimeseriesDB(m)
 }
 
 func SQLMetas(metas []*tipb.SQLMeta) error {
@@ -127,24 +115,6 @@ func PlanMetas(metas []*tipb.PlanMeta) error {
 			}
 		},
 	)
-}
-
-func initDocumentDB(db *genji.DB) error {
-	documentDB = db
-
-	createTableStmts := []string{
-		"CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
-		"CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
-		"CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
-	}
-
-	for _, stmt := range createTableStmts {
-		if err := db.Exec(stmt); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func insert(
@@ -189,77 +159,59 @@ func execStmt(prepareStmt string, fill func(target *[]interface{})) error {
 	return stmt.Exec(*ps...)
 }
 
-func storeRecords(fill func(target *[]Metric) error) error {
-	metrics := metricsP.Get()
-	defer metricsP.Put(metrics)
-
-	if err := fill(metrics); err != nil {
-		return err
-	}
-	return writeTimeseriesDB(*metrics)
-}
-
 // transform tipb.CPUTimeRecord to util.Metric
-func fillTopSQLProtoToMetric(
-	records []*tipb.CPUTimeRecord,
-	target *[]Metric,
-) {
-	for _, rawRecord := range records {
-		*target = append(*target, Metric{})
-		m := &(*target)[len(*target)-1]
+func topSQLProtoToMetric(
+	instance, instanceType string,
+	record *tipb.CPUTimeRecord,
+) (m Metric) {
+	m.Metric.Name = "cpu_time"
+	m.Metric.Instance = instance
+	m.Metric.InstanceType = instanceType
+	m.Metric.SQLDigest = hex.EncodeToString(record.SqlDigest)
+	m.Metric.PlanDigest = hex.EncodeToString(record.PlanDigest)
 
-		m.Metric.Name = "cpu_time"
-		m.Metric.Instance = rawRecord.Instance
-		m.Metric.Job = rawRecord.Job
-		m.Metric.SQLDigest = hex.EncodeToString(rawRecord.SqlDigest)
-		m.Metric.PlanDigest = hex.EncodeToString(rawRecord.PlanDigest)
+	for i := range record.RecordListCpuTimeMs {
+		tsMillis := record.RecordListTimestampSec[i] * 1000
+		cpuTime := record.RecordListCpuTimeMs[i]
 
-		for i := range rawRecord.RecordListCpuTimeMs {
-			tsMillis := rawRecord.RecordListTimestampSec[i] * 1000
-			cpuTime := rawRecord.RecordListCpuTimeMs[i]
-
-			m.Timestamps = append(m.Timestamps, tsMillis)
-			m.Values = append(m.Values, cpuTime)
-		}
+		m.Timestamps = append(m.Timestamps, tsMillis)
+		m.Values = append(m.Values, cpuTime)
 	}
+
+	return
 }
 
 // transform resource_usage_agent.CPUTimeRecord to util.Metric
-func fillRsMeteringProtoToMetric(
-	records []*rsmetering.CPUTimeRecord,
-	target *[]Metric,
-) error {
+func rsMeteringProtoToMetric(
+	instance, instance_type string,
+	record *rsmetering.CPUTimeRecord,
+) (m Metric, err error) {
 	tag := tipb.ResourceGroupTag{}
 
-	for _, rawRecord := range records {
-		*target = append(*target, Metric{})
-		m := &(*target)[len(*target)-1]
+	m.Metric.Name = "cpu_time"
+	m.Metric.Instance = instance
+	m.Metric.InstanceType = instance_type
 
-		m.Metric.Name = "cpu_time"
-		m.Metric.Instance = rawRecord.Instance
-		m.Metric.Job = rawRecord.Job
-
-		tag.Reset()
-		if err := tag.Unmarshal(rawRecord.ResourceGroupTag); err != nil {
-			return err
-		}
-
-		m.Metric.SQLDigest = hex.EncodeToString(tag.SqlDigest)
-		m.Metric.PlanDigest = hex.EncodeToString(tag.PlanDigest)
-
-		for i := range rawRecord.RecordListCpuTimeMs {
-			tsMillis := rawRecord.RecordListTimestampSec[i] * 1000
-			cpuTime := rawRecord.RecordListCpuTimeMs[i]
-
-			m.Timestamps = append(m.Timestamps, tsMillis)
-			m.Values = append(m.Values, cpuTime)
-		}
+	tag.Reset()
+	if err = tag.Unmarshal(record.ResourceGroupTag); err != nil {
+		return
 	}
 
-	return nil
+	m.Metric.SQLDigest = hex.EncodeToString(tag.SqlDigest)
+	m.Metric.PlanDigest = hex.EncodeToString(tag.PlanDigest)
+
+	for i := range record.RecordListCpuTimeMs {
+		tsMillis := record.RecordListTimestampSec[i] * 1000
+		cpuTime := record.RecordListCpuTimeMs[i]
+
+		m.Timestamps = append(m.Timestamps, tsMillis)
+		m.Values = append(m.Values, cpuTime)
+	}
+
+	return
 }
 
-func writeTimeseriesDB(metrics []Metric) error {
+func writeTimeseriesDB(metric Metric) error {
 	bufReq := bytesP.Get()
 	bufResp := bytesP.Get()
 	header := headerP.Get()
@@ -268,7 +220,7 @@ func writeTimeseriesDB(metrics []Metric) error {
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
 
-	if err := encodeMetrics(bufReq, metrics); err != nil {
+	if err := encodeMetric(bufReq, metric); err != nil {
 		return err
 	}
 
@@ -285,12 +237,7 @@ func writeTimeseriesDB(metrics []Metric) error {
 	return nil
 }
 
-func encodeMetrics(buf *bytes.Buffer, metrics []Metric) error {
+func encodeMetric(buf *bytes.Buffer, metric Metric) error {
 	encoder := json.NewEncoder(buf)
-	for _, m := range metrics {
-		if err := encoder.Encode(m); err != nil {
-			return err
-		}
-	}
-	return nil
+	return encoder.Encode(metric)
 }
