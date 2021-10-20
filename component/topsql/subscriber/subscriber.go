@@ -75,7 +75,7 @@ out:
 
 			in, out := m.calcOps(coms)
 
-			// clean up outdated components
+			// clean up stale components
 			for i := range out {
 				close(m.components[out[i]])
 				delete(m.components, out[i])
@@ -91,8 +91,8 @@ out:
 					utils.GoWithRecovery(func() {
 						defer scraperWG.Done()
 						s := Subscriber{
-							component: component,
-							ch:        ch,
+							component:   component,
+							staleNotify: ch,
 						}
 						s.run()
 					}, nil)
@@ -131,8 +131,8 @@ func (m *Manager) calcOps(current []topology.Component) (in, out []topology.Comp
 }
 
 type Subscriber struct {
-	component topology.Component
-	ch        chan struct{}
+	component   topology.Component
+	staleNotify chan struct{}
 }
 
 func (s *Subscriber) run() {
@@ -168,55 +168,53 @@ func (s *Subscriber) scrapeTiDB() {
 	}
 
 	stopCh := make(chan struct{})
-	go func(instance string) {
-		utils.GoWithRecovery(func() {
-			defer close(stopCh)
+	go utils.GoWithRecovery(func() {
+		defer close(stopCh)
 
-			if err := store.Instance(instance, topology.ComponentTiDB); err != nil {
-				log.Warn("failed to store instance", zap.Error(err))
-				return
+		if err := store.Instance(addr, topology.ComponentTiDB); err != nil {
+			log.Warn("failed to store instance", zap.Error(err))
+			return
+		}
+
+		for {
+			r, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Warn("failed to receive records from stream", zap.Error(err))
+				break
 			}
 
-			for {
-				r, err := stream.Recv()
-				if err == io.EOF {
-					break
-				}
+			if record := r.GetRecord(); record != nil {
+				err = store.TopSQLRecord(addr, topology.ComponentTiDB, record)
 				if err != nil {
-					log.Warn("failed to receive records from stream", zap.Error(err))
-					break
+					log.Warn("failed to store top SQL records", zap.Error(err))
 				}
+				continue
+			}
 
-				if record := r.GetRecord(); record != nil {
-					err = store.TopSQLRecord(instance, topology.ComponentTiDB, record)
-					if err != nil {
-						log.Warn("failed to store top SQL records", zap.Error(err))
-					}
-					continue
+			if meta := r.GetSqlMeta(); meta != nil {
+				err = store.SQLMeta(meta)
+				if err != nil {
+					log.Warn("failed to store SQL meta", zap.Error(err))
 				}
+				continue
+			}
 
-				if meta := r.GetSqlMeta(); meta != nil {
-					err = store.SQLMeta(meta)
-					if err != nil {
-						log.Warn("failed to store SQL meta", zap.Error(err))
-					}
-					continue
-				}
-
-				if meta := r.GetPlanMeta(); meta != nil {
-					err = store.PlanMeta(meta)
-					if err != nil {
-						log.Warn("failed to store SQL meta", zap.Error(err))
-					}
+			if meta := r.GetPlanMeta(); meta != nil {
+				err = store.PlanMeta(meta)
+				if err != nil {
+					log.Warn("failed to store SQL meta", zap.Error(err))
 				}
 			}
-		}, nil)
-	}(addr)
+		}
+	}, nil)
 
 	select {
 	case <-globalStopCh:
 	case <-stopCh:
-	case <-s.ch:
+	case <-s.staleNotify:
 	}
 }
 
@@ -240,37 +238,35 @@ func (s *Subscriber) scrapeTiKV() {
 	}
 
 	stopCh := make(chan struct{})
-	go func(instance string) {
-		utils.GoWithRecovery(func() {
-			defer close(stopCh)
+	go utils.GoWithRecovery(func() {
+		defer close(stopCh)
 
-			if err := store.Instance(instance, topology.ComponentTiKV); err != nil {
-				log.Warn("failed to store instance", zap.Error(err))
-				return
+		if err := store.Instance(addr, topology.ComponentTiKV); err != nil {
+			log.Warn("failed to store instance", zap.Error(err))
+			return
+		}
+
+		for {
+			r, err := records.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Warn("failed to receive records from stream", zap.Error(err))
+				break
 			}
 
-			for {
-				r, err := records.Recv()
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					log.Warn("failed to receive records from stream", zap.Error(err))
-					break
-				}
-
-				err = store.ResourceMeteringRecord(instance, topology.ComponentTiKV, r)
-				if err != nil {
-					log.Warn("failed to store resource metering records", zap.Error(err))
-				}
+			err = store.ResourceMeteringRecord(addr, topology.ComponentTiKV, r)
+			if err != nil {
+				log.Warn("failed to store resource metering records", zap.Error(err))
 			}
-		}, nil)
-	}(addr)
+		}
+	}, nil)
 
 	select {
 	case <-globalStopCh:
 	case <-stopCh:
-	case <-s.ch:
+	case <-s.staleNotify:
 	}
 }
 
