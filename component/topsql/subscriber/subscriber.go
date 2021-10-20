@@ -175,7 +175,7 @@ func (s *Subscriber) scrapeTiKV() {
 		utils.GoWithRecovery(func() {
 			defer close(stopCh)
 
-			if err := store.Instance(instance, "TiKV"); err != nil {
+			if err := store.Instance(instance, topology.ComponentTiKV); err != nil {
 				log.Warn("failed to store instance", zap.Error(err))
 				return
 			}
@@ -190,7 +190,7 @@ func (s *Subscriber) scrapeTiKV() {
 					break
 				}
 
-				err = store.ResourceMeteringRecords(instance, r)
+				err = store.ResourceMeteringRecords(instance, topology.ComponentTiKV, r)
 				if err != nil {
 					log.Warn("failed to store resource metering records", zap.Error(err))
 				}

@@ -64,13 +64,16 @@ func Instance(instance, instanceType string) error {
 	return prepare.Exec(instance, instanceType)
 }
 
-func TopSQLRecords(instance string, record *tipb.CPUTimeRecord) error {
-	m := topSQLProtoToMetric(instance, record)
+func TopSQLRecords(instance, instanceType string, record *tipb.CPUTimeRecord) error {
+	m := topSQLProtoToMetric(instance, instanceType, record)
 	return writeTimeseriesDB(m)
 }
 
-func ResourceMeteringRecords(instance string, record *rsmetering.CPUTimeRecord) error {
-	m, err := rsMeteringProtoToMetric(instance, record)
+func ResourceMeteringRecords(
+	instance, instanceType string,
+	record *rsmetering.CPUTimeRecord,
+) error {
+	m, err := rsMeteringProtoToMetric(instance, instanceType, record)
 	if err != nil {
 		return err
 	}
@@ -158,12 +161,12 @@ func execStmt(prepareStmt string, fill func(target *[]interface{})) error {
 
 // transform tipb.CPUTimeRecord to util.Metric
 func topSQLProtoToMetric(
-	instance string,
+	instance, instanceType string,
 	record *tipb.CPUTimeRecord,
 ) (m Metric) {
 	m.Metric.Name = "cpu_time"
 	m.Metric.Instance = instance
-	m.Metric.InstanceType = "TiDB"
+	m.Metric.InstanceType = instanceType
 	m.Metric.SQLDigest = hex.EncodeToString(record.SqlDigest)
 	m.Metric.PlanDigest = hex.EncodeToString(record.PlanDigest)
 
@@ -180,14 +183,14 @@ func topSQLProtoToMetric(
 
 // transform resource_usage_agent.CPUTimeRecord to util.Metric
 func rsMeteringProtoToMetric(
-	instance string,
+	instance, instance_type string,
 	record *rsmetering.CPUTimeRecord,
 ) (m Metric, err error) {
 	tag := tipb.ResourceGroupTag{}
 
 	m.Metric.Name = "cpu_time"
 	m.Metric.Instance = instance
-	m.Metric.InstanceType = "TiKV"
+	m.Metric.InstanceType = instance_type
 
 	tag.Reset()
 	if err = tag.Unmarshal(record.ResourceGroupTag); err != nil {
