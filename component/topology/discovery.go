@@ -205,8 +205,12 @@ func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Componen
 }
 
 func buildDashboardConfig(pdAddr string, tlsConfig *tls.Config) *dashboard_config.Config {
+	schema := "http"
+	if tlsConfig != nil {
+		schema = "https"
+	}
 	return &dashboard_config.Config{
-		PDEndPoint:       fmt.Sprintf("http://%v", pdAddr),
+		PDEndPoint:       fmt.Sprintf("%v://%v", schema, pdAddr),
 		ClusterTLSConfig: tlsConfig,
 	}
 }
