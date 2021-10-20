@@ -284,8 +284,8 @@ func goAppProfilingConfig() *config.ProfilingConfig {
 	cfg := config.GetGlobalConfig().ContinueProfiling
 	return &config.ProfilingConfig{
 		PprofConfig: config.PprofConfig{
-			"allocs": &config.PprofProfilingConfig{
-				Path: "/debug/pprof/allocs",
+			"heap": &config.PprofProfilingConfig{
+				Path: "/debug/pprof/heap",
 			},
 			"goroutine": &config.PprofProfilingConfig{
 				Path:   "/debug/pprof/goroutine",
