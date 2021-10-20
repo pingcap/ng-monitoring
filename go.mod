@@ -38,6 +38,6 @@ replace (
 	github.com/dgraph-io/badger/v3 => github.com/crazycs520/badger/v3 v3.0.0-20210922063928-f25457a6a6fd
 	github.com/pingcap/kvproto => github.com/zhongzc/kvproto v0.0.0-20211014161008-5d539b8be018
 	github.com/pingcap/tidb-dashboard => github.com/crazycs520/tidb-dashboard v0.0.0-20211009060758-44122db89f8c
-	github.com/pingcap/tipb => github.com/zhongzc/tipb v0.0.0-20211020032854-7f41c0bfff6c
+	github.com/pingcap/tipb => github.com/zhongzc/tipb v0.0.0-20211020034530-48fd22f28fcc
 	google.golang.org/grpc => google.golang.org/grpc v1.26.0
 )
