@@ -26,3 +26,11 @@ func Init(db *genji.DB, subscriber topology.Subscriber) error {
 func Stop() {
 	manager.Close()
 }
+
+func GetStorage() *store.ProfileStorage {
+	return storage
+}
+
+func GetManager() *scrape.Manager {
+	return manager
+}

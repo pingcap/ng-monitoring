@@ -129,7 +129,7 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profile []b
 	return s.db.Exec(sql, ts, profile)
 }
 
-func (s *ProfileStorage) QueryProfileList(param *meta.BasicQueryParam) ([]meta.ProfileList, error) {
+func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta.ProfileList, error) {
 	if s.isClose() {
 		return nil, ErrStoreIsClosed
 	}
