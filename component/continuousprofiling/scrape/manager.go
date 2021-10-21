@@ -33,6 +33,7 @@ type Manager struct {
 
 	mu           sync.Mutex
 	scrapeSuites map[meta.ProfileTarget]*ScrapeSuite
+	ticker       *Ticker
 }
 
 // NewManager is the Manager constructor
@@ -44,6 +45,7 @@ func NewManager(store *store.ProfileStorage, topoSubScribe topology.Subscriber) 
 		curComponents:  map[topology.Component]struct{}{},
 		lastComponents: map[topology.Component]struct{}{},
 		scrapeSuites:   make(map[meta.ProfileTarget]*ScrapeSuite),
+		ticker:         NewTicker(time.Duration(config.GetGlobalConfig().ContinueProfiling.IntervalSeconds) * time.Second),
 	}
 }
 
@@ -138,19 +140,21 @@ func (m *Manager) run(ctx context.Context) {
 	}
 }
 
-func (m *Manager) isConfigChanged(oldCfg, newCfg config.ContinueProfilingConfig) bool {
+func (m *Manager) isProfilingConfigChanged(oldCfg, newCfg config.ContinueProfilingConfig) bool {
 	return oldCfg.Enable != newCfg.Enable ||
-		oldCfg.IntervalSeconds != newCfg.IntervalSeconds ||
-		oldCfg.ProfileSeconds != newCfg.ProfileSeconds ||
-		oldCfg.TimeoutSeconds != newCfg.TimeoutSeconds
+		oldCfg.ProfileSeconds != newCfg.ProfileSeconds
 }
 
 func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProfilingConfig) {
-	configChanged := m.isConfigChanged(oldCfg, newCfg)
+	if oldCfg.IntervalSeconds != newCfg.IntervalSeconds {
+		m.ticker.Reset(time.Second * time.Duration(newCfg.IntervalSeconds))
+	}
+
+	needReload := m.isProfilingConfigChanged(oldCfg, newCfg)
 	// close for old components
 	for comp := range m.curComponents {
 		_, exist := m.lastComponents[comp]
-		if exist && !configChanged {
+		if exist && !needReload {
 			continue
 		}
 		m.stopScrape(comp)
@@ -164,7 +168,7 @@ func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProf
 	//start for new component.
 	for comp := range m.lastComponents {
 		_, exist := m.curComponents[comp]
-		if exist && !configChanged {
+		if exist && !needReload {
 			continue
 		}
 		err := m.startScrape(ctx, comp, newCfg)
@@ -198,12 +202,10 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 			Address:   addr,
 		}
 
-		interval := time.Duration(continueProfilingCfg.IntervalSeconds) * time.Second
-		timeout := time.Duration(continueProfilingCfg.TimeoutSeconds) * time.Second
 		m.wg.Add(1)
 		go utils.GoWithRecovery(func() {
 			defer m.wg.Done()
-			scrapeSuite.run(interval, timeout)
+			scrapeSuite.run(m.ticker.Subscribe())
 		}, nil)
 		m.addScrapeSuite(pt, scrapeSuite)
 	}

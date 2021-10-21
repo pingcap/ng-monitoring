@@ -2,19 +2,17 @@ package topology
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/pingcap/log"
-	dashboard_config "github.com/pingcap/tidb-dashboard/pkg/config"
-	"github.com/pingcap/tidb-dashboard/pkg/httpc"
-	"github.com/pingcap/tidb-dashboard/pkg/pd"
-	"github.com/pingcap/tidb-dashboard/pkg/utils/topology"
+	"github.com/pingcap/tidb-dashboard/util/client/httpclient"
+	"github.com/pingcap/tidb-dashboard/util/client/pdclient"
+	"github.com/pingcap/tidb-dashboard/util/topo"
+	"github.com/zhongzc/ng_monitoring/config"
 	"github.com/zhongzc/ng_monitoring/utils"
 	"go.etcd.io/etcd/clientv3"
-	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
 
@@ -28,7 +26,7 @@ const (
 
 type TopologyDiscoverer struct {
 	sync.Mutex
-	pdCli      *pd.Client
+	pdCli      *pdclient.APIClient
 	etcdCli    *clientv3.Client
 	subscriber []chan []Component
 	components []Component
@@ -45,12 +43,24 @@ type Component struct {
 
 type Subscriber = chan []Component
 
-func NewTopologyDiscoverer(pdAddr string, tlsConfig *tls.Config) (*TopologyDiscoverer, error) {
-	cfg := buildDashboardConfig(pdAddr, tlsConfig)
-	lc := &mockLifecycle{}
-	httpCli := httpc.NewHTTPClient(lc, cfg)
-	pdCli := pd.NewPDClient(lc, httpCli, cfg)
-	etcdCli, err := pd.NewEtcdClient(lc, cfg)
+func NewTopologyDiscoverer(cfg *config.Config) (*TopologyDiscoverer, error) {
+	if len(cfg.PD.Endpoints) == 0 {
+		return nil, fmt.Errorf("unexpected empty pd endpoints, please specify at least one pd endpoint")
+	}
+	pdCli, err := pdclient.NewAPIClient(httpclient.APIClientConfig{
+		// TODO: support all PD endpoints.
+		Endpoint: fmt.Sprintf("%v://%v", cfg.GetHTTPScheme(), cfg.PD.Endpoints[0]),
+		Context:  context.Background(),
+		TLS:      cfg.Security.GetTLSConfig(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	etcdCli, err := pdclient.NewEtcdClient(pdclient.EtcdClientConfig{
+		Endpoints: cfg.PD.Endpoints,
+		Context:   context.Background(),
+		TLS:       cfg.Security.GetTLSConfig(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -141,13 +151,13 @@ func (d *TopologyDiscoverer) getAllScrapeTargets(ctx context.Context) ([]Compone
 }
 
 func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topology.FetchTiDBTopology(ctx, d.etcdCli)
+	instances, err := topo.GetTiDBInstances(ctx, d.etcdCli)
 	if err != nil {
 		return nil, err
 	}
 	components := make([]Component, 0, len(instances))
 	for _, instance := range instances {
-		if instance.Status != topology.ComponentStatusUp {
+		if instance.Status != topo.ComponentStatusUp {
 			continue
 		}
 		components = append(components, Component{
@@ -161,13 +171,13 @@ func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component
 }
 
 func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topology.FetchPDTopology(d.pdCli)
+	instances, err := topo.GetPDInstances(d.pdCli)
 	if err != nil {
 		return nil, err
 	}
 	components := make([]Component, 0, len(instances))
 	for _, instance := range instances {
-		if instance.Status != topology.ComponentStatusUp {
+		if instance.Status != topo.ComponentStatusUp {
 			continue
 		}
 		components = append(components, Component{
@@ -181,14 +191,14 @@ func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, 
 }
 
 func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Component, error) {
-	tikvInstances, tiflashInstances, err := topology.FetchStoreTopology(d.pdCli)
+	tikvInstances, tiflashInstances, err := topo.GetStoreInstances(d.pdCli)
 	if err != nil {
 		return nil, err
 	}
 	components := make([]Component, 0, len(tikvInstances)+len(tiflashInstances))
-	getComponents := func(instances []topology.StoreInfo, name string) {
+	getComponents := func(instances []topo.StoreInfo, name string) {
 		for _, instance := range instances {
-			if instance.Status != topology.ComponentStatusUp {
+			if instance.Status != topo.ComponentStatusUp {
 				continue
 			}
 			components = append(components, Component{
@@ -202,21 +212,4 @@ func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Componen
 	getComponents(tikvInstances, ComponentTiKV)
 	getComponents(tiflashInstances, ComponentTiFlash)
 	return components, nil
-}
-
-func buildDashboardConfig(pdAddr string, tlsConfig *tls.Config) *dashboard_config.Config {
-	schema := "http"
-	if tlsConfig != nil {
-		schema = "https"
-	}
-	return &dashboard_config.Config{
-		PDEndPoint:       fmt.Sprintf("%v://%v", schema, pdAddr),
-		ClusterTLSConfig: tlsConfig,
-	}
-}
-
-type mockLifecycle struct{}
-
-func (_ *mockLifecycle) Append(fx.Hook) {
-	return
 }

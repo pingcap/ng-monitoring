@@ -12,9 +12,7 @@ var (
 
 func Init() error {
 	var err error
-	cfg := config.GetGlobalConfig()
-	// TODO: support all PD endpoints.
-	discover, err = NewTopologyDiscoverer(cfg.PD.Endpoints[0], cfg.Security.GetTLSConfig())
+	discover, err = NewTopologyDiscoverer(config.GetGlobalConfig())
 	if err != nil {
 		return err
 	}

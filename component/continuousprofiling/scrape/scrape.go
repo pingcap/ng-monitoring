@@ -40,36 +40,39 @@ func newScrapeSuite(ctx context.Context, sc Scraper, store *store.ProfileStorage
 	return sl
 }
 
-func (sl *ScrapeSuite) run(interval, timeout time.Duration) {
+func (sl *ScrapeSuite) run(ticker *TickerChan) {
 	target := sl.scraper.target
+
+	defer func() {
+		ticker.Stop()
+		log.Info("scraper stop running",
+			zap.String("component", target.Component),
+			zap.String("address", target.Address),
+			zap.String("kind", target.Kind))
+	}()
+
 	log.Info("scraper start to run",
 		zap.String("component", target.Component),
 		zap.String("address", target.Address),
 		zap.String("kind", target.Kind))
-	nextStart := time.Now().UnixNano() % int64(interval)
-	select {
-	case <-time.After(time.Duration(nextStart)):
-		// Continue after a scraping offset.
-	case <-sl.ctx.Done():
-		return
-	}
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
 
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	sl.lastScrapeSize = 0
-
+	var start time.Time
 	for {
-		start := time.Now()
+		select {
+		case <-sl.ctx.Done():
+			return
+		case start = <-ticker.ch:
+		}
+
 		if sl.lastScrapeSize > 0 && buf.Cap() > 2*sl.lastScrapeSize {
 			// shrink the buffer size.
 			buf = bytes.NewBuffer(make([]byte, 0, sl.lastScrapeSize))
 		}
 
 		buf.Reset()
-
-		scrapeCtx, cancel := context.WithTimeout(sl.ctx, timeout)
+		scrapeCtx, cancel := context.WithTimeout(sl.ctx, time.Second*time.Duration(config.GetGlobalConfig().ContinueProfiling.TimeoutSeconds))
 		scrapeErr := sl.scraper.scrape(scrapeCtx, buf)
 		cancel()
 
@@ -100,12 +103,6 @@ func (sl *ScrapeSuite) run(interval, timeout time.Duration) {
 				zap.String("address", target.Address),
 				zap.String("kind", target.Kind),
 				zap.Error(scrapeErr))
-		}
-
-		select {
-		case <-sl.ctx.Done():
-			return
-		case <-ticker.C:
 		}
 	}
 }
