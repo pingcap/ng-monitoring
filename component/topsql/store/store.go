@@ -64,12 +64,12 @@ func Instance(instance, instanceType string) error {
 	return prepare.Exec(instance, instanceType)
 }
 
-func TopSQLRecords(instance, instanceType string, record *tipb.CPUTimeRecord) error {
+func TopSQLRecord(instance, instanceType string, record *tipb.CPUTimeRecord) error {
 	m := topSQLProtoToMetric(instance, instanceType, record)
 	return writeTimeseriesDB(m)
 }
 
-func ResourceMeteringRecords(
+func ResourceMeteringRecord(
 	instance, instanceType string,
 	record *rsmetering.CPUTimeRecord,
 ) error {
@@ -80,41 +80,24 @@ func ResourceMeteringRecords(
 	return writeTimeseriesDB(m)
 }
 
-func SQLMetas(metas []*tipb.SQLMeta) error {
-	if len(metas) == 0 {
-		return nil
+func SQLMeta(meta *tipb.SQLMeta) error {
+	prepareStmt := "INSERT INTO sql_digest(digest, sql_text, is_internal) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
+	prepare, err := documentDB.Prepare(prepareStmt)
+	if err != nil {
+		return err
 	}
 
-	return insert(
-		"INSERT INTO sql_digest(digest, sql_text, is_internal) VALUES ",
-		"(?, ?, ?)", len(metas),
-		" ON CONFLICT DO NOTHING",
-		func(target *[]interface{}) {
-			for _, meta := range metas {
-				*target = append(*target, hex.EncodeToString(meta.SqlDigest))
-				*target = append(*target, meta.NormalizedSql)
-				*target = append(*target, meta.IsInternalSql)
-			}
-		},
-	)
+	return prepare.Exec(hex.EncodeToString(meta.SqlDigest), meta.NormalizedSql, meta.IsInternalSql)
 }
 
-func PlanMetas(metas []*tipb.PlanMeta) error {
-	if len(metas) == 0 {
-		return nil
+func PlanMeta(meta *tipb.PlanMeta) error {
+	prepareStmt := "INSERT INTO plan_digest(digest, plan_text) VALUES (?, ?) ON CONFLICT DO NOTHING"
+	prepare, err := documentDB.Prepare(prepareStmt)
+	if err != nil {
+		return err
 	}
 
-	return insert(
-		"INSERT INTO plan_digest(digest, plan_text) VALUES ",
-		"(?, ?)", len(metas),
-		" ON CONFLICT DO NOTHING",
-		func(target *[]interface{}) {
-			for _, meta := range metas {
-				*target = append(*target, hex.EncodeToString(meta.PlanDigest))
-				*target = append(*target, meta.NormalizedPlan)
-			}
-		},
-	)
+	return prepare.Exec(hex.EncodeToString(meta.PlanDigest), meta.NormalizedPlan)
 }
 
 func insert(
