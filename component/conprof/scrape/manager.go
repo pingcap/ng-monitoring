@@ -10,9 +10,9 @@ import (
 
 	"github.com/pingcap/log"
 	commonconfig "github.com/prometheus/common/config"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/store"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
+	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
+	"github.com/zhongzc/ng_monitoring/component/conprof/store"
+	"github.com/zhongzc/ng_monitoring/component/conprof/util"
 	"github.com/zhongzc/ng_monitoring/component/topology"
 	"github.com/zhongzc/ng_monitoring/config"
 	"github.com/zhongzc/ng_monitoring/utils"

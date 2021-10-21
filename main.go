@@ -5,7 +5,7 @@ import (
 	stdlog "log"
 	"os"
 
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling"
+	"github.com/zhongzc/ng_monitoring/component/conprof"
 	"github.com/zhongzc/ng_monitoring/component/topology"
 	"github.com/zhongzc/ng_monitoring/component/topsql"
 	"github.com/zhongzc/ng_monitoring/config"
@@ -74,11 +74,11 @@ func main() {
 	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe())
 	defer topsql.Stop()
 
-	err = continuousprofiling.Init(document.Get(), topology.Subscribe())
+	err = conprof.Init(document.Get(), topology.Subscribe())
 	if err != nil {
 		log.Fatal("Failed to initialize continuous profiling", zap.Error(err))
 	}
-	defer continuousprofiling.Stop()
+	defer conprof.Stop()
 
 	service.Init(cfg)
 	defer service.Stop()

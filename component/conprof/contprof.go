@@ -1,9 +1,9 @@
-package continuousprofiling
+package conprof
 
 import (
 	"github.com/genjidb/genji"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/scrape"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/store"
+	"github.com/zhongzc/ng_monitoring/component/conprof/scrape"
+	"github.com/zhongzc/ng_monitoring/component/conprof/store"
 	"github.com/zhongzc/ng_monitoring/component/topology"
 )
 

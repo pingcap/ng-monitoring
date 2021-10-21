@@ -1,4 +1,4 @@
-package continuousprofiling
+package conprof
 
 import (
 	"archive/zip"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
+	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
 	"github.com/zhongzc/ng_monitoring/config"
 	"go.uber.org/zap"
 )

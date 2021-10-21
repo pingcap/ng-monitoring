@@ -14,9 +14,9 @@ import (
 
 	"github.com/pingcap/log"
 	"github.com/pkg/errors"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/meta"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/store"
-	"github.com/zhongzc/ng_monitoring/component/continuousprofiling/util"
+	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
+	"github.com/zhongzc/ng_monitoring/component/conprof/store"
+	"github.com/zhongzc/ng_monitoring/component/conprof/util"
 	"github.com/zhongzc/ng_monitoring/config"
 	"go.uber.org/zap"
 	"golang.org/x/net/context/ctxhttp"
