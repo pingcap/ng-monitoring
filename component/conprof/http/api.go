@@ -251,7 +251,13 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 		profileData = data
 		return nil
 	})
-	return profileData, err
+	if err != nil {
+		return nil, err
+	}
+	if svg, err := ConvertToSVG(profileData); err == nil {
+		return svg, nil
+	}
+	return profileData, nil
 }
 
 func queryAndDownload(c *gin.Context) error {
@@ -262,10 +268,15 @@ func queryAndDownload(c *gin.Context) error {
 
 	c.Writer.Header().
 		Set("Content-Disposition",
-			fmt.Sprintf(`attachment; filename="profile"`+time.Now().Format("20060102150405")+".zip"))
+			fmt.Sprintf(`attachment; filename="profile"`+time.Unix(param.Begin, 0).Format("2006-01-02_15-04-05")+".zip"))
 	zw := zip.NewWriter(c.Writer)
 	fn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
 		fileName := fmt.Sprintf("%v_%v_%v_%v", pt.Kind, pt.Component, pt.Address, ts)
+		svg, err := ConvertToSVG(data)
+		if err == nil {
+			data = svg
+			fileName += ".svg"
+		}
 		fw, err := zw.Create(fileName)
 		if err != nil {
 			return err
