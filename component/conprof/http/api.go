@@ -268,7 +268,7 @@ func queryAndDownload(c *gin.Context) error {
 
 	c.Writer.Header().
 		Set("Content-Disposition",
-			fmt.Sprintf(`attachment; filename="profile"`+time.Now().Format("2006-01-02_15-04-05")+".zip"))
+			fmt.Sprintf(`attachment; filename="profile"`+time.Unix(param.Begin, 0).Format("2006-01-02_15-04-05")+".zip"))
 	zw := zip.NewWriter(c.Writer)
 	fn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
 		fileName := fmt.Sprintf("%v_%v_%v_%v", pt.Kind, pt.Component, pt.Address, ts)
