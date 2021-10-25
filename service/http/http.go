@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/zhongzc/ng_monitoring/component/conprof"
+	conprofhttp "github.com/zhongzc/ng_monitoring/component/conprof/http"
 	topsqlsvc "github.com/zhongzc/ng_monitoring/component/topsql/service"
 	"github.com/zhongzc/ng_monitoring/config"
 
@@ -49,7 +49,7 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	topSQLGroup := ng.Group("/topsql")
 	topsqlsvc.HTTPService(topSQLGroup)
 	continuousProfilingGroup := ng.Group("/continuous-profiling")
-	conprof.HTTPService(continuousProfilingGroup)
+	conprofhttp.HTTPService(continuousProfilingGroup)
 
 	httpServer = &http.Server{Handler: ng}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {

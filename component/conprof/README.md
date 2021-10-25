@@ -10,13 +10,75 @@ curl -X POST -d '{"continuous_profiling": {"enable": false,"profile_seconds":6,"
 # estimate size profile data size
 curl http://0.0.0.0:8428/continuous-profiling/estimate-size\?days\=3
 
-# query profile list
-curl -X POST -d '{"begin_time":1634182783, "end_time":1634182883}' http://0.0.0.0:8428/continuous-profiling/list
+# query group profiles
 
-# query profile list with specified targets
-curl -X POST -d '{"begin_time":1634182783, "end_time":1634182883, "targets": [{"component": "tidb", "kind": "profile", "address": "10.0.1.21:10081"}]}' http://0.0.0.0:8428/continuous-profiling/list
+curl "http://0.0.0.0:8428/continuous-profiling/group-profiles?begin_time=1634836900&end_time=1634836910"
+[
+    {
+        "ts": 1634836900,
+        "profile_duration_secs": 5,
+        "state": "success",
+        "component_num": {
+            "tidb": 1,
+            "pd": 1,
+            "tikv": 1,
+            "tiflash": 0
+        }
+    },
+    {
+        "ts": 1634836910,
+        "profile_duration_secs": 5,
+        "state": "success",
+        "component_num": {
+            "tidb": 1,
+            "pd": 1,
+            "tikv": 1,
+            "tiflash": 0
+        }
+    }
+]
+
+# query group profile detail.
+curl "http://0.0.0.0:8428/continuous-profiling/group-profile/detail?ts=1634836910"
+{
+    "ts": 1634836910,
+    "profile_duration_secs": 5,
+    "state": "success",
+    "target_profiles": [
+        {
+            "state": "success",
+            "error": "",
+            "profile_type": "profile",
+            "target": {
+                "component": "tikv",
+                "address": "10.0.1.21:20180"
+            }
+        },
+        {
+            "state": "success",
+            "error": "",
+            "profile_type": "profile",
+            "target": {
+                "component": "pd",
+                "address": "10.0.1.21:2379"
+            }
+        },
+        {
+            "state": "success",
+            "error": "",
+            "profile_type": "mutex",
+            "target": {
+                "component": "tidb",
+                "address": "10.0.1.21:10080"
+            }
+        }
+    ]
+}
+
+# view single profile data
+curl "http://0.0.0.0:8428/continuous-profiling/single-profile/view?ts=1634836910&profile_type=profile&component=tidb&address=10.0.1.21:10080" > profile
 
 
 # Download profile
-curl -X POST -d '{"begin_time":1634182783, "end_time":1634182883}' http://0.0.0.0:8428/continuous-profiling/download > download.zip
+curl "http://0.0.0.0:8428/continuous-profiling/download?ts=1634836910" > d.zip
 ```
