@@ -281,7 +281,6 @@ func queryAndDownload(c *gin.Context) error {
 		if err != nil {
 			return err
 		}
-
 		_, err = fw.Write(data)
 		return err
 	}
