@@ -101,9 +101,9 @@ func handleEstimateSize(c *gin.Context) {
 	for _, suite := range suites {
 		size := suite.LastScrapeSize()
 		if size == 0 {
-			size = 500 * 1024
+			size = 1024 * 1024
 		}
-		totalSize += size
+		totalSize += size * 2
 	}
 	cfg := config.GetGlobalConfig().ContinueProfiling
 	compressRatio := 10
