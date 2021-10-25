@@ -18,9 +18,9 @@ import (
 )
 
 func HTTPService(g *gin.RouterGroup) {
-	g.GET("/group_profiles", handleGroupProfiles)
-	g.GET("/group_profile/detail", handleGroupProfileDetail)
-	g.GET("/single_profile/view", handleSingleProfileView)
+	g.GET("/group-profiles", handleGroupProfiles)
+	g.GET("/group-profile/detail", handleGroupProfileDetail)
+	g.GET("/single-profile/view", handleSingleProfileView)
 	g.GET("/download", handleDownload)
 	g.GET("/components", handleComponents)
 	g.GET("/estimate-size", handleEstimateSize)
@@ -202,7 +202,7 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 		})
 	}
 	sort.Slice(groupProfiles, func(i, j int) bool {
-		return groupProfiles[i].Ts < groupProfiles[j].Ts
+		return groupProfiles[i].Ts > groupProfiles[j].Ts
 	})
 	return groupProfiles, nil
 }
@@ -229,6 +229,9 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 			},
 		})
 	}
+	sort.Slice(targetProfiles, func(i, j int) bool {
+		return targetProfiles[i].Target.Address < targetProfiles[j].Target.Address
+	})
 	return &GroupProfileDetail{
 		Ts:             param.Begin,
 		ProfileSecs:    config.GetGlobalConfig().ContinueProfiling.ProfileSeconds,
