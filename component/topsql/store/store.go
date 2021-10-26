@@ -71,7 +71,7 @@ func TopSQLRecord(instance, instanceType string, record *tipb.CPUTimeRecord) err
 
 func ResourceMeteringRecord(
 	instance, instanceType string,
-	record *rsmetering.CPUTimeRecord,
+	record *rsmetering.ResourceUsageRecord,
 ) error {
 	m, err := rsMeteringProtoToMetric(instance, instanceType, record)
 	if err != nil {
@@ -167,7 +167,7 @@ func topSQLProtoToMetric(
 // transform resource_usage_agent.CPUTimeRecord to util.Metric
 func rsMeteringProtoToMetric(
 	instance, instance_type string,
-	record *rsmetering.CPUTimeRecord,
+	record *rsmetering.ResourceUsageRecord,
 ) (m Metric, err error) {
 	tag := tipb.ResourceGroupTag{}
 
