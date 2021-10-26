@@ -9,10 +9,10 @@ import (
 	"github.com/zhongzc/ng_monitoring/component/topology"
 	"github.com/zhongzc/ng_monitoring/component/topsql"
 	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/zhongzc/ng_monitoring/config/pdvariable"
 	"github.com/zhongzc/ng_monitoring/database"
 	"github.com/zhongzc/ng_monitoring/database/document"
 	"github.com/zhongzc/ng_monitoring/database/timeseries"
-	"github.com/zhongzc/ng_monitoring/globalconfig"
 	"github.com/zhongzc/ng_monitoring/service"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -68,8 +68,8 @@ func main() {
 	}
 	defer topology.Stop()
 
-	globalconfig.Init(topology.GetEtcdClient())
-	defer globalconfig.Stop()
+	pdvariable.Init(topology.GetEtcdClient())
+	defer pdvariable.Stop()
 
 	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe())
 	defer topsql.Stop()

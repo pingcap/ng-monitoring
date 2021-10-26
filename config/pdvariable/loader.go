@@ -1,4 +1,4 @@
-package globalconfig
+package pdvariable
 
 import (
 	"context"
@@ -21,34 +21,34 @@ const (
 	defaultRetryInterval = time.Millisecond * 200
 )
 
-var loader *GlobalConfigLoader
+var loader *PDVariableLoader
 
-type GlobalConfigLoader struct {
+type PDVariableLoader struct {
 	cli    *clientv3.Client
-	cfg    *GlobalConfig
+	cfg    *PDVariable
 	cancel context.CancelFunc
 }
 
-type GlobalConfig struct {
+type PDVariable struct {
 	EnableTopSQL bool
 }
 
 func Init(cli *clientv3.Client) {
-	loader = &GlobalConfigLoader{
+	loader = &PDVariableLoader{
 		cli: cli,
 	}
 	go utils.GoWithRecovery(loader.start, nil)
 	return
 }
 
-func GetGlobalConfig() *GlobalConfig {
+func GetPDVariable() *PDVariable {
 	return loader.cfg
 }
 
-func (g *GlobalConfigLoader) start() {
+func (g *PDVariableLoader) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancel = cancel
-	g.LoadGlobalConfigLoop(ctx)
+	g.loadGlobalConfigLoop(ctx)
 }
 
 func Stop() {
@@ -57,7 +57,7 @@ func Stop() {
 	}
 }
 
-func (g *GlobalConfigLoader) LoadGlobalConfigLoop(ctx context.Context) {
+func (g *PDVariableLoader) loadGlobalConfigLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	watchCh := g.cli.Watch(ctx, globalConfigPath, clientv3.WithPrefix())
 	var err error
@@ -87,7 +87,7 @@ func (g *GlobalConfigLoader) LoadGlobalConfigLoop(ctx context.Context) {
 				watchCh = g.cli.Watch(ctx, globalConfigPath, clientv3.WithPrefix())
 			} else {
 				if g.cfg == nil {
-					g.cfg = &GlobalConfig{}
+					g.cfg = &PDVariable{}
 				}
 				for _, event := range e.Events {
 					if event.Type != mvccpb.PUT {
@@ -104,7 +104,7 @@ func (g *GlobalConfigLoader) LoadGlobalConfigLoop(ctx context.Context) {
 	}
 }
 
-func (g *GlobalConfigLoader) loadAllGlobalConfig(ctx context.Context) (*GlobalConfig, error) {
+func (g *PDVariableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, error) {
 	var err error
 	var resp *clientv3.GetResponse
 	for i := 0; i < defaultRetryCnt; i++ {
@@ -124,7 +124,7 @@ func (g *GlobalConfigLoader) loadAllGlobalConfig(ctx context.Context) (*GlobalCo
 		if len(resp.Kvs) == 0 {
 			return nil, nil
 		}
-		cfg := GlobalConfig{}
+		cfg := PDVariable{}
 		for _, kv := range resp.Kvs {
 			err = g.parseGlobalConfig(string(kv.Key), string(kv.Value), &cfg)
 			if err != nil {
@@ -136,7 +136,7 @@ func (g *GlobalConfigLoader) loadAllGlobalConfig(ctx context.Context) (*GlobalCo
 	return nil, err
 }
 
-func (g *GlobalConfigLoader) parseGlobalConfig(key, value string, cfg *GlobalConfig) error {
+func (g *PDVariableLoader) parseGlobalConfig(key, value string, cfg *PDVariable) error {
 	if strings.HasPrefix(key, globalConfigPath) {
 		key = key[len(globalConfigPath):]
 	}

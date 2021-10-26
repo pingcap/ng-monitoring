@@ -48,7 +48,7 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	config.HTTPService(configGroup)
 	topSQLGroup := ng.Group("/topsql")
 	topsqlsvc.HTTPService(topSQLGroup)
-	continuousProfilingGroup := ng.Group("/continuous-profiling")
+	continuousProfilingGroup := ng.Group("/continuous_profiling")
 	conprofhttp.HTTPService(continuousProfilingGroup)
 
 	httpServer = &http.Server{Handler: ng}

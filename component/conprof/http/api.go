@@ -18,12 +18,12 @@ import (
 )
 
 func HTTPService(g *gin.RouterGroup) {
-	g.GET("/group-profiles", handleGroupProfiles)
-	g.GET("/group-profile/detail", handleGroupProfileDetail)
-	g.GET("/single-profile/view", handleSingleProfileView)
+	g.GET("/group_profiles", handleGroupProfiles)
+	g.GET("/group_profile/detail", handleGroupProfileDetail)
+	g.GET("/single_profile/view", handleSingleProfileView)
 	g.GET("/download", handleDownload)
 	g.GET("/components", handleComponents)
-	g.GET("/estimate-size", handleEstimateSize)
+	g.GET("/estimate_size", handleEstimateSize)
 }
 
 func handleGroupProfiles(c *gin.Context) {
