@@ -113,10 +113,6 @@ func (sl *ScrapeSuite) stop() {
 	sl.cancel()
 }
 
-func (sl *ScrapeSuite) LastScrapeSize() int {
-	return sl.lastScrapeSize
-}
-
 type Scraper struct {
 	target *Target
 	client *http.Client

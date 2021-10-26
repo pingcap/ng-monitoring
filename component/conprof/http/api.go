@@ -96,19 +96,40 @@ func handleEstimateSize(c *gin.Context) {
 		c.JSON(http.StatusOK, 0)
 		return
 	}
-	_, suites := conprof.GetManager().GetAllCurrentScrapeSuite()
+	targets, _ := conprof.GetManager().GetAllCurrentScrapeSuite()
 	totalSize := 0
-	for _, suite := range suites {
-		size := suite.LastScrapeSize()
-		if size == 0 {
-			size = 1024 * 1024
-		}
-		totalSize += size * 2
+	for _, target := range targets {
+		size := getProfileEstimateSize(&target)
+		totalSize += size
 	}
 	cfg := config.GetGlobalConfig().ContinueProfiling
-	compressRatio := 10
-	estimateSize := (days * 24 * 60 * 60 / cfg.IntervalSeconds) * totalSize / compressRatio
+	estimateSize := (days * 24 * 60 * 60 / cfg.IntervalSeconds) * totalSize
 	c.JSON(http.StatusOK, estimateSize)
+}
+
+var defaultProfileSize = 128 * 1024
+
+func getProfileEstimateSize(pt *meta.ProfileTarget) int {
+	switch pt.Component {
+	case topology.ComponentTiDB, topology.ComponentPD:
+		switch pt.Kind {
+		case meta.ProfileKindProfile:
+			// profile size / compress ratio
+			return (300 * 1000) / 5
+		case meta.ProfileKindGoroutine:
+			return (1700 * 1000) / 25
+		case meta.ProfileKindHeap:
+			return (1600 * 1000) / 10
+		case meta.ProfileKindMutex:
+			return (100 * 1000) / 100
+		}
+	case topology.ComponentTiKV, topology.ComponentTiFlash:
+		switch pt.Kind {
+		case meta.ProfileKindProfile:
+			return (700 * 1000) / 6
+		}
+	}
+	return defaultProfileSize
 }
 
 var (

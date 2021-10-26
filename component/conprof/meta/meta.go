@@ -1,5 +1,12 @@
 package meta
 
+const (
+	ProfileKindProfile   = "profile"
+	ProfileKindGoroutine = "goroutine"
+	ProfileKindHeap      = "heap"
+	ProfileKindMutex     = "mutex"
+)
+
 type ProfileTarget struct {
 	Kind      string `json:"kind"`
 	Component string `json:"component"`
