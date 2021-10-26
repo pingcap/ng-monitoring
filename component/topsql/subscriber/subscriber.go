@@ -15,6 +15,7 @@ import (
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
 	"github.com/pingcap/tipb/go-tipb"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -34,14 +35,11 @@ func Init(topoSubscriber topology.Subscriber) {
 	globalStopCh = make(chan struct{})
 
 	scraperWG.Add(1)
-
-	go func(topoSubscriber topology.Subscriber) {
-		utils.GoWithRecovery(func() {
-			defer scraperWG.Done()
-			sm := Manager{topoSubscriber: topoSubscriber}
-			sm.run()
-		}, nil)
-	}(topoSubscriber)
+	go utils.GoWithRecovery(func() {
+		defer scraperWG.Done()
+		sm := Manager{topoSubscriber: topoSubscriber}
+		sm.run()
+	}, nil)
 }
 
 func Stop() {
@@ -53,50 +51,53 @@ func Stop() {
 
 type Manager struct {
 	topoSubscriber topology.Subscriber
-	components     map[topology.Component]chan struct{}
+	components     map[topology.Component]*Subscriber
 }
 
 func (m *Manager) run() {
-	m.components = make(map[topology.Component]chan struct{})
+	m.components = make(map[topology.Component]*Subscriber)
 	defer func() {
 		for _, v := range m.components {
-			close(v)
+			v.Close()
 		}
+		m.components = nil
 	}()
 
 out:
 	for {
 		select {
 		case coms := <-m.topoSubscriber:
+			// clean up closed subscribers
+			for component, subscriber := range m.components {
+				if subscriber.IsDown() {
+					subscriber.Close()
+					delete(m.components, component)
+				}
+			}
+
 			if len(coms) == 0 {
 				log.Warn("got empty components. Seems to be encountering network problems")
 				continue
 			}
 
-			in, out := m.calcOps(coms)
+			in, out := m.getTopoChange(coms)
 
 			// clean up stale components
 			for i := range out {
-				close(m.components[out[i]])
+				m.components[out[i]].Close()
 				delete(m.components, out[i])
 			}
 
 			// set up incoming components
 			for i := range in {
-				ch := make(chan struct{})
-				m.components[in[i]] = ch
-				scraperWG.Add(1)
+				subscriber := NewSubscriber(in[i])
+				m.components[in[i]] = subscriber
 
-				go func(ch chan struct{}, component topology.Component) {
-					utils.GoWithRecovery(func() {
-						defer scraperWG.Done()
-						s := Subscriber{
-							component:   component,
-							staleNotify: ch,
-						}
-						s.run()
-					}, nil)
-				}(ch, in[i])
+				scraperWG.Add(1)
+				go utils.GoWithRecovery(func() {
+					defer scraperWG.Done()
+					subscriber.run()
+				}, nil)
 			}
 		case <-globalStopCh:
 			break out
@@ -104,7 +105,7 @@ out:
 	}
 }
 
-func (m *Manager) calcOps(current []topology.Component) (in, out []topology.Component) {
+func (m *Manager) getTopoChange(current []topology.Component) (in, out []topology.Component) {
 	curMap := make(map[topology.Component]struct{})
 
 	for i := range current {
@@ -131,11 +132,29 @@ func (m *Manager) calcOps(current []topology.Component) (in, out []topology.Comp
 }
 
 type Subscriber struct {
-	component   topology.Component
-	staleNotify chan struct{}
+	isDown    *atomic.Bool
+	component topology.Component
+	closeCh   chan struct{}
+}
+
+func NewSubscriber(component topology.Component) *Subscriber {
+	return &Subscriber{
+		isDown:    atomic.NewBool(false),
+		component: component,
+		closeCh:   make(chan struct{}),
+	}
+}
+
+func (s *Subscriber) IsDown() bool {
+	return s.isDown.Load()
+}
+
+func (s *Subscriber) Close() {
+	close(s.closeCh)
 }
 
 func (s *Subscriber) run() {
+	defer s.isDown.Store(true)
 	log.Info("starting to scrape top SQL from the component", zap.Any("component", s.component))
 
 	switch s.component.Name {
@@ -214,7 +233,7 @@ func (s *Subscriber) scrapeTiDB() {
 	select {
 	case <-globalStopCh:
 	case <-stopCh:
-	case <-s.staleNotify:
+	case <-s.closeCh:
 	}
 }
 
@@ -231,7 +250,7 @@ func (s *Subscriber) scrapeTiKV() {
 	defer cancel()
 
 	client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
-	records, err := client.SubCPUTimeRecord(ctx, &resource_usage_agent.Request{})
+	records, err := client.Subscribe(ctx, &resource_usage_agent.ResourceMeteringRequest{})
 	if err != nil {
 		log.Error("failed to call SubCPUTimeRecord", zap.Any("component", s.component), zap.Error(err))
 		return
@@ -266,7 +285,7 @@ func (s *Subscriber) scrapeTiKV() {
 	select {
 	case <-globalStopCh:
 	case <-stopCh:
-	case <-s.staleNotify:
+	case <-s.closeCh:
 	}
 }
 

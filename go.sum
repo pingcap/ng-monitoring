@@ -857,10 +857,14 @@ github.com/pierrec/lz4 v2.0.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi
 github.com/pingcap/errors v0.11.0/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
 github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4=
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
+github.com/pingcap/kvproto v0.0.0-20211026070721-8e3f74722d72 h1:bZqaZSk/8rj0MRsY7NowadhL8WCBzSxsQgBvlebgOSY=
+github.com/pingcap/kvproto v0.0.0-20211026070721-8e3f74722d72/go.mod h1:IOdRDPLyda8GX2hE/jO7gqaCV/PNFh8BZQCQZXfIOqI=
 github.com/pingcap/log v0.0.0-20210906054005-afc726e70354 h1:SvWCbCPh1YeHd9yQLksvJYAgft6wLTY1aNG81tpyscQ=
 github.com/pingcap/log v0.0.0-20210906054005-afc726e70354/go.mod h1:DWQW5jICDR7UJh4HtxXSM20Churx4CQL0fwL/SoOSA4=
 github.com/pingcap/tidb-dashboard/util v0.0.0-20211014081729-82f8b809f5ae h1:TY7b68YbZp8XkbgP/CLn3qILV4OpgnGSMcjLV5XGLDE=
 github.com/pingcap/tidb-dashboard/util v0.0.0-20211014081729-82f8b809f5ae/go.mod h1:LF9KqwYEufhb+k4ErNxxYy/VmPaqZsaCpqIMFImvRUQ=
+github.com/pingcap/tipb v0.0.0-20211026080602-ec68283c1735 h1:kS8pJNUnF3ENkjtBcJeMe/W8+9RtrChcortoyljCwwc=
+github.com/pingcap/tipb v0.0.0-20211026080602-ec68283c1735/go.mod h1:A7mrd7WHBl1o63LE2bIBGEJMTNWXqhgmYiOvMLxozfs=
 github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4/go.mod h1:4OwLy04Bl9Ef3GJJCoec+30X3LQs/0/m4HFRt/2LUSA=
 github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e/go.mod h1:pJLUxLENpZxwdsKMEsNbx1VGcRFpLqf3715MtcvvzbA=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
@@ -1057,10 +1061,6 @@ github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9de
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
-github.com/zhongzc/kvproto v0.0.0-20211014161008-5d539b8be018 h1:pvM0foFtJrO4aBtzlmA4q8K4Aem0xEyQCDUckp4mhck=
-github.com/zhongzc/kvproto v0.0.0-20211014161008-5d539b8be018/go.mod h1:IOdRDPLyda8GX2hE/jO7gqaCV/PNFh8BZQCQZXfIOqI=
-github.com/zhongzc/tipb v0.0.0-20211020034530-48fd22f28fcc h1:kIiwwnffNvd3PjjCjV2HGzX+EyLfnBnVYbPQcqfpOWE=
-github.com/zhongzc/tipb v0.0.0-20211020034530-48fd22f28fcc/go.mod h1:A7mrd7WHBl1o63LE2bIBGEJMTNWXqhgmYiOvMLxozfs=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/bbolt v1.3.5 h1:XAzx9gjCb0Rxj7EoqcClPD1d5ZBxZJk0jbuoPHenBt0=
 go.etcd.io/bbolt v1.3.5/go.mod h1:G5EMThwa9y8QZGBClrRx5EY+Yw9kAhnjy3bSjsnlVTQ=
