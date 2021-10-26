@@ -31,17 +31,16 @@ type TopologySyncer struct {
 	cancel          context.CancelFunc
 }
 
-func NewTopologySyncer(cli *clientv3.Client) (*TopologySyncer, error) {
+func NewTopologySyncer(cli *clientv3.Client) *TopologySyncer {
 	if cli == nil {
-		return nil, nil
+		return nil
 	}
 
 	syncer := &TopologySyncer{
 		etcdCli: cli,
 	}
 	syncer.ctx, syncer.cancel = context.WithCancel(context.Background())
-	err := syncer.newTopologySessionAndStoreServerInfo()
-	return syncer, err
+	return syncer
 }
 
 func (s *TopologySyncer) Start() {
@@ -49,6 +48,10 @@ func (s *TopologySyncer) Start() {
 }
 
 func (s *TopologySyncer) topologyInfoKeeperLoop() {
+	err := syncer.newTopologySessionAndStoreServerInfo()
+	if err != nil {
+		log.Error("store topology into etcd failed", zap.Error(err))
+	}
 	ticker := time.NewTicker(topologyTimeToRefresh)
 	defer ticker.Stop()
 	for {

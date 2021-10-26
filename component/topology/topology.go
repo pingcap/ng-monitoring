@@ -16,10 +16,8 @@ func Init() error {
 	if err != nil {
 		return err
 	}
-	syncer, err = NewTopologySyncer(discover.etcdCli)
-	if err != nil {
-		return err
-	}
+	syncer = NewTopologySyncer(discover.etcdCli)
+	syncer.Start()
 	discover.Start()
 	return err
 }

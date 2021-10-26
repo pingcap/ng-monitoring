@@ -3,10 +3,10 @@ package service
 import (
 	"net"
 
+	"github.com/pingcap/log"
 	"github.com/zhongzc/ng_monitoring/config"
 	"github.com/zhongzc/ng_monitoring/service/http"
-
-	"github.com/pingcap/log"
+	"github.com/zhongzc/ng_monitoring/utils"
 	"go.uber.org/zap"
 )
 
@@ -19,7 +19,9 @@ func Init(cfg *config.Config) {
 		)
 	}
 
-	go http.ServeHTTP(&cfg.Log, listener)
+	go utils.GoWithRecovery(func() {
+		http.ServeHTTP(&cfg.Log, listener)
+	}, nil)
 
 	log.Info(
 		"starting http service",

@@ -10,8 +10,8 @@ import (
 	topsqlsvc "github.com/zhongzc/ng_monitoring/component/topsql/service"
 	"github.com/zhongzc/ng_monitoring/config"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
@@ -35,11 +35,6 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	// recovery
 	ng.Use(gin.Recovery())
 
-	// cors
-	crs := cors.DefaultConfig()
-	crs.AllowAllOrigins = true
-	ng.Use(cors.New(crs))
-
 	// gzip
 	ng.Use(gzip.Gzip(gzip.DefaultCompression))
 
@@ -48,6 +43,9 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	config.HTTPService(configGroup)
 	topSQLGroup := ng.Group("/topsql")
 	topsqlsvc.HTTPService(topSQLGroup)
+	// register pprof http api
+	pprof.Register(ng)
+
 	continuousProfilingGroup := ng.Group("/continuous_profiling")
 	conprofhttp.HTTPService(continuousProfilingGroup)
 
