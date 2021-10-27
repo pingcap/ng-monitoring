@@ -172,8 +172,8 @@ func (l *Log) valid() error {
 		return fmt.Errorf("unexpected empty log level")
 	}
 
-	if l.Level != "INFO" && l.Level != "WARN" && l.Level != "ERROR" {
-		return fmt.Errorf("log level should be INFO, WARN or ERROR")
+	if l.Level != "DEBUG" && l.Level != "INFO" && l.Level != "WARN" && l.Level != "ERROR" {
+		return fmt.Errorf("log level should be DEBUG, INFO, WARN or ERROR")
 	}
 
 	return nil
