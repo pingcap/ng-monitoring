@@ -177,6 +177,9 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 		if qr.err != nil {
 			return nil, qr.err
 		}
+		if len(qr.list.TsList) == 0 {
+			continue
+		}
 		result = append(result, qr.list)
 	}
 	return result, nil
@@ -184,32 +187,23 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 
 func (s *ProfileStorage) QueryTargetProfiles(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam) (meta.ProfileList, error) {
 	result := meta.ProfileList{Target: pt}
-	args := []interface{}{param.Begin, param.End, param.Limit}
-	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ? LIMIT ?", s.getProfileTableName(ptInfo))
+	args := []interface{}{param.Begin, param.End}
+	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(ptInfo))
 	res, err := s.db.Query(query, args...)
 	if err != nil {
-		return result, nil
+		return result, err
 	}
-	var tsList []int64
+	defer res.Close()
 	err = res.Iterate(func(d types.Document) error {
 		var ts int64
 		err = document.Scan(d, &ts)
 		if err != nil {
 			return err
 		}
-		tsList = append(tsList, ts)
+		result.TsList = append(result.TsList, ts)
 		return nil
 	})
-	if err != nil {
-		res.Close()
-		return result, nil
-	}
-	err = res.Close()
-	if err != nil {
-		return result, nil
-	}
-	result.TsList = tsList
-	return result, nil
+	return result, err
 }
 
 func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn func(meta.ProfileTarget, int64, []byte) error) error {
@@ -219,41 +213,71 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 	if param == nil || handleFn == nil {
 		return nil
 	}
+	if param.Limit == 0 {
+		param.Limit = 1000
+	}
 	targets := param.Targets
 	if len(targets) == 0 {
 		targets = s.getAllTargetsFromCache()
 	}
 
-	args := []interface{}{param.Begin, param.End}
+	var fnMu sync.Mutex
+	safeHandleFn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
+		fnMu.Lock()
+		defer fnMu.Unlock()
+		return handleFn(pt, ts, data)
+	}
+
+	errCh := make(chan error, len(targets))
+	var wg sync.WaitGroup
+	limiter := utils.NewRateLimit(16)
+	doneCh := make(chan struct{})
 	for _, pt := range targets {
 		info := s.getTargetInfoFromCache(pt)
 		if info == nil {
 			continue
 		}
-		query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(info))
-		res, err := s.db.Query(query, args...)
-		if err != nil {
-			return err
-		}
-		err = res.Iterate(func(d types.Document) error {
-			var ts int64
-			var data []byte
-			err = document.Scan(d, &ts, &data)
-			if err != nil {
-				return err
-			}
-			return handleFn(pt, ts, data)
-		})
-		if err != nil {
-			res.Close()
-			return err
-		}
-		err = res.Close()
+
+		target := pt
+		wg.Add(1)
+		go utils.GoWithRecovery(func() {
+			limiter.GetToken(doneCh)
+			defer func() {
+				limiter.PutToken()
+				wg.Done()
+			}()
+			err := s.QueryTargetProfileData(target, info, param, safeHandleFn)
+			errCh <- err
+		}, nil)
+	}
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (s *ProfileStorage) QueryTargetProfileData(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam, handleFn func(meta.ProfileTarget, int64, []byte) error) error {
+	args := []interface{}{param.Begin, param.End}
+	query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(ptInfo))
+	res, err := s.db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+	defer res.Close()
+	return res.Iterate(func(d types.Document) error {
+		var ts int64
+		var data []byte
+		err = document.Scan(d, &ts, &data)
+		if err != nil {
+			return err
+		}
+		return handleFn(pt, ts, data)
+	})
 }
 
 func (s *ProfileStorage) getTargetInfoFromCache(pt meta.ProfileTarget) *meta.TargetInfo {
