@@ -9,7 +9,7 @@ advertise_address = "0.0.0.0:8428"
 # Log path
 path = "log"
 
-# Log level: INFO, WARN, ERROR
+# Log level: DEBUG, INFO, WARN, ERROR
 level = "INFO"
 
 [pd]
