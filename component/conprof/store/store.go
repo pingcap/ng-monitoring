@@ -136,50 +136,79 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 	if param == nil {
 		return nil, nil
 	}
+	if param.Limit == 0 {
+		param.Limit = 1000
+	}
 	targets := param.Targets
 	if len(targets) == 0 {
 		targets = s.getAllTargetsFromCache()
 	}
 
-	var result []meta.ProfileList
-	args := []interface{}{param.Begin, param.End}
+	type queryResult struct {
+		list meta.ProfileList
+		err  error
+	}
+	resultCh := make(chan queryResult, len(targets))
+	var wg sync.WaitGroup
+	limiter := utils.NewRateLimit(16)
+	doneCh := make(chan struct{})
 	for _, pt := range targets {
 		info := s.getTargetInfoFromCache(pt)
 		if info == nil {
-			result = append(result, meta.ProfileList{
-				Target: pt,
-			})
 			continue
 		}
-
-		query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(info))
-		res, err := s.db.Query(query, args...)
-		if err != nil {
-			return nil, err
-		}
-		var tsList []int64
-		err = res.Iterate(func(d types.Document) error {
-			var ts int64
-			err = document.Scan(d, &ts)
-			if err != nil {
-				return err
-			}
-			tsList = append(tsList, ts)
-			return nil
-		})
-		if err != nil {
-			res.Close()
-			return nil, err
-		}
-		err = res.Close()
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, meta.ProfileList{
-			Target: pt,
-			TsList: tsList,
-		})
+		target := pt
+		wg.Add(1)
+		go utils.GoWithRecovery(func() {
+			limiter.GetToken(doneCh)
+			defer func() {
+				limiter.PutToken()
+				wg.Done()
+			}()
+			list, err := s.QueryTargetProfiles(target, info, param)
+			resultCh <- queryResult{list: list, err: err}
+		}, nil)
 	}
+	wg.Wait()
+	close(resultCh)
+
+	var result []meta.ProfileList
+	for qr := range resultCh {
+		if qr.err != nil {
+			return nil, qr.err
+		}
+		result = append(result, qr.list)
+	}
+	return result, nil
+}
+
+func (s *ProfileStorage) QueryTargetProfiles(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam) (meta.ProfileList, error) {
+	result := meta.ProfileList{Target: pt}
+	args := []interface{}{param.Begin, param.End, param.Limit}
+	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ? LIMIT ?", s.getProfileTableName(ptInfo))
+	res, err := s.db.Query(query, args...)
+	if err != nil {
+		return result, nil
+	}
+	var tsList []int64
+	err = res.Iterate(func(d types.Document) error {
+		var ts int64
+		err = document.Scan(d, &ts)
+		if err != nil {
+			return err
+		}
+		tsList = append(tsList, ts)
+		return nil
+	})
+	if err != nil {
+		res.Close()
+		return result, nil
+	}
+	err = res.Close()
+	if err != nil {
+		return result, nil
+	}
+	result.TsList = tsList
 	return result, nil
 }
 

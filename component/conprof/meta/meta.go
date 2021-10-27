@@ -21,6 +21,7 @@ type TargetInfo struct {
 type BasicQueryParam struct {
 	Begin   int64           `json:"begin_time"`
 	End     int64           `json:"end_time"`
+	Limit   int64           `json:"limit"`
 	Targets []ProfileTarget `json:"targets"`
 }
 
