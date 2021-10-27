@@ -36,11 +36,13 @@ func simpleLogger(l *config.Log) (*logger, error) {
 
 	var level loggingLevel
 	switch l.Level {
-	case "INFO":
+	case config.LevelDebug:
+		level = DEBUG
+	case config.LevelInfo:
 		level = INFO
-	case "WARN":
+	case config.LevelWarn:
 		level = WARN
-	case "ERROR":
+	case config.LevelError:
 		level = ERROR
 	default:
 		log.Fatal("Unsupported log level", zap.String("level", l.Level))

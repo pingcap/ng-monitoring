@@ -60,7 +60,7 @@ func Stop() {
 
 func initLogger(l *config.Log) error {
 	_ = flag.Set("loggerOutput", "stderr")
-	_ = flag.Set("loggerLevel", l.Level)
+	_ = flag.Set("loggerLevel", mapLogLevel(l.Level))
 
 	// VictoriaMetrics only supports stdout or stderr as log output.
 	// To output the log to the specified file, redirect stderr to that file.
@@ -80,4 +80,17 @@ func initLogger(l *config.Log) error {
 
 func initDataDir(dataPath string) {
 	_ = flag.Set("storageDataPath", dataPath)
+}
+
+func mapLogLevel(level string) string {
+	switch level {
+	case config.LevelDebug, config.LevelInfo:
+		return "INFO"
+	case config.LevelWarn:
+		return "WARN"
+	case config.LevelError:
+		return "ERROR"
+	default:
+		return "INFO"
+	}
 }
