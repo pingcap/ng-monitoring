@@ -38,8 +38,13 @@ func (s *ProfileStorage) runGC() {
 	safePointTs := s.getLastSafePointTs()
 	for i, target := range allTargets {
 		info := allInfos[i]
-		sql := fmt.Sprintf("DELETE FROM %v WHERE ts <= ?", s.getProfileTableName(&info))
+		sql := fmt.Sprintf("DELETE FROM %v WHERE ts <= ?", s.getProfileDataTableName(&info))
 		err := s.db.Exec(sql, safePointTs)
+		if err != nil {
+			log.Error("gc delete target data failed", zap.Error(err))
+		}
+		sql = fmt.Sprintf("DELETE FROM %v WHERE ts <= ?", s.getProfileMetaTableName(&info))
+		err = s.db.Exec(sql, safePointTs)
 		if err != nil {
 			log.Error("gc delete target data failed", zap.Error(err))
 		}

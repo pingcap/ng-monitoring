@@ -18,7 +18,9 @@ import (
 )
 
 const (
-	tableNamePrefix = "continuous_profiling"
+	tableNamePrefix = "conprof"
+	metaTableSuffix = "meta"
+	dataTableSuffix = "data"
 	metaTableName   = tableNamePrefix + "_targets_meta"
 )
 
@@ -125,8 +127,17 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profile []b
 		return err
 	}
 
-	sql := fmt.Sprintf("INSERT INTO %v (ts, data) VALUES (?, ?)", s.getProfileTableName(info))
-	return s.db.Exec(sql, ts, profile)
+	sql := fmt.Sprintf("INSERT INTO %v (ts, data) VALUES (?, ?)", s.getProfileDataTableName(info))
+	err = s.db.Exec(sql, ts, profile)
+	if err != nil {
+		return err
+	}
+	sql = fmt.Sprintf("INSERT INTO %v (ts) VALUES (?)", s.getProfileMetaTableName(info))
+	err = s.db.Exec(sql, ts)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type QueryLimiter struct {
@@ -211,7 +222,7 @@ func (s *ProfileStorage) QueryTargetProfiles(pt meta.ProfileTarget, ptInfo *meta
 	queryLimiter := newQueryLimiter(param.Limit)
 	result := meta.ProfileList{Target: pt}
 	args := []interface{}{param.Begin, param.End}
-	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(ptInfo))
+	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ?", s.getProfileMetaTableName(ptInfo))
 	res, err := s.db.Query(query, args...)
 	if err != nil {
 		return result, err
@@ -294,7 +305,7 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 func (s *ProfileStorage) QueryTargetProfileData(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam, handleFn func(meta.ProfileTarget, int64, []byte) error) error {
 	queryLimiter := newQueryLimiter(param.Limit)
 	args := []interface{}{param.Begin, param.End}
-	query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(ptInfo))
+	query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ?", s.getProfileDataTableName(ptInfo))
 	res, err := s.db.Query(query, args...)
 	if err != nil {
 		return err
@@ -380,9 +391,15 @@ func (s *ProfileStorage) createProfileTable(pt meta.ProfileTarget) (*meta.Target
 		ID:           s.allocID(),
 		LastScrapeTs: util.GetTimeStamp(time.Now()),
 	}
-	tbName := s.getProfileTableName(info)
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY, data BLOB)", tbName)
+	tbName := s.getProfileMetaTableName(info)
+	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY)", tbName)
 	err := s.db.Exec(sql)
+	if err != nil {
+		return info, err
+	}
+	tbName = s.getProfileDataTableName(info)
+	sql = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY, data BLOB)", tbName)
+	err = s.db.Exec(sql)
 	if err != nil {
 		return info, err
 	}
@@ -430,7 +447,12 @@ func (s *ProfileStorage) dropProfileTableIfStaled(pt meta.ProfileTarget, info me
 	delete(s.metaCache, pt)
 
 	// drop the table
-	sql = fmt.Sprintf("DROP TABLE IF EXISTS %v", s.getProfileTableName(&info))
+	sql = fmt.Sprintf("DROP TABLE IF EXISTS %v", s.getProfileDataTableName(&info))
+	err = s.db.Exec(sql)
+	if err != nil {
+		return err
+	}
+	sql = fmt.Sprintf("DROP TABLE IF EXISTS %v", s.getProfileMetaTableName(&info))
 	err = s.db.Exec(sql)
 	if err != nil {
 		return err
@@ -443,8 +465,12 @@ func (s *ProfileStorage) dropProfileTableIfStaled(pt meta.ProfileTarget, info me
 	return nil
 }
 
-func (s *ProfileStorage) getProfileTableName(info *meta.TargetInfo) string {
-	return fmt.Sprintf("`%v_%v`", tableNamePrefix, info.ID)
+func (s *ProfileStorage) getProfileMetaTableName(info *meta.TargetInfo) string {
+	return fmt.Sprintf("`%v_%v_%v`", tableNamePrefix, info.ID, metaTableSuffix)
+}
+
+func (s *ProfileStorage) getProfileDataTableName(info *meta.TargetInfo) string {
+	return fmt.Sprintf("`%v_%v_%v`", tableNamePrefix, info.ID, dataTableSuffix)
 }
 
 func (s *ProfileStorage) rebaseID(id int64) {
