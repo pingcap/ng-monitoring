@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sync"
@@ -10,7 +9,6 @@ import (
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/types"
-	"github.com/google/pprof/profile"
 	"github.com/pingcap/log"
 	"github.com/valyala/gozstd"
 	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
@@ -132,18 +130,6 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profileData
 
 	if pt.Kind == meta.ProfileKindGoroutine {
 		profileData = gozstd.Compress(nil, profileData)
-	} else {
-		// todo: remove this.
-		p, err := profile.ParseData(profileData)
-		if err != nil {
-			return err
-		}
-		bs := bytes.NewBuffer(nil)
-		err = p.Write(bs)
-		if err != nil {
-			return err
-		}
-		profileData = bs.Bytes()
 	}
 
 	sql := fmt.Sprintf("INSERT INTO %v (ts, data) VALUES (?, ?)", s.getProfileDataTableName(info))
