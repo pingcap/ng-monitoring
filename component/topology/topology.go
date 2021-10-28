@@ -22,14 +22,34 @@ func Init() error {
 	return err
 }
 
+func GetCurrentComponent() []Component {
+	if discover == nil {
+		return nil
+	}
+	components := make([]Component, 0, len(discover.components))
+	for _, comp := range discover.components {
+		components = append(components, comp)
+	}
+	return components
+}
+
 func GetEtcdClient() *clientv3.Client {
+	if discover == nil {
+		return nil
+	}
 	return discover.etcdCli
 }
 
 func Subscribe() Subscriber {
+	if discover == nil {
+		return nil
+	}
 	return discover.Subscribe()
 }
 
 func Stop() {
+	if syncer == nil {
+		return
+	}
 	syncer.Stop()
 }
