@@ -159,7 +159,7 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 		return nil, nil
 	}
 	if param.Limit == 0 {
-		param.Limit = 1000
+		param.Limit = 100
 	}
 	targets := param.Targets
 	if len(targets) == 0 {
@@ -244,7 +244,7 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 		return nil
 	}
 	if param.Limit == 0 {
-		param.Limit = 1000
+		param.Limit = 100
 	}
 	targets := param.Targets
 	if len(targets) == 0 {
