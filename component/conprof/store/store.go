@@ -129,6 +129,28 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profile []b
 	return s.db.Exec(sql, ts, profile)
 }
 
+type QueryLimiter struct {
+	cnt   *atomic.Int64
+	limit int64
+}
+
+func newQueryLimiter(limit int64) *QueryLimiter {
+	return &QueryLimiter{
+		cnt:   atomic.NewInt64(0),
+		limit: limit,
+	}
+}
+
+func (l *QueryLimiter) Add(n int) {
+	l.cnt.Add(int64(n))
+}
+
+func (l *QueryLimiter) IsFull() bool {
+	return l.cnt.Load() >= l.limit
+}
+
+var errResultFull = errors.New("reach the query limit")
+
 func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta.ProfileList, error) {
 	if s.isClose() {
 		return nil, ErrStoreIsClosed
@@ -136,51 +158,82 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 	if param == nil {
 		return nil, nil
 	}
+	if param.Limit == 0 {
+		param.Limit = 1000
+	}
 	targets := param.Targets
 	if len(targets) == 0 {
 		targets = s.getAllTargetsFromCache()
 	}
 
-	var result []meta.ProfileList
-	args := []interface{}{param.Begin, param.End}
+	type queryResult struct {
+		list meta.ProfileList
+		err  error
+	}
+	resultCh := make(chan queryResult, len(targets))
+	var wg sync.WaitGroup
+	rateLimiter := utils.NewRateLimit(16)
+	doneCh := make(chan struct{})
 	for _, pt := range targets {
 		info := s.getTargetInfoFromCache(pt)
 		if info == nil {
-			result = append(result, meta.ProfileList{
-				Target: pt,
-			})
 			continue
 		}
+		target := pt
+		wg.Add(1)
+		go utils.GoWithRecovery(func() {
+			rateLimiter.GetToken(doneCh)
+			defer func() {
+				rateLimiter.PutToken()
+				wg.Done()
+			}()
+			list, err := s.QueryTargetProfiles(target, info, param)
+			resultCh <- queryResult{list: list, err: err}
+		}, nil)
+	}
+	wg.Wait()
+	close(resultCh)
 
-		query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(info))
-		res, err := s.db.Query(query, args...)
-		if err != nil {
-			return nil, err
+	var result []meta.ProfileList
+	for qr := range resultCh {
+		if qr.err != nil {
+			return nil, qr.err
 		}
-		var tsList []int64
-		err = res.Iterate(func(d types.Document) error {
-			var ts int64
-			err = document.Scan(d, &ts)
-			if err != nil {
-				return err
-			}
-			tsList = append(tsList, ts)
-			return nil
-		})
-		if err != nil {
-			res.Close()
-			return nil, err
+		if len(qr.list.TsList) == 0 {
+			continue
 		}
-		err = res.Close()
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, meta.ProfileList{
-			Target: pt,
-			TsList: tsList,
-		})
+		result = append(result, qr.list)
 	}
 	return result, nil
+}
+
+func (s *ProfileStorage) QueryTargetProfiles(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam) (meta.ProfileList, error) {
+	queryLimiter := newQueryLimiter(param.Limit)
+	result := meta.ProfileList{Target: pt}
+	args := []interface{}{param.Begin, param.End}
+	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(ptInfo))
+	res, err := s.db.Query(query, args...)
+	if err != nil {
+		return result, err
+	}
+	defer res.Close()
+	err = res.Iterate(func(d types.Document) error {
+		var ts int64
+		err = document.Scan(d, &ts)
+		if err != nil {
+			return err
+		}
+		result.TsList = append(result.TsList, ts)
+		queryLimiter.Add(1)
+		if queryLimiter.IsFull() {
+			return errResultFull
+		}
+		return nil
+	})
+	if err == errResultFull {
+		return result, nil
+	}
+	return result, err
 }
 
 func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn func(meta.ProfileTarget, int64, []byte) error) error {
@@ -190,41 +243,84 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 	if param == nil || handleFn == nil {
 		return nil
 	}
+	if param.Limit == 0 {
+		param.Limit = 1000
+	}
 	targets := param.Targets
 	if len(targets) == 0 {
 		targets = s.getAllTargetsFromCache()
 	}
 
-	args := []interface{}{param.Begin, param.End}
+	var fnMu sync.Mutex
+	safeHandleFn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
+		fnMu.Lock()
+		defer fnMu.Unlock()
+		return handleFn(pt, ts, data)
+	}
+
+	errCh := make(chan error, len(targets))
+	var wg sync.WaitGroup
+	rateLimiter := utils.NewRateLimit(16)
+	doneCh := make(chan struct{})
 	for _, pt := range targets {
 		info := s.getTargetInfoFromCache(pt)
 		if info == nil {
 			continue
 		}
-		query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(info))
-		res, err := s.db.Query(query, args...)
-		if err != nil {
-			return err
-		}
-		err = res.Iterate(func(d types.Document) error {
-			var ts int64
-			var data []byte
-			err = document.Scan(d, &ts, &data)
-			if err != nil {
-				return err
-			}
-			return handleFn(pt, ts, data)
-		})
-		if err != nil {
-			res.Close()
-			return err
-		}
-		err = res.Close()
+
+		target := pt
+		wg.Add(1)
+		go utils.GoWithRecovery(func() {
+			rateLimiter.GetToken(doneCh)
+			defer func() {
+				rateLimiter.PutToken()
+				wg.Done()
+			}()
+			err := s.QueryTargetProfileData(target, info, param, safeHandleFn)
+			errCh <- err
+		}, nil)
+	}
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (s *ProfileStorage) QueryTargetProfileData(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam, handleFn func(meta.ProfileTarget, int64, []byte) error) error {
+	queryLimiter := newQueryLimiter(param.Limit)
+	args := []interface{}{param.Begin, param.End}
+	query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ?", s.getProfileTableName(ptInfo))
+	res, err := s.db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+	defer res.Close()
+	err = res.Iterate(func(d types.Document) error {
+		var ts int64
+		var data []byte
+		err = document.Scan(d, &ts, &data)
+		if err != nil {
+			return err
+		}
+		err = handleFn(pt, ts, data)
+		if err != nil {
+			return err
+		}
+		queryLimiter.Add(1)
+		if queryLimiter.IsFull() {
+			return errResultFull
+		}
+		return nil
+	})
+	if err == errResultFull {
+		return nil
+	}
+	return err
 }
 
 func (s *ProfileStorage) getTargetInfoFromCache(pt meta.ProfileTarget) *meta.TargetInfo {

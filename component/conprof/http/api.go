@@ -176,6 +176,10 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = getLimitParam(c.Request, param)
+	if err != nil {
+		return nil, err
+	}
 
 	profileLists, err := conprof.GetStorage().QueryGroupProfiles(param)
 	if err != nil {
@@ -233,6 +237,10 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = getLimitParam(c.Request, param)
+	if err != nil {
+		return nil, err
+	}
 
 	profileLists, err := conprof.GetStorage().QueryGroupProfiles(param)
 	if err != nil {
@@ -266,6 +274,10 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = getLimitParam(c.Request, param)
+	if err != nil {
+		return nil, err
+	}
 
 	var profileData []byte
 	err = conprof.GetStorage().QueryProfileData(param, func(target meta.ProfileTarget, ts int64, data []byte) error {
@@ -283,6 +295,10 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 
 func queryAndDownload(c *gin.Context) error {
 	param, err := getTsParam(c.Request)
+	if err != nil {
+		return err
+	}
+	err = getLimitParam(c.Request, param)
 	if err != nil {
 		return err
 	}
@@ -321,6 +337,7 @@ var (
 	beginTimeParamStr = "begin_time"
 	endTimeParamStr   = "end_time"
 	tsParamStr        = "ts"
+	limitParamStr     = "limit"
 )
 
 func getBeginAndEndTimeParam(r *http.Request) (*meta.BasicQueryParam, error) {
@@ -357,6 +374,17 @@ func getTsParam(r *http.Request) (*meta.BasicQueryParam, error) {
 		End:   v,
 	}
 	return queryParam, nil
+}
+
+func getLimitParam(r *http.Request, param *meta.BasicQueryParam) error {
+	v, ok, err := parseIntParamFromRequest(r, limitParamStr)
+	if err != nil {
+		return fmt.Errorf("invalid param %v value, error: %v", limitParamStr, err)
+	}
+	if ok {
+		param.Limit = v
+	}
+	return nil
 }
 
 func getTsAndTargetParam(r *http.Request) (*meta.BasicQueryParam, error) {

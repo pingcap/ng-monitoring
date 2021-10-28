@@ -96,7 +96,8 @@ func (d *TopologyDiscoverer) Close() error {
 }
 
 func (d *TopologyDiscoverer) loadTopologyLoop() {
-	d.loadTopology()
+	err := d.loadTopology()
+	log.Info("first load topology", zap.Reflect("component", d.components), zap.Error(err))
 	ticker := time.NewTicker(discoverInterval)
 	defer ticker.Stop()
 	for {
@@ -104,7 +105,12 @@ func (d *TopologyDiscoverer) loadTopologyLoop() {
 		case <-d.closed:
 			return
 		case <-ticker.C:
-			d.loadTopology()
+			err = d.loadTopology()
+			if err != nil {
+				log.Error("load topology failed", zap.Error(err))
+			} else {
+				log.Debug("load topology success", zap.Reflect("component", d.components))
+			}
 			d.notifySubscriber()
 		case <-d.notifyCh:
 			d.notifySubscriber()
@@ -112,16 +118,15 @@ func (d *TopologyDiscoverer) loadTopologyLoop() {
 	}
 }
 
-func (d *TopologyDiscoverer) loadTopology() {
+func (d *TopologyDiscoverer) loadTopology() error {
 	ctx, cancel := context.WithTimeout(context.Background(), discoverInterval)
 	defer cancel()
 	components, err := d.getAllScrapeTargets(ctx)
 	if err != nil {
-		log.Error("load topology failed", zap.Error(err))
-		return
+		return err
 	}
 	d.components = components
-	log.Debug("load topology success", zap.Reflect("component", components))
+	return nil
 }
 
 func (d *TopologyDiscoverer) notifySubscriber() {
