@@ -21,8 +21,8 @@ import (
 
 const (
 	DefProfilingEnable               = true
-	DefProfilingIntervalSeconds      = 10
-	DefProfileSeconds                = 5
+	DefProfilingIntervalSeconds      = 30
+	DefProfileSeconds                = 15
 	DefProfilingTimeoutSeconds       = 120
 	DefProfilingDataRetentionSeconds = 3 * 24 * 60 * 60 // 3 days
 )
