@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sync"
@@ -9,7 +10,9 @@ import (
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/types"
+	"github.com/google/pprof/profile"
 	"github.com/pingcap/log"
+	"github.com/valyala/gozstd"
 	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
 	"github.com/zhongzc/ng_monitoring/component/conprof/util"
 	"github.com/zhongzc/ng_monitoring/utils"
@@ -118,7 +121,7 @@ func (s *ProfileStorage) UpdateProfileTargetInfo(pt meta.ProfileTarget, ts int64
 	return true, nil
 }
 
-func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profile []byte) error {
+func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profileData []byte) error {
 	if s.isClose() {
 		return ErrStoreIsClosed
 	}
@@ -127,8 +130,24 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profile []b
 		return err
 	}
 
+	if pt.Kind == meta.ProfileKindGoroutine {
+		profileData = gozstd.Compress(nil, profileData)
+	} else {
+		// todo: remove this.
+		p, err := profile.ParseData(profileData)
+		if err != nil {
+			return err
+		}
+		bs := bytes.NewBuffer(nil)
+		err = p.Write(bs)
+		if err != nil {
+			return err
+		}
+		profileData = bs.Bytes()
+	}
+
 	sql := fmt.Sprintf("INSERT INTO %v (ts, data) VALUES (?, ?)", s.getProfileDataTableName(info))
-	err = s.db.Exec(sql, ts, profile)
+	err = s.db.Exec(sql, ts, profileData)
 	if err != nil {
 		return err
 	}
@@ -318,6 +337,14 @@ func (s *ProfileStorage) QueryTargetProfileData(pt meta.ProfileTarget, ptInfo *m
 		if err != nil {
 			return err
 		}
+
+		if pt.Kind == meta.ProfileKindGoroutine {
+			data, err = gozstd.Decompress(nil, data)
+			if err != nil {
+				return err
+			}
+		}
+
 		err = handleFn(pt, ts, data)
 		if err != nil {
 			return err
