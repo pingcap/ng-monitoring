@@ -41,7 +41,7 @@ func handleModifyConfig(c *gin.Context) error {
 	}
 	for k, v := range reqNested {
 		switch k {
-		case "continuous_profiling":
+		case "continuous-profiling":
 			m, ok := v.(map[string]interface{})
 			if !ok {
 				return fmt.Errorf("%v config value is invalid: %v", k, v)

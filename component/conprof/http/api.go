@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -111,18 +112,20 @@ var defaultProfileSize = 128 * 1024
 
 func getProfileEstimateSize(component topology.Component) int {
 	switch component.Name {
-	case topology.ComponentTiDB, topology.ComponentPD:
-		// profile size / compress ratio
-		return (300*1000)/5 +
-			// goroutine size / compress ratio
-			(1700*1000)/25 +
-			// heap size / compress ratio
-			(1600*1000)/10 +
-			// mutex size / compress ratio
-			(100*1000)/100
-	case topology.ComponentTiKV, topology.ComponentTiFlash:
-		// profile size / compress ratio
-		return (700 * 1000) / 6
+	case topology.ComponentPD:
+		return 20*1024 + // profile size
+			25*1024 + // goroutine size
+			100*1024 + // heap size
+			30*1024 // mutex size
+	case topology.ComponentTiDB:
+		return 100*1024 + // profile size
+			100*1024 + // goroutine size
+			400*1024 + // heap size
+			30*1024 // mutex size
+	case topology.ComponentTiKV:
+		return 200 * 1024 // profile size
+	case topology.ComponentTiFlash:
+		return 200 * 1024 // profile size
 	}
 	return defaultProfileSize
 }
@@ -304,6 +307,7 @@ func queryAndDownload(c *gin.Context) error {
 	zw := zip.NewWriter(c.Writer)
 	fn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
 		fileName := fmt.Sprintf("%v_%v_%v_%v", pt.Kind, pt.Component, pt.Address, ts)
+		fileName = strings.ReplaceAll(fileName, ":", "_")
 		svg, err := ConvertToSVG(data)
 		if err == nil {
 			data = svg
