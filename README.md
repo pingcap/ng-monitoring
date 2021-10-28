@@ -10,15 +10,15 @@ make
 
 ```shell
 $ bin/ng-monitoring-server --help
-Usage of bin/ng-monitoring-server:
-      --addr string                TCP address to listen for http connections
-      --advertise-address string   tidb server advertise IP
-      --config string              config file path
-      --log.path string            Log path of ng monitoring server
-      --pd.endpoints strings       Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. --pd.endpoints 10.0.0.1:2379,10.0.0.2:2379
-      --retention-period string    Data with timestamps outside the retentionPeriod is automatically deleted
-                                   The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default "1")
-      --storage.path string        Storage path of ng monitoring server
+  Usage of bin/ng-monitoring-server:
+        --address string             TCP address to listen for http connections
+        --advertise-address string   tidb server advertise IP
+        --config string              config file path
+        --log.path string            Log path of ng monitoring server
+        --pd.endpoints strings       Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. --pd.endpoints 10.0.0.1:2379,10.0.0.2:2379
+        --retention-period string    Data with timestamps outside the retentionPeriod is automatically deleted
+                                     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default "1")
+        --storage.path string        Storage path of ng monitoring server
 pflag: help requested
 ```
 
@@ -26,25 +26,32 @@ pflag: help requested
 
 ```shell
 $ cat config/config.toml.example
-# NG Monitoring Server Configuration.
-
-# Server address.
-addr = "0.0.0.0:8428"
-
-[log]
-# Log path
-path = "log"
-
-# Log level: INFO, WARN, ERROR
-level = "INFO"
-
-[pd]
-# Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. ["10.0.0.1:2379","10.0.0.2:2379"]
-endpoints = ["127.0.0.1:2379"]
-
-[storage]
-# Storage path of ng monitoring server
-path = "data" 
+  # NG Monitoring Server Configuration.
+  
+  # Server address.
+  address = "0.0.0.0:8428"
+  
+  advertise_address = "0.0.0.0:8428"
+  
+  [log]
+  # Log path
+  path = "log"
+  
+  # Log level: DEBUG, INFO, WARN, ERROR
+  level = "INFO"
+  
+  [pd]
+  # Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. ["10.0.0.1:2379","10.0.0.2:2379"]
+  endpoints = ["0.0.0.0:2379"]
+  
+  [storage]
+  # Storage path of ng monitoring server
+  path = "data"
+  
+  [security]
+  ca-path = ""
+  cert-path = ""
+  key-path = ""
 ```
 
 ## Reload Config

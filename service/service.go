@@ -11,10 +11,10 @@ import (
 )
 
 func Init(cfg *config.Config) {
-	listener, err := net.Listen("tcp", cfg.Addr)
+	listener, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
 		log.Fatal("failed to listen",
-			zap.String("address", cfg.Addr),
+			zap.String("address", cfg.Address),
 			zap.Error(err),
 		)
 	}
@@ -25,7 +25,7 @@ func Init(cfg *config.Config) {
 
 	log.Info(
 		"starting http service",
-		zap.String("address", cfg.Addr),
+		zap.String("address", cfg.Address),
 	)
 }
 

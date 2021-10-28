@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	nmAddr             = "addr"
+	nmAddr             = "address"
 	nmPdEndpoints      = "pd.endpoints"
 	nmLogPath          = "log.path"
 	nmStoragePath      = "storage.path"
@@ -95,7 +95,7 @@ func overrideConfig(config *config.Config) {
 	pflag.Visit(func(f *pflag.Flag) {
 		switch f.Name {
 		case nmAddr:
-			config.Addr = *listenAddr
+			config.Address = *listenAddr
 		case nmPdEndpoints:
 			config.PD.Endpoints = *pdEndpoints
 		case nmLogPath:
