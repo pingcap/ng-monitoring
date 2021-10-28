@@ -31,7 +31,7 @@ $ cat config/config.toml.example
   # Server address.
   address = "0.0.0.0:8428"
   
-  advertise_address = "0.0.0.0:8428"
+  advertise-address = "0.0.0.0:8428"
   
   [log]
   # Log path
