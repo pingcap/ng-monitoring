@@ -96,10 +96,10 @@ func handleEstimateSize(c *gin.Context) {
 		c.JSON(http.StatusOK, 0)
 		return
 	}
-	targets, _ := conprof.GetManager().GetAllCurrentScrapeSuite()
+	components := topology.GetCurrentComponent()
 	totalSize := 0
-	for _, target := range targets {
-		size := getProfileEstimateSize(&target)
+	for _, comp := range components {
+		size := getProfileEstimateSize(comp)
 		totalSize += size
 	}
 	cfg := config.GetGlobalConfig().ContinueProfiling
@@ -109,25 +109,20 @@ func handleEstimateSize(c *gin.Context) {
 
 var defaultProfileSize = 128 * 1024
 
-func getProfileEstimateSize(pt *meta.ProfileTarget) int {
-	switch pt.Component {
+func getProfileEstimateSize(component topology.Component) int {
+	switch component.Name {
 	case topology.ComponentTiDB, topology.ComponentPD:
-		switch pt.Kind {
-		case meta.ProfileKindProfile:
-			// profile size / compress ratio
-			return (300 * 1000) / 5
-		case meta.ProfileKindGoroutine:
-			return (1700 * 1000) / 25
-		case meta.ProfileKindHeap:
-			return (1600 * 1000) / 10
-		case meta.ProfileKindMutex:
-			return (100 * 1000) / 100
-		}
+		// profile size / compress ratio
+		return (300*1000)/5 +
+			// goroutine size / compress ratio
+			(1700*1000)/25 +
+			// heap size / compress ratio
+			(1600*1000)/10 +
+			// mutex size / compress ratio
+			(100*1000)/100
 	case topology.ComponentTiKV, topology.ComponentTiFlash:
-		switch pt.Kind {
-		case meta.ProfileKindProfile:
-			return (700 * 1000) / 6
-		}
+		// profile size / compress ratio
+		return (700 * 1000) / 6
 	}
 	return defaultProfileSize
 }
@@ -313,6 +308,8 @@ func queryAndDownload(c *gin.Context) error {
 		if err == nil {
 			data = svg
 			fileName += ".svg"
+		} else if pt.Kind == meta.ProfileKindGoroutine {
+			fileName += ".txt"
 		}
 		fw, err := zw.Create(fileName)
 		if err != nil {
