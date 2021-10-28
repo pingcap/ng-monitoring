@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -96,10 +97,10 @@ func handleEstimateSize(c *gin.Context) {
 		c.JSON(http.StatusOK, 0)
 		return
 	}
-	targets, _ := conprof.GetManager().GetAllCurrentScrapeSuite()
+	components := topology.GetCurrentComponent()
 	totalSize := 0
-	for _, target := range targets {
-		size := getProfileEstimateSize(&target)
+	for _, comp := range components {
+		size := getProfileEstimateSize(comp)
 		totalSize += size
 	}
 	cfg := config.GetGlobalConfig().ContinueProfiling
@@ -109,25 +110,22 @@ func handleEstimateSize(c *gin.Context) {
 
 var defaultProfileSize = 128 * 1024
 
-func getProfileEstimateSize(pt *meta.ProfileTarget) int {
-	switch pt.Component {
-	case topology.ComponentTiDB, topology.ComponentPD:
-		switch pt.Kind {
-		case meta.ProfileKindProfile:
-			// profile size / compress ratio
-			return (300 * 1000) / 5
-		case meta.ProfileKindGoroutine:
-			return (1700 * 1000) / 25
-		case meta.ProfileKindHeap:
-			return (1600 * 1000) / 10
-		case meta.ProfileKindMutex:
-			return (100 * 1000) / 100
-		}
-	case topology.ComponentTiKV, topology.ComponentTiFlash:
-		switch pt.Kind {
-		case meta.ProfileKindProfile:
-			return (700 * 1000) / 6
-		}
+func getProfileEstimateSize(component topology.Component) int {
+	switch component.Name {
+	case topology.ComponentPD:
+		return 20*1024 + // profile size
+			25*1024 + // goroutine size
+			100*1024 + // heap size
+			30*1024 // mutex size
+	case topology.ComponentTiDB:
+		return 100*1024 + // profile size
+			100*1024 + // goroutine size
+			400*1024 + // heap size
+			30*1024 // mutex size
+	case topology.ComponentTiKV:
+		return 200 * 1024 // profile size
+	case topology.ComponentTiFlash:
+		return 200 * 1024 // profile size
 	}
 	return defaultProfileSize
 }
@@ -309,10 +307,13 @@ func queryAndDownload(c *gin.Context) error {
 	zw := zip.NewWriter(c.Writer)
 	fn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
 		fileName := fmt.Sprintf("%v_%v_%v_%v", pt.Kind, pt.Component, pt.Address, ts)
+		fileName = strings.ReplaceAll(fileName, ":", "_")
 		svg, err := ConvertToSVG(data)
 		if err == nil {
 			data = svg
 			fileName += ".svg"
+		} else if pt.Kind == meta.ProfileKindGoroutine {
+			fileName += ".txt"
 		}
 		fw, err := zw.Create(fileName)
 		if err != nil {

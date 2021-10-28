@@ -1,7 +1,7 @@
 # NG Monitoring Server Configuration.
 
 # Server address.
-addr = "0.0.0.0:8428"
+address = "0.0.0.0:8428"
 
 advertise_address = "0.0.0.0:8428"
 
@@ -19,3 +19,8 @@ endpoints = ["0.0.0.0:2379"]
 [storage]
 # Storage path of ng monitoring server
 path = "data"
+
+[security]
+ca-path = ""
+cert-path = ""
+key-path = ""

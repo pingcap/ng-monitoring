@@ -5,7 +5,7 @@
 curl http://0.0.0.0:8428/config
 
 # modify config
-curl -X POST -d '{"continuous_profiling": {"enable": false,"profile_seconds":6,"interval_seconds":11}}' http://0.0.0.0:8428/config
+curl -X POST -d '{"continuous-profiling": {"enable": false,"profile-seconds":6,"interval-seconds":11}}' http://0.0.0.0:8428/config
 
 # estimate size profile data size
 curl http://0.0.0.0:8428/continuous_profiling/estimate-size\?days\=3
