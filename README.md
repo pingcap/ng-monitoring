@@ -3,7 +3,7 @@
 ## Build
 
 ```shell
-go build -o bin/ng-monitoring-server
+make
 ```
 
 ## Arguments
@@ -12,9 +12,10 @@ go build -o bin/ng-monitoring-server
 $ bin/ng-monitoring-server --help
 Usage of bin/ng-monitoring-server:
       --addr string                TCP address to listen for http connections
+      --advertise-address string   tidb server advertise IP
       --config string              config file path
       --log.path string            Log path of ng monitoring server
-      --pd.endpoints stringArray   Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. [10.0.0.1:2379,10.0.0.2:2379]
+      --pd.endpoints strings       Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. --pd.endpoints 10.0.0.1:2379,10.0.0.2:2379
       --retention-period string    Data with timestamps outside the retentionPeriod is automatically deleted
                                    The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default "1")
       --storage.path string        Storage path of ng monitoring server
