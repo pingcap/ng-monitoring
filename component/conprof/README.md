@@ -2,17 +2,17 @@
 
 ```shell
 # get current config
-curl http://0.0.0.0:8428/config
+curl http://0.0.0.0:12020/config
 
 # modify config
-curl -X POST -d '{"continuous-profiling": {"enable": false,"profile-seconds":6,"interval-seconds":11}}' http://0.0.0.0:8428/config
+curl -X POST -d '{"continuous-profiling": {"enable": false,"profile-seconds":6,"interval-seconds":11}}' http://0.0.0.0:12020/config
 
 # estimate size profile data size
-curl http://0.0.0.0:8428/continuous_profiling/estimate-size\?days\=3
+curl http://0.0.0.0:12020/continuous_profiling/estimate-size\?days\=3
 
 # query group profiles
 
-curl "http://0.0.0.0:8428/continuous_profiling/group_profiles?begin_time=1634836900&end_time=1634836910"
+curl "http://0.0.0.0:12020/continuous_profiling/group_profiles?begin_time=1634836900&end_time=1634836910"
 [
     {
         "ts": 1634836900,
@@ -39,7 +39,7 @@ curl "http://0.0.0.0:8428/continuous_profiling/group_profiles?begin_time=1634836
 ]
 
 # query group profile detail.
-curl "http://0.0.0.0:8428/continuous_profiling/group_profile/detail?ts=1634836910"
+curl "http://0.0.0.0:12020/continuous_profiling/group_profile/detail?ts=1634836910"
 {
     "ts": 1634836910,
     "profile_duration_secs": 5,
@@ -76,14 +76,14 @@ curl "http://0.0.0.0:8428/continuous_profiling/group_profile/detail?ts=163483691
 }
 
 # view single profile data
-curl "http://0.0.0.0:8428/continuous_profiling/single_profile/view?ts=1634836910&profile_type=profile&component=tidb&address=10.0.1.21:10080" > profile
+curl "http://0.0.0.0:12020/continuous_profiling/single_profile/view?ts=1634836910&profile_type=profile&component=tidb&address=10.0.1.21:10080" > profile
 
 # view single profile data and specify data type
-curl "http://0.0.0.0:8428/continuous_profiling/single_profile/view?ts=1635480630&profile_type=profile&component=tidb&address=10.0.1.21:10080&data_format=protobuf"  > profile
+curl "http://0.0.0.0:12020/continuous_profiling/single_profile/view?ts=1635480630&profile_type=profile&component=tidb&address=10.0.1.21:10080&data_format=protobuf"  > profile
 
 # Download profile
-curl "http://0.0.0.0:8428/continuous_profiling/download?ts=1634836910" > d.zip
+curl "http://0.0.0.0:12020/continuous_profiling/download?ts=1634836910" > d.zip
 
 # Download profile data and specify data type
-curl "http://0.0.0.0:8428/continuous_profiling/download?ts=1635480630&data_format=protobuf" > d.zip
+curl "http://0.0.0.0:12020/continuous_profiling/download?ts=1635480630&data_format=protobuf" > d.zip
 ```
