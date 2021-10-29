@@ -12,11 +12,11 @@ var (
 
 func Init() error {
 	var err error
-	discover, err = NewTopologyDiscoverer(config.GetGlobalConfig())
+	discover, err = NewTopologyDiscoverer(config.GetGlobalConfig(), config.SubscribeConfigChange())
 	if err != nil {
 		return err
 	}
-	syncer = NewTopologySyncer(discover.etcdCli)
+	syncer = NewTopologySyncer()
 	syncer.Start()
 	discover.Start()
 	return err
@@ -34,16 +34,10 @@ func GetCurrentComponent() []Component {
 }
 
 func GetEtcdClient() *clientv3.Client {
-	if discover == nil {
-		return nil
-	}
-	return discover.etcdCli
+	return discover.cli.etcdCli
 }
 
 func Subscribe() Subscriber {
-	if discover == nil {
-		return nil
-	}
 	return discover.Subscribe()
 }
 

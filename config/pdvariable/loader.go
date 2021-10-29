@@ -24,7 +24,7 @@ const (
 var loader *PDVariableLoader
 
 type PDVariableLoader struct {
-	cli    *clientv3.Client
+	getCli func() *clientv3.Client
 	cfg    *PDVariable
 	cancel context.CancelFunc
 }
@@ -33,9 +33,9 @@ type PDVariable struct {
 	EnableTopSQL bool
 }
 
-func Init(cli *clientv3.Client) {
+func Init(getCli func() *clientv3.Client) {
 	loader = &PDVariableLoader{
-		cli: cli,
+		getCli: getCli,
 	}
 	go utils.GoWithRecovery(loader.start, nil)
 	return
@@ -59,7 +59,7 @@ func Stop() {
 
 func (g *PDVariableLoader) loadGlobalConfigLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
-	watchCh := g.cli.Watch(ctx, globalConfigPath, clientv3.WithPrefix())
+	watchCh := g.getCli().Watch(ctx, globalConfigPath, clientv3.WithPrefix())
 	var err error
 	g.cfg, err = g.loadAllGlobalConfig(ctx)
 	if err != nil {
@@ -84,7 +84,7 @@ func (g *PDVariableLoader) loadGlobalConfigLoop(ctx context.Context) {
 		case e, ok := <-watchCh:
 			if !ok {
 				log.Info("global config watch channel closed")
-				watchCh = g.cli.Watch(ctx, globalConfigPath, clientv3.WithPrefix())
+				watchCh = g.getCli().Watch(ctx, globalConfigPath, clientv3.WithPrefix())
 			} else {
 				if g.cfg == nil {
 					g.cfg = &PDVariable{}
@@ -114,7 +114,7 @@ func (g *PDVariableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable
 		default:
 		}
 		childCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
-		resp, err = g.cli.Get(childCtx, globalConfigPath, clientv3.WithPrefix())
+		resp, err = g.getCli().Get(childCtx, globalConfigPath, clientv3.WithPrefix())
 		cancel()
 		if err != nil {
 			log.Debug("load global config failed.", zap.Error(err))
