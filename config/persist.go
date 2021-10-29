@@ -61,7 +61,9 @@ func LoadConfigFromStorage(getDB func() *genji.DB) error {
 			if err := json.NewDecoder(bytes.NewReader([]byte(cfgStr))).Decode(&newCfg); err != nil {
 				return err
 			}
-			globalCfg.ContinueProfiling = newCfg
+			if newCfg.Valid() {
+				globalCfg.ContinueProfiling = newCfg
+			}
 		default:
 			return fmt.Errorf("unknow module config in storage, module: %v, config: %v", module, cfgStr)
 		}

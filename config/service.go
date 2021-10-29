@@ -91,6 +91,9 @@ func handleContinueProfilingConfigModify(reqNested map[string]interface{}) error
 		return err
 	}
 
+	if !newCfg.Valid() {
+		return fmt.Errorf("new config is invalid: %v", string(data))
+	}
 	cfg.ContinueProfiling = newCfg
 	StoreGlobalConfig(cfg)
 	return saveConfigIntoStorage()

@@ -309,6 +309,13 @@ type ContinueProfilingConfig struct {
 	DataRetentionSeconds int  `json:"data-retention-seconds"`
 }
 
+func (c ContinueProfilingConfig) Valid() bool {
+	return c.ProfileSeconds > 0 &&
+		c.IntervalSeconds > 0 &&
+		c.TimeoutSeconds > 0 &&
+		c.DataRetentionSeconds > 0
+}
+
 // ScrapeConfig configures a scraping unit for conprof.
 type ScrapeConfig struct {
 	ComponentName string `yaml:"component_name,omitempty"`

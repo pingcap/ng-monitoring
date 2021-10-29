@@ -17,6 +17,9 @@ type Ticker struct {
 }
 
 func NewTicker(d time.Duration) *Ticker {
+	if d == 0 {
+		panic("should never happen")
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t := &Ticker{
 		interval:    d,
