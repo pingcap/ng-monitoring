@@ -80,23 +80,12 @@ func handleComponents(c *gin.Context) {
 	c.JSON(http.StatusOK, components)
 }
 
+type EstimateSize struct {
+	InstanceCount int `json:"instance_count"`
+	ProfileSize   int `json:"profile_size"`
+}
+
 func handleEstimateSize(c *gin.Context) {
-	days := 0
-	if value := c.Request.FormValue("days"); len(value) > 0 {
-		v, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status":  "error",
-				"message": "params days value is invalid, should be int",
-			})
-			return
-		}
-		days = int(v)
-	}
-	if days == 0 {
-		c.JSON(http.StatusOK, 0)
-		return
-	}
 	components := topology.GetCurrentComponent()
 	totalSize := 0
 	for _, comp := range components {
@@ -104,8 +93,11 @@ func handleEstimateSize(c *gin.Context) {
 		totalSize += size
 	}
 	cfg := config.GetGlobalConfig().ContinueProfiling
-	estimateSize := (days * 24 * 60 * 60 / cfg.IntervalSeconds) * totalSize
-	c.JSON(http.StatusOK, estimateSize)
+	estimateSize := (24 * 60 * 60 / cfg.IntervalSeconds) * totalSize
+	c.JSON(http.StatusOK, EstimateSize{
+		InstanceCount: len(components),
+		ProfileSize:   estimateSize,
+	})
 }
 
 var defaultProfileSize = 128 * 1024
