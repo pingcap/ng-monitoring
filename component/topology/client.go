@@ -31,9 +31,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 }
 
 func (c *Client) reCreateClient(cfg *config.Config) {
-	if c.pdCfg.Equal(cfg.PD) {
-		return
-	}
 	pdCli, etcdCli, err := createClient(cfg)
 	if err != nil {
 		log.Error("recreate pd/etcd client failed", zap.Error(err))
@@ -77,6 +74,7 @@ func createClient(cfg *config.Config) (*pdclient.APIClient, *clientv3.Client, er
 		if err == nil {
 			_, err = pdCli.GetHealth()
 			if err == nil {
+				log.Info("create pd client success", zap.String("pd-address", endpoint))
 				return pdCli, etcdCli, nil
 			}
 		}

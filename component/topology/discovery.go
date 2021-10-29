@@ -86,11 +86,15 @@ func (d *TopologyDiscoverer) loadTopologyLoop() {
 			return
 		case <-d.cfgChangeCh:
 			newCfg := config.GetGlobalConfig()
-			d.cli.reCreateClient(newCfg)
+			if !d.cli.pdCfg.Equal(newCfg.PD) {
+				d.cli.reCreateClient(newCfg)
+			}
 		case <-ticker.C:
 			err = d.loadTopology()
 			if err != nil {
 				log.Error("load topology failed", zap.Error(err))
+				// try to recreate client when meet error.
+				d.cli.reCreateClient(config.GetGlobalConfig())
 			} else {
 				log.Debug("load topology success", zap.Reflect("component", d.components))
 			}
