@@ -63,13 +63,18 @@ func LoadConfigFromStorage(getDB func() *genji.DB) error {
 			}
 			if newCfg.Valid() {
 				globalCfg.ContinueProfiling = newCfg
+			} else {
+				log.Info("load invalid config",
+					zap.String("module", module),
+					zap.Reflect("module-config", newCfg))
 			}
 		default:
 			return fmt.Errorf("unknow module config in storage, module: %v, config: %v", module, cfgStr)
 		}
 		log.Info("load config from storage",
 			zap.String("module", module),
-			zap.String("config", cfgStr))
+			zap.String("module-config", cfgStr),
+			zap.Reflect("global-config", globalCfg))
 	}
 	StoreGlobalConfig(globalCfg)
 	return nil
