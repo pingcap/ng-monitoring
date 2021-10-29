@@ -161,8 +161,7 @@ func (s *Scraper) scrape(ctx context.Context, w io.Writer) error {
 		return errors.Wrap(err, "failed to read body")
 	}
 
-	data := s.tryUnzip(b)
-	_, err = w.Write(data)
+	_, err = w.Write(b)
 	return err
 }
 

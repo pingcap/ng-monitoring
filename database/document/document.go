@@ -22,8 +22,8 @@ func Init(cfg *config.Config) {
 	opts := badger.DefaultOptions(dataPath).
 		WithCompression(options.ZSTD).
 		WithZSTDCompressionLevel(3).
-		WithBlockSize(8 * 1024 * 1024).
-		WithValueThreshold(8 * 1024 * 1024).
+		WithBlockSize(8 * 1024).
+		WithValueThreshold(128 * 1024).
 		WithLogger(l)
 
 	engine, err := badgerengine.NewEngine(opts)
