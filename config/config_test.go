@@ -17,7 +17,7 @@ func TestConfig(t *testing.T) {
 	_, localFile, _, _ := runtime.Caller(0)
 	configFile := path.Join(path.Dir(localFile), "config.toml.example")
 	require.NoError(t, config.Load(configFile))
-	require.Equal(t, config.Address, "0.0.0.0:8428")
+	require.Equal(t, config.Address, "0.0.0.0:12020")
 	require.Equal(t, config.PD, PD{Endpoints: []string{"127.0.0.1:2379"}})
 	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO"})
 	require.Equal(t, config.Storage, Storage{Path: "data"})

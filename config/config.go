@@ -38,7 +38,7 @@ type Config struct {
 }
 
 var defaultConfig = Config{
-	Address: ":8428",
+	Address: ":12020",
 	PD: PD{
 		Endpoints: nil,
 	},

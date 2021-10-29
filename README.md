@@ -29,9 +29,9 @@ $ cat config/config.toml.example
   # NG Monitoring Server Configuration.
   
   # Server address.
-  address = "0.0.0.0:8428"
+  address = "0.0.0.0:12020"
   
-  advertise-address = "0.0.0.0:8428"
+  advertise-address = "0.0.0.0:12020"
   
   [log]
   # Log path
