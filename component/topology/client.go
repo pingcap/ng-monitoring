@@ -34,14 +34,14 @@ func (c *Client) reCreateClient(cfg *config.Config) {
 	if c.pdCfg.Equal(cfg.PD) {
 		return
 	}
-	err := c.etcdCli.Close()
-	if err != nil {
-		log.Error("close etcd client failed", zap.Error(err))
-	}
 	pdCli, etcdCli, err := createClient(cfg)
 	if err != nil {
 		log.Error("recreate pd/etcd client failed", zap.Error(err))
 		return
+	}
+	err = c.etcdCli.Close()
+	if err != nil {
+		log.Error("close etcd client failed", zap.Error(err))
 	}
 	c.pdCfg = cfg.PD
 	c.pdCli = pdCli

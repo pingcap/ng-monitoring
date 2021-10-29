@@ -85,6 +85,8 @@ func (g *PDVariableLoader) loadGlobalConfigLoop(ctx context.Context) {
 			if !ok {
 				log.Info("global config watch channel closed")
 				watchCh = g.getCli().Watch(ctx, globalConfigPath, clientv3.WithPrefix())
+				// sleep a while to avoid too often.
+				time.Sleep(time.Second)
 			} else {
 				if g.cfg == nil {
 					g.cfg = &PDVariable{}
