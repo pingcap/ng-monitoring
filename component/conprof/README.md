@@ -78,7 +78,12 @@ curl "http://0.0.0.0:8428/continuous_profiling/group_profile/detail?ts=163483691
 # view single profile data
 curl "http://0.0.0.0:8428/continuous_profiling/single_profile/view?ts=1634836910&profile_type=profile&component=tidb&address=10.0.1.21:10080" > profile
 
+# view single profile data and specify data type
+curl "http://0.0.0.0:8428/continuous_profiling/single_profile/view?ts=1635480630&profile_type=profile&component=tidb&address=10.0.1.21:10080&data_format=protobuf"  > profile
 
 # Download profile
 curl "http://0.0.0.0:8428/continuous_profiling/download?ts=1634836910" > d.zip
+
+# Download profile data and specify data type
+curl "http://0.0.0.0:8428/continuous_profiling/download?ts=1635480630&data_format=protobuf" > d.zip
 ```
