@@ -268,6 +268,10 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = getDataFormatParam(c.Request, param)
+	if err != nil {
+		return nil, err
+	}
 
 	var profileData []byte
 	err = conprof.GetStorage().QueryProfileData(param, func(target meta.ProfileTarget, ts int64, data []byte) error {
@@ -277,8 +281,10 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if svg, err := ConvertToSVG(profileData); err == nil {
-		return svg, nil
+	if param.DataFormat == meta.ProfileDataFormatSVG {
+		if svg, err := ConvertToSVG(profileData); err == nil {
+			return svg, nil
+		}
 	}
 	return profileData, nil
 }
@@ -292,6 +298,10 @@ func queryAndDownload(c *gin.Context) error {
 	if err != nil {
 		return err
 	}
+	err = getDataFormatParam(c.Request, param)
+	if err != nil {
+		return err
+	}
 
 	c.Writer.Header().
 		Set("Content-Disposition",
@@ -300,11 +310,14 @@ func queryAndDownload(c *gin.Context) error {
 	fn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
 		fileName := fmt.Sprintf("%v_%v_%v_%v", pt.Kind, pt.Component, pt.Address, ts)
 		fileName = strings.ReplaceAll(fileName, ":", "_")
-		svg, err := ConvertToSVG(data)
-		if err == nil {
-			data = svg
-			fileName += ".svg"
-		} else if pt.Kind == meta.ProfileKindGoroutine {
+		if param.DataFormat == meta.ProfileDataFormatSVG {
+			svg, err := ConvertToSVG(data)
+			if err == nil {
+				data = svg
+				fileName += ".svg"
+			}
+		}
+		if pt.Kind == meta.ProfileKindGoroutine {
 			fileName += ".txt"
 		}
 		fw, err := zw.Create(fileName)
@@ -327,10 +340,12 @@ func queryAndDownload(c *gin.Context) error {
 }
 
 var (
-	beginTimeParamStr = "begin_time"
-	endTimeParamStr   = "end_time"
-	tsParamStr        = "ts"
-	limitParamStr     = "limit"
+	beginTimeParamStr  = "begin_time"
+	endTimeParamStr    = "end_time"
+	tsParamStr         = "ts"
+	limitParamStr      = "limit"
+	dataFormatParamStr = "data_format"
+	defdataFormatParam = meta.ProfileDataFormatSVG
 )
 
 func getBeginAndEndTimeParam(r *http.Request) (*meta.BasicQueryParam, error) {
@@ -376,6 +391,21 @@ func getLimitParam(r *http.Request, param *meta.BasicQueryParam) error {
 	}
 	if ok {
 		param.Limit = v
+	}
+	return nil
+}
+
+func getDataFormatParam(r *http.Request, param *meta.BasicQueryParam) error {
+	if v := r.FormValue(dataFormatParamStr); len(v) > 0 {
+		switch v {
+		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf:
+			param.DataFormat = v
+		default:
+			return fmt.Errorf("invalid param %v value %v, expected: %v, %v",
+				dataFormatParamStr, v, meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf)
+		}
+	} else {
+		param.DataFormat = defdataFormatParam
 	}
 	return nil
 }

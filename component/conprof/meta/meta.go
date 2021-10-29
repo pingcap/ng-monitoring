@@ -1,10 +1,12 @@
 package meta
 
 const (
-	ProfileKindProfile   = "profile"
-	ProfileKindGoroutine = "goroutine"
-	ProfileKindHeap      = "heap"
-	ProfileKindMutex     = "mutex"
+	ProfileKindProfile        = "profile"
+	ProfileKindGoroutine      = "goroutine"
+	ProfileKindHeap           = "heap"
+	ProfileKindMutex          = "mutex"
+	ProfileDataFormatSVG      = "svg"
+	ProfileDataFormatProtobuf = "protobuf"
 )
 
 type ProfileTarget struct {
@@ -19,10 +21,11 @@ type TargetInfo struct {
 }
 
 type BasicQueryParam struct {
-	Begin   int64           `json:"begin_time"`
-	End     int64           `json:"end_time"`
-	Limit   int64           `json:"limit"`
-	Targets []ProfileTarget `json:"targets"`
+	Begin      int64           `json:"begin_time"`
+	End        int64           `json:"end_time"`
+	Limit      int64           `json:"limit"`
+	Targets    []ProfileTarget `json:"targets"`
+	DataFormat string          `json:"data_format"`
 }
 
 type ProfileList struct {
