@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 func HTTPService(g *gin.RouterGroup) {
@@ -41,7 +42,7 @@ func handleModifyConfig(c *gin.Context) error {
 	}
 	for k, v := range reqNested {
 		switch k {
-		case "continuous-profiling":
+		case "continuous_profiling":
 			m, ok := v.(map[string]interface{})
 			if !ok {
 				return fmt.Errorf("%v config value is invalid: %v", k, v)

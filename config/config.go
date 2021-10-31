@@ -29,11 +29,11 @@ const (
 
 type Config struct {
 	Address           string                  `toml:"address" json:"address"`
-	AdvertiseAddress  string                  `toml:"advertise-address" json:"advertise-address"`
+	AdvertiseAddress  string                  `toml:"advertise-address" json:"advertise_address"`
 	PD                PD                      `toml:"pd" json:"pd"`
 	Log               Log                     `toml:"log" json:"log"`
 	Storage           Storage                 `toml:"storage" json:"storage"`
-	ContinueProfiling ContinueProfilingConfig `toml:"-" json:"continuous-profiling"`
+	ContinueProfiling ContinueProfilingConfig `toml:"-" json:"continuous_profiling"`
 	Security          Security                `toml:"security" json:"security"`
 }
 
@@ -261,9 +261,9 @@ func (c *Config) GetHTTPScheme() string {
 }
 
 type Security struct {
-	SSLCA     string      `toml:"ca-path" json:"ca-path"`
-	SSLCert   string      `toml:"cert-path" json:"cert-path"`
-	SSLKey    string      `toml:"key-path" json:"key-path"`
+	SSLCA     string      `toml:"ca-path" json:"ca_path"`
+	SSLCert   string      `toml:"cert-path" json:"cert_path"`
+	SSLKey    string      `toml:"key-path" json:"key_path"`
 	tlsConfig *tls.Config `toml:"-" json:"-"`
 }
 
@@ -303,10 +303,10 @@ func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
 
 type ContinueProfilingConfig struct {
 	Enable               bool `json:"enable"`
-	ProfileSeconds       int  `json:"profile-seconds"`
-	IntervalSeconds      int  `json:"interval-seconds"`
-	TimeoutSeconds       int  `json:"timeout-seconds"`
-	DataRetentionSeconds int  `json:"data-retention-seconds"`
+	ProfileSeconds       int  `json:"profile_seconds"`
+	IntervalSeconds      int  `json:"interval_seconds"`
+	TimeoutSeconds       int  `json:"timeout_seconds"`
+	DataRetentionSeconds int  `json:"data_retention_seconds"`
 }
 
 func (c ContinueProfilingConfig) Valid() bool {
