@@ -7,9 +7,9 @@ import (
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
-	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
-	"github.com/zhongzc/ng_monitoring/component/conprof/util"
-	"github.com/zhongzc/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/component/conprof/meta"
+	"github.com/pingcap/ng_monitoring/component/conprof/util"
+	"github.com/pingcap/ng_monitoring/config"
 	"go.uber.org/zap"
 )
 

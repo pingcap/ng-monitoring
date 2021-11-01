@@ -1,10 +1,10 @@
 package service
 
 import (
-	"github.com/zhongzc/ng_monitoring/component/topsql/query"
 	"sync"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
+	"github.com/pingcap/ng_monitoring/component/topsql/query"
 	"github.com/pingcap/tipb/go-tipb"
 )
 

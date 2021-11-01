@@ -6,9 +6,9 @@ import (
 	"os"
 	"path"
 
-	conprofhttp "github.com/zhongzc/ng_monitoring/component/conprof/http"
-	topsqlsvc "github.com/zhongzc/ng_monitoring/component/topsql/service"
-	"github.com/zhongzc/ng_monitoring/config"
+	conprofhttp "github.com/pingcap/ng_monitoring/component/conprof/http"
+	topsqlsvc "github.com/pingcap/ng_monitoring/component/topsql/service"
+	"github.com/pingcap/ng_monitoring/config"
 
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/pprof"

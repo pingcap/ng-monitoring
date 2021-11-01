@@ -1,4 +1,4 @@
-module github.com/zhongzc/ng_monitoring
+module github.com/pingcap/ng_monitoring
 
 go 1.16
 

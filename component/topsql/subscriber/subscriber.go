@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zhongzc/ng_monitoring/component/topology"
-	"github.com/zhongzc/ng_monitoring/component/topsql/store"
-	"github.com/zhongzc/ng_monitoring/config"
-	"github.com/zhongzc/ng_monitoring/utils"
+	"github.com/pingcap/ng_monitoring/component/topology"
+	"github.com/pingcap/ng_monitoring/component/topsql/store"
+	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/utils"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
