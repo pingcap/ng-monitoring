@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zhongzc/ng_monitoring/utils"
+	"github.com/pingcap/ng_monitoring/utils"
 )
 
 type Ticker struct {

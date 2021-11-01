@@ -4,9 +4,9 @@ import (
 	"net"
 
 	"github.com/pingcap/log"
-	"github.com/zhongzc/ng_monitoring/config"
-	"github.com/zhongzc/ng_monitoring/service/http"
-	"github.com/zhongzc/ng_monitoring/utils"
+	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/service/http"
+	"github.com/pingcap/ng_monitoring/utils"
 	"go.uber.org/zap"
 )
 

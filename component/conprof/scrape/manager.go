@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng_monitoring/component/conprof/meta"
+	"github.com/pingcap/ng_monitoring/component/conprof/store"
+	"github.com/pingcap/ng_monitoring/component/conprof/util"
+	"github.com/pingcap/ng_monitoring/component/topology"
+	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/utils"
 	commonconfig "github.com/prometheus/common/config"
-	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
-	"github.com/zhongzc/ng_monitoring/component/conprof/store"
-	"github.com/zhongzc/ng_monitoring/component/conprof/util"
-	"github.com/zhongzc/ng_monitoring/component/topology"
-	"github.com/zhongzc/ng_monitoring/config"
-	"github.com/zhongzc/ng_monitoring/utils"
 	"go.uber.org/zap"
 )
 

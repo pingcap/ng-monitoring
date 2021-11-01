@@ -3,10 +3,10 @@ package topsql
 import (
 	"net/http"
 
-	"github.com/zhongzc/ng_monitoring/component/topology"
-	"github.com/zhongzc/ng_monitoring/component/topsql/query"
-	"github.com/zhongzc/ng_monitoring/component/topsql/store"
-	"github.com/zhongzc/ng_monitoring/component/topsql/subscriber"
+	"github.com/pingcap/ng_monitoring/component/topology"
+	"github.com/pingcap/ng_monitoring/component/topsql/query"
+	"github.com/pingcap/ng_monitoring/component/topsql/store"
+	"github.com/pingcap/ng_monitoring/component/topsql/subscriber"
 
 	"github.com/genjidb/genji"
 )

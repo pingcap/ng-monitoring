@@ -1,4 +1,4 @@
-module github.com/zhongzc/ng_monitoring
+module github.com/pingcap/ng_monitoring
 
 go 1.16
 
@@ -25,7 +25,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/ugorji/go v1.2.6 // indirect
-	github.com/valyala/gozstd v1.14.2 // indirect
+	github.com/valyala/gozstd v1.14.2
 	github.com/wangjohn/quickselect v0.0.0-20161129230411-ed8402a42d5f
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20191023171146-3cf2f69b5738
 	go.uber.org/atomic v1.9.0
@@ -36,7 +36,4 @@ require (
 	google.golang.org/grpc v1.40.0
 )
 
-replace (
-	github.com/dgraph-io/badger/v3 => github.com/crazycs520/badger/v3 v3.0.0-20210922063928-f25457a6a6fd
-	google.golang.org/grpc => google.golang.org/grpc v1.26.0
-)
+replace google.golang.org/grpc => google.golang.org/grpc v1.26.0

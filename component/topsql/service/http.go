@@ -1,12 +1,12 @@
 package service
 
 import (
-	"github.com/zhongzc/ng_monitoring/component/topsql/query"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pingcap/ng_monitoring/component/topsql/query"
 )
 
 var (

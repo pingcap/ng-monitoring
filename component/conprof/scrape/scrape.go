@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng_monitoring/component/conprof/meta"
+	"github.com/pingcap/ng_monitoring/component/conprof/store"
+	"github.com/pingcap/ng_monitoring/component/conprof/util"
+	"github.com/pingcap/ng_monitoring/config"
 	"github.com/pkg/errors"
-	"github.com/zhongzc/ng_monitoring/component/conprof/meta"
-	"github.com/zhongzc/ng_monitoring/component/conprof/store"
-	"github.com/zhongzc/ng_monitoring/component/conprof/util"
-	"github.com/zhongzc/ng_monitoring/config"
 	"go.uber.org/zap"
 	"golang.org/x/net/context/ctxhttp"
 )

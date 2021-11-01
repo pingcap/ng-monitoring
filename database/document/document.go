@@ -10,8 +10,8 @@ import (
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/engine/badgerengine"
 	"github.com/pingcap/log"
-	"github.com/zhongzc/ng_monitoring/config"
-	"github.com/zhongzc/ng_monitoring/utils"
+	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/utils"
 	"go.uber.org/zap"
 )
 

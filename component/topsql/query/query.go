@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/zhongzc/ng_monitoring/utils"
+	"github.com/pingcap/ng_monitoring/utils"
 
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"

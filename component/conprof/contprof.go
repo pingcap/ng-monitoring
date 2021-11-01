@@ -2,9 +2,9 @@ package conprof
 
 import (
 	"github.com/genjidb/genji"
-	"github.com/zhongzc/ng_monitoring/component/conprof/scrape"
-	"github.com/zhongzc/ng_monitoring/component/conprof/store"
-	"github.com/zhongzc/ng_monitoring/component/topology"
+	"github.com/pingcap/ng_monitoring/component/conprof/scrape"
+	"github.com/pingcap/ng_monitoring/component/conprof/store"
+	"github.com/pingcap/ng_monitoring/component/topology"
 )
 
 var (
