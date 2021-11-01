@@ -310,10 +310,17 @@ type ContinueProfilingConfig struct {
 }
 
 func (c ContinueProfilingConfig) Valid() bool {
-	return c.ProfileSeconds > 0 &&
-		c.IntervalSeconds > 0 &&
-		c.TimeoutSeconds > 0 &&
-		c.DataRetentionSeconds > 0
+	if c.ProfileSeconds == 0 ||
+		c.IntervalSeconds == 0 ||
+		c.TimeoutSeconds == 0 ||
+		c.DataRetentionSeconds == 0 {
+		return false
+	}
+	if c.ProfileSeconds > c.IntervalSeconds ||
+		c.ProfileSeconds > c.TimeoutSeconds {
+		return false
+	}
+	return true
 }
 
 // ScrapeConfig configures a scraping unit for conprof.
