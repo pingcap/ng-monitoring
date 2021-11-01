@@ -68,7 +68,7 @@ func main() {
 	}
 	defer topology.Stop()
 
-	pdvariable.Init(topology.GetEtcdClient())
+	pdvariable.Init(topology.GetEtcdClient)
 	defer pdvariable.Stop()
 
 	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe())

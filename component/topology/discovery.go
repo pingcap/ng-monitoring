@@ -2,17 +2,13 @@ package topology
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/tidb-dashboard/util/client/httpclient"
-	"github.com/pingcap/tidb-dashboard/util/client/pdclient"
 	"github.com/pingcap/tidb-dashboard/util/topo"
 	"github.com/zhongzc/ng_monitoring/config"
 	"github.com/zhongzc/ng_monitoring/utils"
-	"go.etcd.io/etcd/clientv3"
 	"go.uber.org/zap"
 )
 
@@ -26,12 +22,12 @@ const (
 
 type TopologyDiscoverer struct {
 	sync.Mutex
-	pdCli      *pdclient.APIClient
-	etcdCli    *clientv3.Client
-	subscriber []chan []Component
-	components []Component
-	notifyCh   chan struct{}
-	closed     chan struct{}
+	cli         *Client
+	subscriber  []chan []Component
+	components  []Component
+	notifyCh    chan struct{}
+	cfgChangeCh chan struct{}
+	closed      chan struct{}
 }
 
 type Component struct {
@@ -43,32 +39,16 @@ type Component struct {
 
 type Subscriber = chan []Component
 
-func NewTopologyDiscoverer(cfg *config.Config) (*TopologyDiscoverer, error) {
-	if len(cfg.PD.Endpoints) == 0 {
-		return nil, fmt.Errorf("unexpected empty pd endpoints, please specify at least one pd endpoint")
-	}
-	pdCli, err := pdclient.NewAPIClient(httpclient.APIClientConfig{
-		// TODO: support all PD endpoints.
-		Endpoint: fmt.Sprintf("%v://%v", cfg.GetHTTPScheme(), cfg.PD.Endpoints[0]),
-		Context:  context.Background(),
-		TLS:      cfg.Security.GetTLSConfig(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	etcdCli, err := pdclient.NewEtcdClient(pdclient.EtcdClientConfig{
-		Endpoints: cfg.PD.Endpoints,
-		Context:   context.Background(),
-		TLS:       cfg.Security.GetTLSConfig(),
-	})
+func NewTopologyDiscoverer(cfg *config.Config, configChangeCh chan struct{}) (*TopologyDiscoverer, error) {
+	cli, err := NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 	d := &TopologyDiscoverer{
-		pdCli:    pdCli,
-		etcdCli:  etcdCli,
-		notifyCh: make(chan struct{}, 1),
-		closed:   make(chan struct{}),
+		cli:         cli,
+		cfgChangeCh: configChangeCh,
+		notifyCh:    make(chan struct{}, 1),
+		closed:      make(chan struct{}),
 	}
 	return d, nil
 }
@@ -92,7 +72,7 @@ func (d *TopologyDiscoverer) Start() {
 
 func (d *TopologyDiscoverer) Close() error {
 	close(d.closed)
-	return d.etcdCli.Close()
+	return d.cli.Close()
 }
 
 func (d *TopologyDiscoverer) loadTopologyLoop() {
@@ -104,10 +84,17 @@ func (d *TopologyDiscoverer) loadTopologyLoop() {
 		select {
 		case <-d.closed:
 			return
+		case <-d.cfgChangeCh:
+			newCfg := config.GetGlobalConfig()
+			if !d.cli.pdCfg.Equal(newCfg.PD) {
+				d.cli.reCreateClient(newCfg)
+			}
 		case <-ticker.C:
 			err = d.loadTopology()
 			if err != nil {
 				log.Error("load topology failed", zap.Error(err))
+				// try to recreate client when meet error.
+				d.cli.reCreateClient(config.GetGlobalConfig())
 			} else {
 				log.Debug("load topology success", zap.Reflect("component", d.components))
 			}
@@ -156,7 +143,7 @@ func (d *TopologyDiscoverer) getAllScrapeTargets(ctx context.Context) ([]Compone
 }
 
 func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topo.GetTiDBInstances(ctx, d.etcdCli)
+	instances, err := topo.GetTiDBInstances(ctx, d.cli.etcdCli)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +163,7 @@ func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component
 }
 
 func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topo.GetPDInstances(d.pdCli)
+	instances, err := topo.GetPDInstances(d.cli.pdCli)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +183,7 @@ func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, 
 }
 
 func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Component, error) {
-	tikvInstances, tiflashInstances, err := topo.GetStoreInstances(d.pdCli)
+	tikvInstances, tiflashInstances, err := topo.GetStoreInstances(d.cli.pdCli)
 	if err != nil {
 		return nil, err
 	}

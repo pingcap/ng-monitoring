@@ -25,20 +25,13 @@ const (
 )
 
 type TopologySyncer struct {
-	etcdCli         *clientv3.Client
 	topologySession *concurrency.Session
 	ctx             context.Context
 	cancel          context.CancelFunc
 }
 
-func NewTopologySyncer(cli *clientv3.Client) *TopologySyncer {
-	if cli == nil {
-		return nil
-	}
-
-	syncer := &TopologySyncer{
-		etcdCli: cli,
-	}
+func NewTopologySyncer() *TopologySyncer {
+	syncer := &TopologySyncer{}
 	syncer.ctx, syncer.cancel = context.WithCancel(context.Background())
 	return syncer
 }
@@ -75,11 +68,8 @@ func (s *TopologySyncer) topologyInfoKeeperLoop() {
 }
 
 func (s *TopologySyncer) newTopologySessionAndStoreServerInfo() error {
-	if s.etcdCli == nil {
-		return nil
-	}
-
-	session, err := newEtcdSession(s.ctx, s.etcdCli, defaultRetryCnt, topologySessionTTL)
+	etcdCli := GetEtcdClient()
+	session, err := newEtcdSession(s.ctx, etcdCli, defaultRetryCnt, topologySessionTTL)
 	if err != nil {
 		return err
 	}
@@ -93,7 +83,8 @@ func (s *TopologySyncer) storeTopologyInfo() error {
 
 	key := fmt.Sprintf("%s/%s/ttl", topologyPrefix, cfg.AdvertiseAddress)
 
-	return putKVToEtcd(s.ctx, s.etcdCli, defaultRetryCnt, key,
+	etcdCli := GetEtcdClient()
+	return putKVToEtcd(s.ctx, etcdCli, defaultRetryCnt, key,
 		fmt.Sprintf("%v", time.Now().UnixNano()),
 		clientv3.WithLease(s.topologySession.Lease()))
 }

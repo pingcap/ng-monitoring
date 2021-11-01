@@ -146,6 +146,21 @@ func (p *PD) valid() error {
 	return nil
 }
 
+func (p *PD) Equal(other PD) bool {
+	sort.Strings(p.Endpoints)
+	sort.Strings(other.Endpoints)
+
+	if len(p.Endpoints) != len(other.Endpoints) {
+		return false
+	}
+	for i := range p.Endpoints {
+		if p.Endpoints[i] != other.Endpoints[i] {
+			return false
+		}
+	}
+	return true
+}
+
 type Storage struct {
 	Path string `toml:"path" json:"path"`
 }
@@ -202,7 +217,7 @@ func (l *Log) InitDefaultLogger() {
 	log.ReplaceGlobals(logger, p)
 }
 
-func ReloadRoutine(ctx context.Context, configPath string, cfg *Config) {
+func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
 	sighupCh := procutil.NewSighupChan()
 	for {
 		select {
@@ -211,46 +226,31 @@ func ReloadRoutine(ctx context.Context, configPath string, cfg *Config) {
 		case <-sighupCh:
 			log.Info("received SIGHUP and ready to reload config")
 		}
-		config := new(Config)
+		newCfg := new(Config)
 
 		if len(configPath) == 0 {
 			log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
 			continue
 		}
 
-		if err := config.Load(configPath); err != nil {
+		if err := newCfg.Load(configPath); err != nil {
 			log.Warn("failed to reload config", zap.Error(err))
 			continue
 		}
 
-		if len(config.PD.Endpoints) == 0 {
+		if len(newCfg.PD.Endpoints) == 0 {
 			log.Warn("unexpected empty PD endpoints")
 			continue
 		}
 
-		if !configsEqual(cfg, config) {
-			log.Info("PD endpoints changed", zap.Strings("endpoints", config.PD.Endpoints))
+		if currentCfg.PD.Equal(newCfg.PD) {
+			continue
 		}
 
-		cfg = config
-		StoreGlobalConfig(config)
+		currentCfg.PD = newCfg.PD
+		StoreGlobalConfig(currentCfg)
+		log.Info("PD endpoints changed", zap.Strings("endpoints", currentCfg.PD.Endpoints))
 	}
-}
-
-func configsEqual(a, b *Config) bool {
-	sort.Strings(a.PD.Endpoints)
-	sort.Strings(b.PD.Endpoints)
-
-	if len(a.PD.Endpoints) != len(b.PD.Endpoints) {
-		return false
-	}
-	for i := range a.PD.Endpoints {
-		if a.PD.Endpoints[i] != b.PD.Endpoints[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (c *Config) GetHTTPScheme() string {
