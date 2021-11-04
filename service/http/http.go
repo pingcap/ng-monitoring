@@ -50,7 +50,8 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	conprofhttp.HTTPService(continuousProfilingGroup)
 
 	promHandler := promhttp.Handler()
-	ng.Handle(http.MethodGet, "/metrics", func(c *gin.Context) {
+	promGroup := ng.Group("/metrics")
+	promGroup.Any("", func(c *gin.Context) {
 		promHandler.ServeHTTP(c.Writer, c.Request)
 	})
 
