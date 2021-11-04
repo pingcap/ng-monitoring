@@ -6,14 +6,14 @@ import (
 	"os"
 	"path"
 
-	conprofhttp "github.com/pingcap/ng_monitoring/component/conprof/http"
-	topsqlsvc "github.com/pingcap/ng_monitoring/component/topsql/service"
-	"github.com/pingcap/ng_monitoring/config"
-
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
+	conprofhttp "github.com/pingcap/ng_monitoring/component/conprof/http"
+	topsqlsvc "github.com/pingcap/ng_monitoring/component/topsql/service"
+	"github.com/pingcap/ng_monitoring/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
@@ -48,6 +48,11 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 
 	continuousProfilingGroup := ng.Group("/continuous_profiling")
 	conprofhttp.HTTPService(continuousProfilingGroup)
+
+	promHandler := promhttp.Handler()
+	ng.Handle(http.MethodGet, "/metrics", func(c *gin.Context) {
+		promHandler.ServeHTTP(c.Writer, c.Request)
+	})
 
 	httpServer = &http.Server{Handler: ng}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
