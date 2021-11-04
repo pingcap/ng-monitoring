@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/gin-contrib/gzip"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
@@ -34,9 +33,6 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 
 	// recovery
 	ng.Use(gin.Recovery())
-
-	// gzip
-	ng.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	// route
 	configGroup := ng.Group("/config")
