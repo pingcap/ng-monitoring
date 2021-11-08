@@ -11,6 +11,7 @@ import (
 	"github.com/pingcap/ng_monitoring/utils"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/mvcc/mvccpb"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -21,11 +22,11 @@ const (
 	defaultRetryInterval = time.Millisecond * 200
 )
 
-var loader *PDVariableLoader
+var loader *VariableLoader
 
-type PDVariableLoader struct {
+type VariableLoader struct {
 	getCli func() *clientv3.Client
-	cfg    *PDVariable
+	cfg    atomic.Value
 	cancel context.CancelFunc
 }
 
@@ -34,7 +35,7 @@ type PDVariable struct {
 }
 
 func Init(getCli func() *clientv3.Client) {
-	loader = &PDVariableLoader{
+	loader = &VariableLoader{
 		getCli: getCli,
 	}
 	go utils.GoWithRecovery(loader.start, nil)
@@ -42,10 +43,10 @@ func Init(getCli func() *clientv3.Client) {
 }
 
 func GetPDVariable() *PDVariable {
-	return loader.cfg
+	return loader.getPDVariable()
 }
 
-func (g *PDVariableLoader) start() {
+func (g *VariableLoader) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	g.cancel = cancel
 	g.loadGlobalConfigLoop(ctx)
@@ -57,11 +58,11 @@ func Stop() {
 	}
 }
 
-func (g *PDVariableLoader) loadGlobalConfigLoop(ctx context.Context) {
+func (g *VariableLoader) loadGlobalConfigLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	watchCh := g.getCli().Watch(ctx, globalConfigPath, clientv3.WithPrefix())
-	var err error
-	g.cfg, err = g.loadAllGlobalConfig(ctx)
+	cfg, err := g.loadAllGlobalConfig(ctx)
+	g.cfg.Store(cfg)
 	if err != nil {
 		log.Error("first load global config failed", zap.Error(err))
 	} else {
@@ -76,8 +77,9 @@ func (g *PDVariableLoader) loadGlobalConfigLoop(ctx context.Context) {
 			if err != nil {
 				log.Error("load global config failed", zap.Error(err))
 			} else if cfg != nil {
-				if g.cfg == nil && *g.cfg != *cfg {
-					g.cfg = cfg
+				oldCfg := g.getPDVariable()
+				if oldCfg == nil || *oldCfg != *cfg {
+					g.cfg.Store(cfg)
 					log.Info("load global config", zap.Reflect("cfg", g.cfg))
 				}
 			}
@@ -88,25 +90,24 @@ func (g *PDVariableLoader) loadGlobalConfigLoop(ctx context.Context) {
 				// sleep a while to avoid too often.
 				time.Sleep(time.Second)
 			} else {
-				if g.cfg == nil {
-					g.cfg = &PDVariable{}
-				}
+				cfg := *g.getPDVariable()
 				for _, event := range e.Events {
 					if event.Type != mvccpb.PUT {
 						continue
 					}
-					err = g.parseGlobalConfig(string(event.Kv.Key), string(event.Kv.Value), g.cfg)
+					err = g.parseGlobalConfig(string(event.Kv.Key), string(event.Kv.Value), &cfg)
 					if err != nil {
 						log.Error("load global config failed", zap.Error(err))
 					}
-					log.Info("watch global config changed", zap.Reflect("cfg", g.cfg))
+					log.Info("watch global config changed", zap.Reflect("cfg", cfg))
 				}
+				g.cfg.Store(cfg)
 			}
 		}
 	}
 }
 
-func (g *PDVariableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, error) {
+func (g *VariableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, error) {
 	var err error
 	var resp *clientv3.GetResponse
 	for i := 0; i < defaultRetryCnt; i++ {
@@ -138,7 +139,7 @@ func (g *PDVariableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable
 	return nil, err
 }
 
-func (g *PDVariableLoader) parseGlobalConfig(key, value string, cfg *PDVariable) error {
+func (g *VariableLoader) parseGlobalConfig(key, value string, cfg *PDVariable) error {
 	if strings.HasPrefix(key, globalConfigPath) {
 		key = key[len(globalConfigPath):]
 	}
@@ -152,4 +153,12 @@ func (g *PDVariableLoader) parseGlobalConfig(key, value string, cfg *PDVariable)
 		cfg.EnableTopSQL = v
 	}
 	return nil
+}
+
+func (g *VariableLoader) getPDVariable() *PDVariable {
+	variable := g.cfg.Load()
+	if variable == nil {
+		return nil
+	}
+	return variable.(*PDVariable)
 }
