@@ -117,12 +117,14 @@ func (d *TopologyDiscoverer) loadTopology() error {
 }
 
 func (d *TopologyDiscoverer) notifySubscriber() {
+	d.Lock()
 	for _, ch := range d.subscriber {
 		select {
 		case ch <- d.components:
 		default:
 		}
 	}
+	d.Unlock()
 }
 
 func (d *TopologyDiscoverer) getAllScrapeTargets(ctx context.Context) ([]Component, error) {

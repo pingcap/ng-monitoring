@@ -1,6 +1,7 @@
 package topsql
 
 import (
+	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	"net/http"
 
 	"github.com/pingcap/ng_monitoring/component/topology"
@@ -11,10 +12,10 @@ import (
 	"github.com/genjidb/genji"
 )
 
-func Init(gj *genji.DB, insertHdr, selectHdr http.HandlerFunc, subsbr topology.Subscriber) {
+func Init(gj *genji.DB, insertHdr, selectHdr http.HandlerFunc, topSub topology.Subscriber, varSub pdvariable.Subscriber) {
 	store.Init(insertHdr, gj)
 	query.Init(selectHdr, gj)
-	subscriber.Init(subsbr)
+	subscriber.Init(topSub, varSub)
 }
 
 func Stop() {

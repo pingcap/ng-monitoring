@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	stdlog "log"
 	"os"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/pingcap/ng_monitoring/component/topology"
 	"github.com/pingcap/ng_monitoring/component/topsql"
 	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	"github.com/pingcap/ng_monitoring/database"
 	"github.com/pingcap/ng_monitoring/database/document"
 	"github.com/pingcap/ng_monitoring/database/timeseries"
@@ -71,7 +71,7 @@ func main() {
 	pdvariable.Init(topology.GetEtcdClient)
 	defer pdvariable.Stop()
 
-	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe())
+	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe())
 	defer topsql.Stop()
 
 	err = conprof.Init(document.Get(), topology.Subscribe())

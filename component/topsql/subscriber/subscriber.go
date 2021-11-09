@@ -10,6 +10,7 @@ import (
 	"github.com/pingcap/ng_monitoring/component/topology"
 	"github.com/pingcap/ng_monitoring/component/topsql/store"
 	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	"github.com/pingcap/ng_monitoring/utils"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
@@ -31,13 +32,17 @@ var (
 	scraperWG    sync.WaitGroup
 )
 
-func Init(topoSubscriber topology.Subscriber) {
+func Init(topoSubscriber topology.Subscriber, varSubscriber pdvariable.Subscriber) {
 	globalStopCh = make(chan struct{})
 
 	scraperWG.Add(1)
 	go utils.GoWithRecovery(func() {
 		defer scraperWG.Done()
-		sm := Manager{topoSubscriber: topoSubscriber}
+		sm := Manager{
+			varSubscriber:  varSubscriber,
+			subscribers:    make(map[topology.Component]*Subscriber),
+			topoSubscriber: topoSubscriber,
+		}
 		sm.run()
 	}, nil)
 }
@@ -50,54 +55,46 @@ func Stop() {
 }
 
 type Manager struct {
+	enabled       bool
+	varSubscriber pdvariable.Subscriber
+
+	components     []topology.Component
+	subscribers    map[topology.Component]*Subscriber
 	topoSubscriber topology.Subscriber
-	components     map[topology.Component]*Subscriber
 }
 
 func (m *Manager) run() {
-	m.components = make(map[topology.Component]*Subscriber)
 	defer func() {
-		for _, v := range m.components {
+		for _, v := range m.subscribers {
 			v.Close()
 		}
-		m.components = nil
+		m.subscribers = nil
 	}()
 
 out:
 	for {
 		select {
-		case coms := <-m.topoSubscriber:
-			// clean up closed subscribers
-			for component, subscriber := range m.components {
-				if subscriber.IsDown() {
-					subscriber.Close()
-					delete(m.components, component)
-				}
+		case vars := <-m.varSubscriber:
+			if vars.EnableTopSQL && !m.enabled {
+				m.updateSubscribers()
+				log.Info("Top SQL is enabled")
 			}
 
+			if !vars.EnableTopSQL && m.enabled {
+				m.clearSubscribers()
+				log.Info("Top SQL is disabled")
+			}
+
+			m.enabled = vars.EnableTopSQL
+		case coms := <-m.topoSubscriber:
 			if len(coms) == 0 {
-				log.Warn("got empty components. Seems to be encountering network problems")
+				log.Warn("got empty subscribers. Seems to be encountering network problems")
 				continue
 			}
 
-			in, out := m.getTopoChange(coms)
-
-			// clean up stale components
-			for i := range out {
-				m.components[out[i]].Close()
-				delete(m.components, out[i])
-			}
-
-			// set up incoming components
-			for i := range in {
-				subscriber := NewSubscriber(in[i])
-				m.components[in[i]] = subscriber
-
-				scraperWG.Add(1)
-				go utils.GoWithRecovery(func() {
-					defer scraperWG.Done()
-					subscriber.run()
-				}, nil)
+			m.components = coms
+			if m.enabled {
+				m.updateSubscribers()
 			}
 		case <-globalStopCh:
 			break out
@@ -105,30 +102,68 @@ out:
 	}
 }
 
-func (m *Manager) getTopoChange(current []topology.Component) (in, out []topology.Component) {
+func (m *Manager) updateSubscribers() {
+	// clean up closed subscribers
+	for component, subscriber := range m.subscribers {
+		if subscriber.IsDown() {
+			subscriber.Close()
+			delete(m.subscribers, component)
+		}
+	}
+
+	in, out := m.getTopoChange()
+
+	// clean up stale subscribers
+	for i := range out {
+		m.subscribers[out[i]].Close()
+		delete(m.subscribers, out[i])
+	}
+
+	// set up incoming subscribers
+	for i := range in {
+		subscriber := NewSubscriber(in[i])
+		m.subscribers[in[i]] = subscriber
+
+		scraperWG.Add(1)
+		go utils.GoWithRecovery(func() {
+			defer scraperWG.Done()
+			subscriber.run()
+		}, nil)
+	}
+}
+
+func (m *Manager) getTopoChange() (in, out []topology.Component) {
 	curMap := make(map[topology.Component]struct{})
 
-	for i := range current {
-		switch current[i].Name {
+	for i := range m.components {
+		component := m.components[i]
+		switch component.Name {
 		case topology.ComponentTiDB:
 		case topology.ComponentTiKV:
 		default:
 			continue
 		}
 
-		curMap[current[i]] = struct{}{}
-		if _, contains := m.components[current[i]]; !contains {
-			in = append(in, current[i])
+		curMap[component] = struct{}{}
+		if _, contains := m.subscribers[component]; !contains {
+			in = append(in, component)
 		}
 	}
 
-	for c := range m.components {
+	for c := range m.subscribers {
 		if _, contains := curMap[c]; !contains {
 			out = append(out, c)
 		}
 	}
 
 	return
+}
+
+func (m *Manager) clearSubscribers() {
+	for component, subscriber := range m.subscribers {
+		subscriber.Close()
+		delete(m.subscribers, component)
+	}
 }
 
 type Subscriber struct {
