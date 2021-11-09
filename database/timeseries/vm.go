@@ -4,7 +4,6 @@ import (
 	"flag"
 	"os"
 	"path"
-	"syscall"
 	"time"
 
 	"github.com/pingcap/ng_monitoring/config"
@@ -70,7 +69,7 @@ func initLogger(l *config.Log) error {
 		return err
 	}
 
-	if err = syscall.Dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
+	if err = dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
 		return err
 	}
 	logger.Init()
