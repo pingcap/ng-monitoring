@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	gcInterval = time.Second * 60
+	gcInterval = time.Minute * 10
 )
 
 func (s *ProfileStorage) doGCLoop() {
