@@ -72,9 +72,7 @@ func runValueLogGC(db *badger.DB) {
 		}
 	}()
 	err := doValueLogGC(db)
-	if err == nil {
-		log.Info("badger run value log gc success")
-	} else if err != badger.ErrNoRewrite {
+	if err != nil && err != badger.ErrNoRewrite {
 		log.Error("badger run value log gc failed", zap.Error(err))
 	}
 }
@@ -86,6 +84,7 @@ func doValueLogGC(db *badger.DB) error {
 		if err != nil {
 			return err
 		}
+		log.Info("badger run value log gc success")
 	}
 	return nil
 }
