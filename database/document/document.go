@@ -47,7 +47,7 @@ func Init(cfg *config.Config) {
 
 func doGCLoop(db *badger.DB, closed chan struct{}) {
 	log.Info("badger start to run value log gc loop")
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Minute)
 	defer func() {
 		ticker.Stop()
 		log.Info("badger stop running value log gc loop")
