@@ -71,12 +71,23 @@ func runValueLogGC(db *badger.DB) {
 				zap.Stack("stack trace"))
 		}
 	}()
-	err := db.RunValueLogGC(0.5)
+	err := doValueLogGC(db)
 	if err == nil {
 		log.Info("badger run value log gc success")
 	} else if err != badger.ErrNoRewrite {
 		log.Error("badger run value log gc failed", zap.Error(err))
 	}
+}
+
+func doValueLogGC(db *badger.DB) error {
+	// at most do 10 value log gc each time.
+	for i := 0; i < 10; i++ {
+		err := db.RunValueLogGC(0.1)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func Get() *genji.DB {
