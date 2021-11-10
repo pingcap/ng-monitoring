@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v3"
-	"github.com/dgraph-io/badger/v3/options"
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/engine/badgerengine"
 	"github.com/pingcap/log"
@@ -22,7 +21,6 @@ func Init(cfg *config.Config) {
 	dataPath := path.Join(cfg.Storage.Path, "docdb")
 	l, _ := simpleLogger(&cfg.Log)
 	opts := badger.DefaultOptions(dataPath).
-		WithCompression(options.ZSTD).
 		WithZSTDCompressionLevel(3).
 		WithBlockSize(8 * 1024).
 		WithValueThreshold(128 * 1024).
