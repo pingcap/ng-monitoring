@@ -60,6 +60,7 @@ func Stop() {
 func initLogger(l *config.Log) error {
 	_ = flag.Set("loggerOutput", "stderr")
 	_ = flag.Set("loggerLevel", mapLogLevel(l.Level))
+	_ = flag.Set("search.maxStepForPointsAdjustment", "1s")
 
 	// VictoriaMetrics only supports stdout or stderr as log output.
 	// To output the log to the specified file, redirect stderr to that file.
