@@ -37,10 +37,10 @@ func Stop() {
 
 }
 
-func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {
+func TopSQL(name string, startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {
 	metricResponse := metricRespP.Get()
 	defer metricRespP.Put(metricResponse)
-	if err := fetchTimeseriesDB(startSecs, endSecs, windowSecs, instance, metricResponse); err != nil {
+	if err := fetchTimeseriesDB(name, startSecs, endSecs, windowSecs, instance, metricResponse); err != nil {
 		return err
 	}
 
@@ -50,7 +50,7 @@ func TopSQL(startSecs, endSecs, windowSecs, top int, instance string, fill *[]To
 		return err
 	}
 
-	return fillText(sqlGroups, fill)
+	return fillText(name, sqlGroups, fill)
 }
 
 func AllInstances(fill *[]InstanceItem) error {
@@ -76,16 +76,16 @@ func AllInstances(fill *[]InstanceItem) error {
 type planSeries struct {
 	planDigest    string
 	timestampSecs []uint64
-	cpuTimeMillis []uint32
+	values        []uint32
 }
 
 type sqlGroup struct {
 	sqlDigest  string
 	planSeries []planSeries
-	cpuTimeSum uint32
+	valueSum   uint32
 }
 
-func fetchTimeseriesDB(startSecs int, endSecs int, windowSecs int, instance string, metricResponse *metricResp) error {
+func fetchTimeseriesDB(name string, startSecs int, endSecs int, windowSecs int, instance string, metricResponse *metricResp) error {
 	if vmselectHandler == nil {
 		return fmt.Errorf("empty query handler")
 	}
@@ -96,7 +96,7 @@ func fetchTimeseriesDB(startSecs int, endSecs int, windowSecs int, instance stri
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
 
-	query := fmt.Sprintf("sum_over_time(cpu_time{instance=\"%s\"}[%d])", instance, windowSecs)
+	query := fmt.Sprintf("sum_over_time(%s{instance=\"%s\"}[%d])", name, instance, windowSecs)
 	start := strconv.Itoa(startSecs - startSecs%windowSecs)
 	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
 
@@ -160,14 +160,14 @@ func groupBySQLDigest(resp []metricRespDataResult, target *[]sqlGroup) {
 			}
 
 			ts := uint64(value[0].(float64))
-			cpu, err := strconv.ParseUint(value[1].(string), 10, 64)
+			v, err := strconv.ParseUint(value[1].(string), 10, 64)
 			if err != nil {
 				continue
 			}
 
-			group.cpuTimeSum += uint32(cpu)
+			group.valueSum += uint32(v)
 			ps.timestampSecs = append(ps.timestampSecs, ts)
-			ps.cpuTimeMillis = append(ps.cpuTimeMillis, uint32(cpu))
+			ps.values = append(ps.values, uint32(v))
 		}
 
 		m[r.Metric.SQLDigest] = group
@@ -177,7 +177,7 @@ func groupBySQLDigest(resp []metricRespDataResult, target *[]sqlGroup) {
 		*target = append(*target, sqlGroup{
 			sqlDigest:  group.sqlDigest,
 			planSeries: group.planSeries,
-			cpuTimeSum: group.cpuTimeSum,
+			valueSum:   group.valueSum,
 		})
 	}
 }
@@ -196,7 +196,7 @@ func keepTopK(groups *[]sqlGroup, top int) error {
 	return nil
 }
 
-func fillText(sqlGroups *[]sqlGroup, fill *[]TopSQLItem) error {
+func fillText(name string, sqlGroups *[]sqlGroup, fill *[]TopSQLItem) error {
 	return documentDB.View(func(tx *genji.Tx) error {
 		for _, group := range *sqlGroups {
 			sqlDigest := group.sqlDigest
@@ -231,12 +231,24 @@ func fillText(sqlGroups *[]sqlGroup, fill *[]TopSQLItem) error {
 					}
 				}
 
-				item.Plans = append(item.Plans, PlanItem{
+				planItem := PlanItem{
 					PlanDigest:    planDigest,
 					PlanText:      planText,
 					TimestampSecs: series.timestampSecs,
-					CPUTimeMillis: series.cpuTimeMillis,
-				})
+				}
+				switch name {
+				case "cpu_time":
+					planItem.CPUTimeMillis = series.values
+				case "read_row":
+					planItem.ReadRows = series.values
+				case "read_index":
+					planItem.ReadIndexes = series.values
+				case "write_row":
+					planItem.WriteRows = series.values
+				case "write_index":
+					planItem.WriteIndexes = series.values
+				}
+				item.Plans = append(item.Plans, planItem)
 			}
 
 			*fill = append(*fill, item)
@@ -258,8 +270,8 @@ func (s TopKSlice) Less(i, j int) bool {
 	si := s.s[i]
 	sj := s.s[j]
 
-	if si.cpuTimeSum != sj.cpuTimeSum {
-		return si.cpuTimeSum > sj.cpuTimeSum
+	if si.valueSum != sj.valueSum {
+		return si.valueSum > sj.valueSum
 	}
 
 	return si.sqlDigest > sj.sqlDigest

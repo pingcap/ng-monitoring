@@ -15,11 +15,53 @@ var (
 )
 
 func HTTPService(g *gin.RouterGroup) {
-	g.GET("/v1/cpu_time", cpuTime)
-	g.GET("/v1/instances", instances)
+	g.GET("/v1/instances", InstancesHandler)
+	g.GET("/v1/cpu_time", CpuTimeHandler)
+	g.GET("/v1/read_row", ReadRowHandler)
+	g.GET("/v1/read_index", ReadIndexHandler)
+	g.GET("/v1/write_row", WriteRowHandler)
+	g.GET("/v1/write_index", WriteIndexHandler)
 }
 
-func cpuTime(c *gin.Context) {
+func InstancesHandler(c *gin.Context) {
+	instances := instanceItemsP.Get()
+	defer instanceItemsP.Put(instances)
+
+	if err := query.AllInstances(instances); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ok",
+		"data":   instances,
+	})
+}
+
+func CpuTimeHandler(c *gin.Context) {
+	queryMetric(c, "cpu_time")
+}
+
+func ReadRowHandler(c *gin.Context) {
+	queryMetric(c, "read_row")
+}
+
+func ReadIndexHandler(c *gin.Context) {
+	queryMetric(c, "read_index")
+}
+
+func WriteRowHandler(c *gin.Context) {
+	queryMetric(c, "write_row")
+}
+
+func WriteIndexHandler(c *gin.Context) {
+	queryMetric(c, "write_index")
+}
+
+func queryMetric(c *gin.Context, name string) {
 	instance := c.Query("instance")
 	if len(instance) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -99,7 +141,7 @@ func cpuTime(c *gin.Context) {
 	items := topSQLItemsP.Get()
 	defer topSQLItemsP.Put(items)
 
-	err = query.TopSQL(int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
+	err = query.TopSQL(name, int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
@@ -111,23 +153,5 @@ func cpuTime(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 		"data":   items,
-	})
-}
-
-func instances(c *gin.Context) {
-	instances := instanceItemsP.Get()
-	defer instanceItemsP.Put(instances)
-
-	if err := query.AllInstances(instances); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"data":   instances,
 	})
 }
