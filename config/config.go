@@ -80,6 +80,10 @@ func GetGlobalConfig() *Config {
 	return globalConf.Load().(*Config)
 }
 
+func GetDefaultConfig() Config {
+	return defaultConfig
+}
+
 // StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
 func StoreGlobalConfig(config *Config) {
 	globalConf.Store(config)
