@@ -13,11 +13,14 @@ import (
 )
 
 const (
-	discoverInterval = time.Second * 30
 	ComponentTiDB    = "tidb"
 	ComponentTiKV    = "tikv"
 	ComponentTiFlash = "tiflash"
 	ComponentPD      = "pd"
+)
+
+var (
+	discoverInterval = time.Second * 30
 )
 
 type TopologyDiscoverer struct {
