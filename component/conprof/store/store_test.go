@@ -1,19 +1,16 @@
 package store
 
 import (
-	"context"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/dgraph-io/badger/v3"
-	"github.com/genjidb/genji"
-	"github.com/genjidb/genji/engine/badgerengine"
 	"github.com/pingcap/ng_monitoring/component/conprof/meta"
 	"github.com/pingcap/ng_monitoring/component/conprof/util"
 	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +30,7 @@ func TestProfileStorage(t *testing.T) {
 }
 
 func testProfileStorageGC(t *testing.T, tmpDir string, baseTs int64) {
-	genjiDB := newGenjiDB(t, tmpDir)
+	genjiDB := testutil.NewGenjiDB(t, tmpDir)
 	defer genjiDB.Close()
 	storage, err := NewProfileStorage(genjiDB)
 	require.NoError(t, err)
@@ -50,7 +47,7 @@ func testProfileStorageGC(t *testing.T, tmpDir string, baseTs int64) {
 }
 
 func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bool) {
-	genjiDB := newGenjiDB(t, tmpDir)
+	genjiDB := testutil.NewGenjiDB(t, tmpDir)
 	defer genjiDB.Close()
 	storage, err := NewProfileStorage(genjiDB)
 	require.NoError(t, err)
@@ -154,29 +151,4 @@ func mockProfile() []byte {
 		data[i] = byte(i % 255)
 	}
 	return data
-}
-
-func verifyMockProfile(data []byte) bool {
-	if len(data) < 50*1024 {
-		return false
-	}
-	for i := 0; i < len(data); i += 99 {
-		if data[i] != byte(i%255) {
-			return false
-		}
-	}
-	return true
-}
-
-func newGenjiDB(t *testing.T, storagePath string) *genji.DB {
-	opts := badger.DefaultOptions(storagePath).
-		WithZSTDCompressionLevel(3).
-		WithBlockSize(8 * 1024).
-		WithValueThreshold(128 * 1024)
-
-	engine, err := badgerengine.NewEngine(opts)
-	require.NoError(t, err)
-	db, err := genji.New(context.Background(), engine)
-	require.NoError(t, err)
-	return db
 }

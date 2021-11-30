@@ -222,6 +222,10 @@ func (l *Log) InitDefaultLogger() {
 }
 
 func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
+	if len(configPath) == 0 {
+		log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
+		return
+	}
 	sighupCh := procutil.NewSighupChan()
 	for {
 		select {
@@ -231,11 +235,6 @@ func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
 			log.Info("received SIGHUP and ready to reload config")
 		}
 		newCfg := new(Config)
-
-		if len(configPath) == 0 {
-			log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
-			continue
-		}
 
 		if err := newCfg.Load(configPath); err != nil {
 			log.Warn("failed to reload config", zap.Error(err))
