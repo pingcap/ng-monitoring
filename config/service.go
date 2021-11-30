@@ -47,7 +47,10 @@ func handleModifyConfig(c *gin.Context) error {
 			if !ok {
 				return fmt.Errorf("%v config value is invalid: %v", k, v)
 			}
-			return handleContinueProfilingConfigModify(m)
+			err := handleContinueProfilingConfigModify(m)
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("config %v not support modify or unknow", k)
 		}
