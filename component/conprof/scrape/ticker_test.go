@@ -5,12 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
-
-func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
-}
 
 func TestTicker(t *testing.T) {
 	ticker := NewTicker(time.Millisecond * 50)

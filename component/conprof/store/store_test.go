@@ -103,7 +103,7 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 		_, err = storage.UpdateProfileTargetInfo(pt, ts)
 		require.NoError(t, err)
 
-		info := storage.getTargetInfoFromCache(pt)
+		info := storage.GetTargetInfoFromCache(pt)
 		require.NotNil(t, info)
 		require.Equal(t, info.LastScrapeTs, ts)
 	}
