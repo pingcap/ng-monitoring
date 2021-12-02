@@ -34,6 +34,10 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	// recovery
 	ng.Use(gin.Recovery())
 
+	ng.Handle(http.MethodGet, "/health", func(g *gin.Context) {
+		g.JSON(http.StatusOK, Status{Health: true})
+	})
+
 	// route
 	configGroup := ng.Group("/config")
 	config.HTTPService(configGroup)
@@ -55,6 +59,10 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Warn("failed to serve http service", zap.Error(err))
 	}
+}
+
+type Status struct {
+	Health bool `json:"health"`
 }
 
 func StopHTTP() {
