@@ -22,6 +22,10 @@ func Init() error {
 	return err
 }
 
+func InitForTest(comps []Component) {
+	discover = &TopologyDiscoverer{components: comps}
+}
+
 func GetCurrentComponent() []Component {
 	if discover == nil {
 		return nil
