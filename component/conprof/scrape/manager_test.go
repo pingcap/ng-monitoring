@@ -3,10 +3,7 @@ package scrape
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
-	"net/http"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -55,11 +52,11 @@ func TestManager(t *testing.T) {
 	manager.Start()
 	defer manager.Close()
 
-	mockServer := createMockProfileServer(t)
-	defer mockServer.stop(t)
+	mockServer := testutil.CreateMockProfileServer(t)
+	defer mockServer.Stop(t)
 
-	addr := mockServer.addr
-	port := mockServer.port
+	addr := mockServer.Addr
+	port := mockServer.Port
 	components := []topology.Component{
 		{Name: topology.ComponentPD, IP: addr, Port: port, StatusPort: port},
 		{Name: topology.ComponentTiDB, IP: addr, Port: port, StatusPort: port},
@@ -139,10 +136,10 @@ func TestManager(t *testing.T) {
 	require.Equal(t, len(comp), len(components)-1)
 
 	// test for topology changed.
-	mockServer2 := createMockProfileServer(t)
-	defer mockServer2.stop(t)
-	addr2 := mockServer2.addr
-	port2 := mockServer2.port
+	mockServer2 := testutil.CreateMockProfileServer(t)
+	defer mockServer2.Stop(t)
+	addr2 := mockServer2.Addr
+	port2 := mockServer2.Port
 	log.Info("new mock server", zap.Uint("port", port2))
 	components = []topology.Component{
 		{Name: topology.ComponentPD, IP: addr2, Port: port2, StatusPort: port2},
@@ -185,62 +182,4 @@ func TestManager(t *testing.T) {
 
 	comp = manager.GetCurrentScrapeComponents()
 	require.Equal(t, len(comp), len(components), fmt.Sprintf("%#v \n %#v", comp, components))
-}
-
-type mockProfileServer struct {
-	addr       string
-	port       uint
-	httpServer *http.Server
-}
-
-func createMockProfileServer(t *testing.T) *mockProfileServer {
-	s := &mockProfileServer{}
-	s.start(t)
-	return s
-}
-
-func (s *mockProfileServer) start(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	router := http.NewServeMux()
-	router.HandleFunc("/debug/pprof/profile", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("profile"))
-	})
-
-	router.HandleFunc("/debug/pprof/mutex", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("mutex"))
-	})
-
-	router.HandleFunc("/debug/pprof/goroutine", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("goroutine"))
-	})
-
-	router.HandleFunc("/debug/pprof/heap", func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("heap"))
-	})
-
-	httpServer := &http.Server{
-		Handler: router,
-	}
-	go func() {
-		if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
-			require.NoError(t, err)
-		}
-	}()
-	var port string
-	s.addr, port, err = net.SplitHostPort(listener.Addr().String())
-	require.NoError(t, err)
-	p, err := strconv.ParseUint(port, 10, 64)
-	require.NoError(t, err)
-	s.port = uint(p)
-	s.httpServer = httpServer
-}
-
-func (s *mockProfileServer) stop(t *testing.T) {
-	err := s.httpServer.Close()
-	require.NoError(t, err)
 }
