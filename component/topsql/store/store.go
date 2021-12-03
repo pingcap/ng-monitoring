@@ -248,7 +248,7 @@ func rsMeteringProtoToMetrics(
 // appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
 func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metric, label *tipb.ResourceGroupTagLabel) {
 	var rows, indexes uint32
-	if len(values) >= i {
+	if len(values) > i {
 		if label != nil {
 			if *label == tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow {
 				rows = values[i]
