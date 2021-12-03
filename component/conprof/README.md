@@ -5,14 +5,14 @@
 curl http://0.0.0.0:12020/config
 
 # modify config
-curl -X POST -d '{"continuous-profiling": {"enable": false,"profile-seconds":6,"interval-seconds":11}}' http://0.0.0.0:12020/config
+curl -X POST -d '{"continuous_profiling": {"enable": false,"profile_seconds":6,"interval_seconds":11}}' http://0.0.0.0:12020/config
 
 # estimate size profile data size
-curl http://0.0.0.0:12020/continuous_profiling/estimate-size\?days\=3
+curl http://0.0.0.0:12020/continuous_profiling/estimate_size\?days\=3
 
 # query group profiles
 
-curl "http://0.0.0.0:12020/continuous_profiling/group_profiles?begin_time=1634836900&end_time=1634836910"
+curl "http://0.0.0.0:12020/continuous_profiling/group_profiles?begin_time=1634836900&end_time=1654836910"
 [
     {
         "ts": 1634836900,

@@ -19,6 +19,10 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	updateTargetMetaInterval = time.Minute
+)
+
 // Manager maintains a set of scrape pools and manages start/stop cycles
 // when receiving new target groups form the discovery manager.
 type Manager struct {
@@ -80,7 +84,7 @@ func (m *Manager) GetCurrentScrapeComponents() []topology.Component {
 }
 
 func (m *Manager) updateTargetMetaLoop(ctx context.Context) {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(updateTargetMetaInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -281,6 +285,9 @@ func (m *Manager) GetAllCurrentScrapeSuite() ([]meta.ProfileTarget, []*ScrapeSui
 func (m *Manager) Close() {
 	if m.cancel != nil {
 		m.cancel()
+	}
+	if m.ticker != nil {
+		m.ticker.Stop()
 	}
 	m.store.Close()
 	m.wg.Wait()

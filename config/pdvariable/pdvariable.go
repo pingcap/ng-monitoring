@@ -15,8 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	globalConfigPath     = "/global/config/"
+var (
+	GlobalConfigPath     = "/global/config/"
 	defaultRetryCnt      = 5
 	defaultTimeout       = time.Second
 	defaultRetryInterval = time.Millisecond * 200
@@ -25,6 +25,7 @@ const (
 func Init(getCli func() *clientv3.Client) {
 	loader = &variableLoader{
 		getCli: getCli,
+		cfg:    DefaultPDVariable(),
 	}
 	go utils.GoWithRecovery(loader.start, nil)
 	return
@@ -64,12 +65,18 @@ func (l *variableLoader) start() {
 func Stop() {
 	if loader != nil && loader.cancel != nil {
 		loader.cancel()
+
+		loader.Lock()
+		for _, ch := range loader.subscribers {
+			close(ch)
+		}
+		loader.Unlock()
 	}
 }
 
 func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
-	watchCh := l.getCli().Watch(ctx, globalConfigPath, clientv3.WithPrefix())
+	watchCh := l.getCli().Watch(ctx, GlobalConfigPath, clientv3.WithPrefix())
 
 	var err error
 	l.cfg, err = l.loadAllGlobalConfig(ctx)
@@ -89,7 +96,7 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 			if err != nil {
 				log.Error("load global config failed", zap.Error(err))
 			} else if cfg != nil {
-				if l.cfg == nil || *l.cfg != *cfg {
+				if *l.cfg != *cfg {
 					l.cfg = cfg
 					log.Info("load global config", zap.Reflect("cfg", l.cfg))
 					l.notifySubscriber()
@@ -98,13 +105,11 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 		case e, ok := <-watchCh:
 			if !ok {
 				log.Info("global config watch channel closed")
-				watchCh = l.getCli().Watch(ctx, globalConfigPath, clientv3.WithPrefix())
+				watchCh = l.getCli().Watch(ctx, GlobalConfigPath, clientv3.WithPrefix())
 				// sleep a while to avoid too often.
 				time.Sleep(time.Second)
 			} else {
-				if l.cfg == nil {
-					l.cfg = DefaultPDVariable()
-				}
+				oldCfg := *l.cfg
 				for _, event := range e.Events {
 					if event.Type != mvccpb.PUT {
 						continue
@@ -115,7 +120,9 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 					}
 					log.Info("watch global config changed", zap.Reflect("cfg", l.cfg))
 				}
-				l.notifySubscriber()
+				if oldCfg != *l.cfg {
+					l.notifySubscriber()
+				}
 			}
 		}
 	}
@@ -131,7 +138,7 @@ func (l *variableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, 
 		default:
 		}
 		childCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
-		resp, err = l.getCli().Get(childCtx, globalConfigPath, clientv3.WithPrefix())
+		resp, err = l.getCli().Get(childCtx, GlobalConfigPath, clientv3.WithPrefix())
 		cancel()
 		if err != nil {
 			log.Debug("load global config failed.", zap.Error(err))
@@ -154,8 +161,8 @@ func (l *variableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, 
 }
 
 func (l *variableLoader) parseGlobalConfig(key, value string, cfg *PDVariable) error {
-	if strings.HasPrefix(key, globalConfigPath) {
-		key = key[len(globalConfigPath):]
+	if strings.HasPrefix(key, GlobalConfigPath) {
+		key = key[len(GlobalConfigPath):]
 	}
 	switch key {
 	case "enable_resource_metering":

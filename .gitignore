@@ -2,3 +2,5 @@
 data
 bin
 log
+*.log
+coverage.txt

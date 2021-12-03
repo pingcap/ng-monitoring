@@ -22,6 +22,8 @@ func (s *ProfileStorage) doGCLoop() {
 	defer ticker.Stop()
 	for {
 		select {
+		case <-s.ctx.Done():
+			return
 		case <-ticker.C:
 			s.runGC()
 		}

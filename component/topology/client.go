@@ -2,6 +2,7 @@ package topology
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/pingcap/log"
@@ -20,6 +21,18 @@ type Client struct {
 
 func NewClient(cfg *config.Config) (*Client, error) {
 	pdCli, etcdCli, err := createClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		pdCli:   pdCli,
+		etcdCli: etcdCli,
+		pdCfg:   cfg.PD,
+	}, nil
+}
+
+func NewClientForTest(cfg *config.Config, etcdCli *clientv3.Client) (*Client, error) {
+	pdCli, err := CreatePDClient(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +76,19 @@ func createClient(cfg *config.Config) (*pdclient.APIClient, *clientv3.Client, er
 		return nil, nil, err
 	}
 
+	pdCli, err := CreatePDClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pdCli, etcdCli, err
+}
+
+func CreatePDClient(cfg *config.Config) (*pdclient.APIClient, error) {
+	if cfg == nil || len(cfg.PD.Endpoints) == 0 {
+		return nil, errors.New("need specify pd endpoints")
+	}
 	var pdCli *pdclient.APIClient
+	var err error
 	for _, endpoint := range cfg.PD.Endpoints {
 		pdCli, err = pdclient.NewAPIClient(httpclient.APIClientConfig{
 			// TODO: support all PD endpoints.
@@ -75,15 +100,15 @@ func createClient(cfg *config.Config) (*pdclient.APIClient, *clientv3.Client, er
 			_, err = pdCli.GetHealth()
 			if err == nil {
 				log.Info("create pd client success", zap.String("pd-address", endpoint))
-				return pdCli, etcdCli, nil
+				return pdCli, nil
 			}
 		}
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if pdCli == nil {
-		return nil, nil, fmt.Errorf("can't create pd client, should never happen")
+		return nil, fmt.Errorf("can't create pd client, should never happen")
 	}
-	return pdCli, etcdCli, err
+	return pdCli, err
 }

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -29,6 +30,8 @@ var ErrStoreIsClosed = errors.New("storage is closed")
 
 type ProfileStorage struct {
 	closed atomic.Bool
+	ctx    context.Context
+	cancel context.CancelFunc
 	sync.Mutex
 	db           *genji.DB
 	metaCache    map[meta.ProfileTarget]*meta.TargetInfo
@@ -41,6 +44,7 @@ func NewProfileStorage(db *genji.DB) (*ProfileStorage, error) {
 		db:        db,
 		metaCache: make(map[meta.ProfileTarget]*meta.TargetInfo),
 	}
+	store.ctx, store.cancel = context.WithCancel(context.Background())
 	err := store.init()
 	if err != nil {
 		return nil, err
@@ -191,7 +195,7 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 	rateLimiter := utils.NewRateLimit(16)
 	doneCh := make(chan struct{})
 	for _, pt := range targets {
-		info := s.getTargetInfoFromCache(pt)
+		info := s.GetTargetInfoFromCache(pt)
 		if info == nil {
 			continue
 		}
@@ -279,7 +283,7 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 	rateLimiter := utils.NewRateLimit(16)
 	doneCh := make(chan struct{})
 	for _, pt := range targets {
-		info := s.getTargetInfoFromCache(pt)
+		info := s.GetTargetInfoFromCache(pt)
 		if info == nil {
 			continue
 		}
@@ -347,7 +351,7 @@ func (s *ProfileStorage) QueryTargetProfileData(pt meta.ProfileTarget, ptInfo *m
 	return err
 }
 
-func (s *ProfileStorage) getTargetInfoFromCache(pt meta.ProfileTarget) *meta.TargetInfo {
+func (s *ProfileStorage) GetTargetInfoFromCache(pt meta.ProfileTarget) *meta.TargetInfo {
 	s.Lock()
 	info := s.metaCache[pt]
 	s.Unlock()
@@ -369,6 +373,9 @@ func (s *ProfileStorage) Close() {
 		return
 	}
 	s.closed.Store(true)
+	if s.cancel != nil {
+		s.cancel()
+	}
 }
 
 func (s *ProfileStorage) isClose() bool {

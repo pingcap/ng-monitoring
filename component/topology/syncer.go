@@ -21,7 +21,10 @@ const (
 	newSessionRetryInterval = 200 * time.Millisecond
 	logIntervalCnt          = int(3 * time.Second / newSessionRetryInterval)
 	topologySessionTTL      = 45
-	topologyTimeToRefresh   = 30 * time.Second
+)
+
+var (
+	topologyTimeToRefresh = 30 * time.Second
 )
 
 type TopologySyncer struct {

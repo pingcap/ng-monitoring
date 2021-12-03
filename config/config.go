@@ -80,6 +80,10 @@ func GetGlobalConfig() *Config {
 	return globalConf.Load().(*Config)
 }
 
+func GetDefaultConfig() Config {
+	return defaultConfig
+}
+
 // StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
 func StoreGlobalConfig(config *Config) {
 	globalConf.Store(config)
@@ -218,6 +222,10 @@ func (l *Log) InitDefaultLogger() {
 }
 
 func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
+	if len(configPath) == 0 {
+		log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
+		return
+	}
 	sighupCh := procutil.NewSighupChan()
 	for {
 		select {
@@ -227,11 +235,6 @@ func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
 			log.Info("received SIGHUP and ready to reload config")
 		}
 		newCfg := new(Config)
-
-		if len(configPath) == 0 {
-			log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
-			continue
-		}
 
 		if err := newCfg.Load(configPath); err != nil {
 			log.Warn("failed to reload config", zap.Error(err))
