@@ -26,9 +26,7 @@ type logger struct {
 }
 
 func initLogger(cfg *config.Config) (*logger, error) {
-	var logFile *os.File
 	var err error
-
 	var logDir string
 	if cfg.Log.Path != "" {
 		logDir = cfg.Log.Path
@@ -41,7 +39,7 @@ func initLogger(cfg *config.Config) (*logger, error) {
 	}
 
 	logFileName := path.Join(logDir, "docdb.log")
-	logFile, err = os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	logFile, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		// Need to log via the default logger due to `l` is not initialized.
 		log.Warn("Failed to init logger", zap.String("filename", logFileName))
