@@ -25,9 +25,23 @@ type logger struct {
 	level loggingLevel
 }
 
-func simpleLogger(l *config.Log) (*logger, error) {
-	logFileName := path.Join(l.Path, "docdb.log")
-	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+func initLogger(cfg *config.Config) (*logger, error) {
+	var logFile *os.File
+	var err error
+
+	var logDir string
+	if cfg.Log.Path != "" {
+		logDir = cfg.Log.Path
+	} else {
+		logDir = path.Join(cfg.Storage.Path, "docdb-log")
+		err := os.MkdirAll(logDir, os.ModePerm)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	logFileName := path.Join(logDir, "docdb.log")
+	logFile, err = os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		// Need to log via the default logger due to `l` is not initialized.
 		log.Warn("Failed to init logger", zap.String("filename", logFileName))
@@ -35,7 +49,7 @@ func simpleLogger(l *config.Log) (*logger, error) {
 	}
 
 	var level loggingLevel
-	switch l.Level {
+	switch cfg.Log.Level {
 	case config.LevelDebug:
 		level = DEBUG
 	case config.LevelInfo:
@@ -45,10 +59,10 @@ func simpleLogger(l *config.Log) (*logger, error) {
 	case config.LevelError:
 		level = ERROR
 	default:
-		log.Fatal("Unsupported log level", zap.String("level", l.Level))
+		log.Fatal("Unsupported log level", zap.String("level", cfg.Log.Level))
 	}
 
-	return &logger{Logger: stdlog.New(file, "badger ", stdlog.LstdFlags), level: level}, nil
+	return &logger{Logger: stdlog.New(logFile, "badger ", stdlog.LstdFlags), level: level}, nil
 }
 
 func (l *logger) Errorf(f string, v ...interface{}) {
