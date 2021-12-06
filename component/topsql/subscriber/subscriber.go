@@ -3,6 +3,7 @@ package subscriber
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc/keepalive"
 	"io"
 	"sync"
 	"time"
@@ -342,6 +343,11 @@ func dial(addr string) (*grpc.ClientConn, error) {
 		addr,
 		tlsOption,
 		grpc.WithBlock(),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                10 * time.Second,
+			Timeout:             3 * time.Second,
+			PermitWithoutStream: true,
+		}),
 		grpc.WithConnectParams(grpc.ConnectParams{
 			Backoff: backoff.Config{
 				BaseDelay:  100 * time.Millisecond, // Default was 1s.
