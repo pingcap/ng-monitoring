@@ -25,7 +25,7 @@ var (
 )
 
 func Init(cfg *config.Config) {
-	if err := initLogger(&cfg.Log); err != nil {
+	if err := initLogger(cfg); err != nil {
 		log.Fatal("Failed to open log file", zap.Error(err))
 	}
 	initDataDir(path.Join(cfg.Storage.Path, "tsdb"))
@@ -57,19 +57,30 @@ func Stop() {
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
 
-func initLogger(l *config.Log) error {
+func initLogger(cfg *config.Config) error {
 	_ = flag.Set("loggerOutput", "stderr")
-	_ = flag.Set("loggerLevel", mapLogLevel(l.Level))
+	_ = flag.Set("loggerLevel", mapLogLevel(cfg.Log.Level))
 	_ = flag.Set("search.maxStepForPointsAdjustment", "1s")
+
+	var logDir string
+	if cfg.Log.Path != "" {
+		logDir = cfg.Log.Path
+	} else {
+		// create tsdb log dir
+		logDir = path.Join(cfg.Storage.Path, "tsdb-log")
+		err := os.MkdirAll(logDir, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
 
 	// VictoriaMetrics only supports stdout or stderr as log output.
 	// To output the log to the specified file, redirect stderr to that file.
-	logFileName := path.Join(l.Path, "tsdb.log")
+	logFileName := path.Join(logDir, "tsdb.log")
 	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
-
 	if err = dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
 		return err
 	}

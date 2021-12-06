@@ -43,7 +43,7 @@ var defaultConfig = Config{
 		Endpoints: nil,
 	},
 	Log: Log{
-		Path:  "log",
+		Path:  "", // default output is stdout
 		Level: "INFO",
 	},
 	Storage: Storage{
@@ -190,10 +190,6 @@ const (
 )
 
 func (l *Log) valid() error {
-	if len(l.Path) == 0 {
-		return fmt.Errorf("unexpected empty log path")
-	}
-
 	if len(l.Level) == 0 {
 		return fmt.Errorf("unexpected empty log level")
 	}
@@ -208,13 +204,12 @@ func (l *Log) valid() error {
 }
 
 func (l *Log) InitDefaultLogger() {
-	fileName := path.Join(l.Path, "ng.log")
-	logLevel := l.Level
+	cfg := &log.Config{Level: strings.ToLower(l.Level)}
+	if l.Path != "" {
+		cfg.File = log.FileLogConfig{Filename: path.Join(l.Path, "ng.log")}
+	}
 
-	logger, p, err := log.InitLogger(&log.Config{
-		Level: strings.ToLower(logLevel),
-		File:  log.FileLogConfig{Filename: fileName},
-	})
+	logger, p, err := log.InitLogger(cfg)
 	if err != nil {
 		stdlog.Fatalf("Failed to init logger, err: %v", err)
 	}

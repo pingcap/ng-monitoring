@@ -123,8 +123,6 @@ func TestConfigValid(t *testing.T) {
 	require.Equal(t, pdCfg.valid().Error(), "unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"[127.0.0.1:2379]\"")
 	// Test Log
 	logCfg := Log{}
-	require.Equal(t, logCfg.valid().Error(), "unexpected empty log path")
-	logCfg = Log{Path: "log"}
 	require.Equal(t, logCfg.valid().Error(), "unexpected empty log level")
 	logCfg = Log{Path: "log", Level: "unknow"}
 	require.Equal(t, logCfg.valid().Error(), "log level should be DEBUG, INFO, WARN or ERROR")

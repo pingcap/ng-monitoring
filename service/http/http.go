@@ -24,12 +24,18 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	gin.SetMode(gin.ReleaseMode)
 	ng := gin.New()
 
-	logFileName := path.Join(l.Path, "service.log")
-	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatal("Failed to open the log file", zap.String("filename", logFileName))
+	var logFile *os.File
+	var err error
+	if l.Path != "" {
+		logFileName := path.Join(l.Path, "service.log")
+		logFile, err = os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			log.Fatal("Failed to open the log file", zap.String("filename", logFileName))
+		}
+	} else {
+		logFile = os.Stdout
 	}
-	ng.Use(gin.LoggerWithWriter(file))
+	ng.Use(gin.LoggerWithWriter(logFile))
 
 	// recovery
 	ng.Use(gin.Recovery())

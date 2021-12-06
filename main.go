@@ -109,8 +109,10 @@ func overrideConfig(config *config.Config) {
 }
 
 func mustCreateDirs(config *config.Config) {
-	if err := os.MkdirAll(config.Log.Path, os.ModePerm); err != nil {
-		log.Fatal("failed to init log path", zap.Error(err))
+	if config.Log.Path != "" {
+		if err := os.MkdirAll(config.Log.Path, os.ModePerm); err != nil {
+			log.Fatal("failed to init log path", zap.Error(err))
+		}
 	}
 
 	if err := os.MkdirAll(config.Storage.Path, os.ModePerm); err != nil {
