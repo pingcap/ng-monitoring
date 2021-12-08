@@ -344,9 +344,8 @@ func dial(addr string) (*grpc.ClientConn, error) {
 		tlsOption,
 		grpc.WithBlock(),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                10 * time.Second,
-			Timeout:             3 * time.Second,
-			PermitWithoutStream: true,
+			Time:    10 * time.Second,
+			Timeout: 3 * time.Second,
 		}),
 		grpc.WithConnectParams(grpc.ConnectParams{
 			Backoff: backoff.Config{
