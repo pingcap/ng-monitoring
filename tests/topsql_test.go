@@ -40,10 +40,7 @@ func TestTopSQL(t *testing.T) {
 
 const testTsdbPath = "/tmp/ng-monitoring-test/tsdb"
 
-var (
-	testTiKVAddr = ""
-	testBaseTs   = uint64(time.Now().Unix()) - 60*60*24
-)
+var testBaseTs = uint64(time.Now().Unix()) - 60*60*24
 
 type baseHttpResponse struct {
 	Status  string `json:"status"`
@@ -64,6 +61,7 @@ type testTopSQLSuite struct {
 	suite.Suite
 	cfg        *config.Config
 	db         *genji.DB
+	tikvAddr   string
 	tikvServer *MockTiKVServer
 	topCh      chan []topology.Component
 	varCh      chan *pdvariable.PDVariable
@@ -85,7 +83,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 	s.tikvServer = NewMockTiKVServer()
 	addr, err := s.tikvServer.Listen()
 	s.NoError(err)
-	testTiKVAddr = addr
+	s.tikvAddr = addr
 	arr := strings.Split(addr, ":")
 	testIp := arr[0]
 	testPort, err := strconv.Atoi(arr[1])
@@ -174,7 +172,7 @@ func (s *testTopSQLSuite) TestInstances() {
 	}
 	s.Len(resp.Data, 1)
 	s.Equal(topology.ComponentTiKV, resp.Data[0].InstanceType)
-	s.Equal(testTiKVAddr, resp.Data[0].Instance)
+	s.Equal(s.tikvAddr, resp.Data[0].Instance)
 }
 
 func (s *testTopSQLSuite) TestCpuTime() {
@@ -214,7 +212,7 @@ func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
 	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
-	urlQuery.Set("instance", testTiKVAddr)
+	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -249,7 +247,7 @@ func (s *testTopSQLSuite) testReadRow(baseTs int, baseValue int) {
 	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
-	urlQuery.Set("instance", testTiKVAddr)
+	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -288,7 +286,7 @@ func (s *testTopSQLSuite) testReadIndex(baseTs int, baseValue int) {
 	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
-	urlQuery.Set("instance", testTiKVAddr)
+	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -327,7 +325,7 @@ func (s *testTopSQLSuite) testWriteRow(baseTs int, baseValue int) {
 	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
-	urlQuery.Set("instance", testTiKVAddr)
+	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -366,7 +364,7 @@ func (s *testTopSQLSuite) testWriteIndex(baseTs int, baseValue int) {
 	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
-	urlQuery.Set("instance", testTiKVAddr)
+	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
