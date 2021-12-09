@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"sync"
@@ -14,10 +13,11 @@ import (
 var _ rua.ResourceMeteringPubSubServer = &MockTiKVServer{}
 
 type MockTiKVServer struct {
-	server  *grpc.Server
-	records []*rua.ResourceUsageRecord
-	changed bool
-	mu      sync.Mutex
+	listener net.Listener
+	server   *grpc.Server
+	records  []*rua.ResourceUsageRecord
+	changed  bool
+	mu       sync.Mutex
 }
 
 func NewMockTiKVServer() *MockTiKVServer {
@@ -31,14 +31,18 @@ func (s *MockTiKVServer) PushRecords(records []*rua.ResourceUsageRecord) {
 	s.changed = true
 }
 
-func (s *MockTiKVServer) Serve(port int) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+func (s *MockTiKVServer) Listen() (addr string, err error) {
+	s.listener, err = net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return err
+		return
 	}
+	return s.listener.Addr().String(), nil
+}
+
+func (s *MockTiKVServer) Serve() error {
 	s.server = grpc.NewServer()
 	rua.RegisterResourceMeteringPubSubServer(s.server, s)
-	return s.server.Serve(listener)
+	return s.server.Serve(s.listener)
 }
 
 func (s *MockTiKVServer) Stop() {

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,16 +38,10 @@ func TestTopSQL(t *testing.T) {
 	suite.Run(t, &testTopSQLSuite{})
 }
 
-// TODO: It is not elegant to open the local port for testing,
-//       we may need to refactor the code to achieve loose-coupling.
-const (
-	testTsdbPath       = "/tmp/ng-monitoring-test/tsdb"
-	testTiKVServerIP   = "127.0.0.1"
-	testTiKVServerPort = 10283
-)
+const testTsdbPath = "/tmp/ng-monitoring-test/tsdb"
 
 var (
-	testTiKVAddr = fmt.Sprintf("%s:%d", testTiKVServerIP, testTiKVServerPort)
+	testTiKVAddr = ""
 	testBaseTs   = uint64(time.Now().Unix()) - 60*60*24
 )
 
@@ -88,13 +83,19 @@ func (s *testTopSQLSuite) SetupSuite() {
 
 	// init local mock tikv server
 	s.tikvServer = NewMockTiKVServer()
+	addr, err := s.tikvServer.Listen()
+	s.NoError(err)
+	testTiKVAddr = addr
+	arr := strings.Split(addr, ":")
+	testIp := arr[0]
+	testPort, err := strconv.Atoi(arr[1])
+	s.NoError(err)
 	go func() {
-		s.NoError(s.tikvServer.Serve(testTiKVServerPort))
+		s.NoError(s.tikvServer.Serve())
 	}()
 	time.Sleep(time.Second) // wait for grpc server ready (ugly code)
 
 	// init genji in memory
-	var err error
 	s.db, err = genji.Open(":memory:")
 	s.NoError(err)
 
@@ -120,8 +121,8 @@ func (s *testTopSQLSuite) SetupSuite() {
 	time.Sleep(100 * time.Millisecond)
 	s.topCh <- []topology.Component{{
 		Name:       topology.ComponentTiKV,
-		IP:         testTiKVServerIP,
-		Port:       testTiKVServerPort,
+		IP:         testIp,
+		Port:       uint(testPort),
 		StatusPort: 0,
 	}}
 	time.Sleep(100 * time.Millisecond)
