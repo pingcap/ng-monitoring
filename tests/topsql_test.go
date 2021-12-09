@@ -25,6 +25,7 @@ import (
 	"github.com/pingcap/ng_monitoring/component/topsql"
 	"github.com/pingcap/ng_monitoring/component/topsql/query"
 	"github.com/pingcap/ng_monitoring/component/topsql/service"
+	"github.com/pingcap/ng_monitoring/component/topsql/store"
 	"github.com/pingcap/ng_monitoring/config"
 	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	"github.com/pingcap/ng_monitoring/database/timeseries"
@@ -44,7 +45,10 @@ const (
 	testTiKVServerPort = 10283
 )
 
-var testTiKVAddr = fmt.Sprintf("%s:%d", testTiKVServerIP, testTiKVServerPort)
+var (
+	testTiKVAddr = fmt.Sprintf("%s:%d", testTiKVServerIP, testTiKVServerPort)
+	testBaseTs   = uint64(time.Now().Unix()) - 60*60*24
+)
 
 type baseHttpResponse struct {
 	Status  string `json:"status"`
@@ -125,20 +129,20 @@ func (s *testTopSQLSuite) SetupSuite() {
 	// init data
 	s.tikvServer.PushRecords([]*rua.ResourceUsageRecord{{
 		ResourceGroupTag:       s.encodeTag([]byte("sql-1"), []byte("plan-1"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow),
-		RecordListTimestampSec: []uint64{1636000111, 1636000112, 1636000113, 1636000114, 1636000115},
+		RecordListTimestampSec: []uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		RecordListCpuTimeMs:    []uint32{121, 122, 123, 124, 125},
 		RecordListReadKeys:     []uint32{131, 132, 133, 134, 135},
 		RecordListWriteKeys:    []uint32{141, 142, 143, 144, 145},
 	}, {
 		ResourceGroupTag:       s.encodeTag([]byte("sql-2"), []byte("plan-2"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex),
-		RecordListTimestampSec: []uint64{1636000211, 1636000212, 1636000213, 1636000214, 1636000215},
+		RecordListTimestampSec: []uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		RecordListCpuTimeMs:    []uint32{221, 222, 223, 224, 225},
 		RecordListReadKeys:     []uint32{231, 232, 233, 234, 235},
 		RecordListWriteKeys:    []uint32{241, 242, 243, 244, 245},
 	}, {
 		// Unknown label will not be counted in the read_row/read_index/write_row/write_index.
 		ResourceGroupTag:       s.encodeTag([]byte("sql-3"), []byte("plan-3"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelUnknown),
-		RecordListTimestampSec: []uint64{1636000311, 1636000312, 1636000313, 1636000314, 1636000315},
+		RecordListTimestampSec: []uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
 		RecordListCpuTimeMs:    []uint32{321, 322, 323, 324, 325},
 		RecordListReadKeys:     []uint32{331, 332, 333, 334, 335},
 		RecordListWriteKeys:    []uint32{341, 342, 343, 344, 345},
@@ -173,33 +177,33 @@ func (s *testTopSQLSuite) TestInstances() {
 }
 
 func (s *testTopSQLSuite) TestCpuTime() {
-	s.testCpuTime(1636000111, 121)
-	s.testCpuTime(1636000211, 221)
-	s.testCpuTime(1636000311, 321)
+	s.testCpuTime(int(testBaseTs+111), 121)
+	s.testCpuTime(int(testBaseTs+211), 221)
+	s.testCpuTime(int(testBaseTs+311), 321)
 }
 
 func (s *testTopSQLSuite) TestReadRow() {
-	s.testReadRow(1636000111, 131) // ResourceGroupTagLabelRow
-	s.testReadRow(1636000211, 0)   // ResourceGroupTagLabelIndex
-	s.testReadRow(1636000311, 0)   // ResourceGroupTagLabelUnknown
+	s.testReadRow(int(testBaseTs+111), 131) // ResourceGroupTagLabelRow
+	s.testReadRow(int(testBaseTs+211), 0)   // ResourceGroupTagLabelIndex
+	s.testReadRow(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestReadIndex() {
-	s.testReadIndex(1636000111, 0)   // ResourceGroupTagLabelRow
-	s.testReadIndex(1636000211, 231) // ResourceGroupTagLabelIndex
-	s.testReadIndex(1636000311, 0)   // ResourceGroupTagLabelUnknown
+	s.testReadIndex(int(testBaseTs+111), 0)   // ResourceGroupTagLabelRow
+	s.testReadIndex(int(testBaseTs+211), 231) // ResourceGroupTagLabelIndex
+	s.testReadIndex(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestWriteRow() {
-	s.testWriteRow(1636000111, 141) // ResourceGroupTagLabelRow
-	s.testWriteRow(1636000211, 0)   // ResourceGroupTagLabelIndex
-	s.testWriteRow(1636000311, 0)   // ResourceGroupTagLabelUnknown
+	s.testWriteRow(int(testBaseTs+111), 141) // ResourceGroupTagLabelRow
+	s.testWriteRow(int(testBaseTs+211), 0)   // ResourceGroupTagLabelIndex
+	s.testWriteRow(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestWriteIndex() {
-	s.testWriteIndex(1636000111, 0)   // ResourceGroupTagLabelRow
-	s.testWriteIndex(1636000211, 241) // ResourceGroupTagLabelIndex
-	s.testWriteIndex(1636000311, 0)   // ResourceGroupTagLabelUnknown
+	s.testWriteIndex(int(testBaseTs+111), 0)   // ResourceGroupTagLabelRow
+	s.testWriteIndex(int(testBaseTs+211), 241) // ResourceGroupTagLabelIndex
+	s.testWriteIndex(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
@@ -214,7 +218,7 @@ func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
 	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.CpuTimeHandler(ctx)
+	service.GetMetricHandler(store.MetricNameCPUTime)(ctx)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -249,7 +253,7 @@ func (s *testTopSQLSuite) testReadRow(baseTs int, baseValue int) {
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
 	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.ReadRowHandler(ctx)
+	service.GetMetricHandler(store.MetricNameReadRow)(ctx)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -288,7 +292,7 @@ func (s *testTopSQLSuite) testReadIndex(baseTs int, baseValue int) {
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
 	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.ReadIndexHandler(ctx)
+	service.GetMetricHandler(store.MetricNameReadIndex)(ctx)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -327,7 +331,7 @@ func (s *testTopSQLSuite) testWriteRow(baseTs int, baseValue int) {
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
 	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.WriteRowHandler(ctx)
+	service.GetMetricHandler(store.MetricNameWriteRow)(ctx)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -366,7 +370,7 @@ func (s *testTopSQLSuite) testWriteIndex(baseTs int, baseValue int) {
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
 	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.WriteIndexHandler(ctx)
+	service.GetMetricHandler(store.MetricNameWriteIndex)(ctx)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}

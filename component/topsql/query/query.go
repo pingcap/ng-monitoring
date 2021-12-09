@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/pingcap/ng_monitoring/component/topsql/store"
 	"github.com/pingcap/ng_monitoring/utils"
 
 	"github.com/genjidb/genji"
@@ -237,15 +238,15 @@ func fillText(name string, sqlGroups *[]sqlGroup, fill *[]TopSQLItem) error {
 					TimestampSecs: series.timestampSecs,
 				}
 				switch name {
-				case "cpu_time":
+				case store.MetricNameCPUTime:
 					planItem.CPUTimeMillis = series.values
-				case "read_row":
+				case store.MetricNameReadRow:
 					planItem.ReadRows = series.values
-				case "read_index":
+				case store.MetricNameReadIndex:
 					planItem.ReadIndexes = series.values
-				case "write_row":
+				case store.MetricNameWriteRow:
 					planItem.WriteRows = series.values
-				case "write_index":
+				case store.MetricNameWriteIndex:
 					planItem.WriteIndexes = series.values
 				}
 				item.Plans = append(item.Plans, planItem)

@@ -7,20 +7,27 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/ng_monitoring/component/topsql/query"
+	"github.com/pingcap/ng_monitoring/component/topsql/store"
 )
 
 var (
 	topSQLItemsP   = TopSQLItemsPool{}
 	instanceItemsP = InstanceItemsPool{}
+
+	metricNames = []string{
+		store.MetricNameCPUTime,
+		store.MetricNameReadRow,
+		store.MetricNameReadIndex,
+		store.MetricNameWriteRow,
+		store.MetricNameWriteIndex,
+	}
 )
 
 func HTTPService(g *gin.RouterGroup) {
 	g.GET("/v1/instances", InstancesHandler)
-	g.GET("/v1/cpu_time", CpuTimeHandler)
-	g.GET("/v1/read_row", ReadRowHandler)
-	g.GET("/v1/read_index", ReadIndexHandler)
-	g.GET("/v1/write_row", WriteRowHandler)
-	g.GET("/v1/write_index", WriteIndexHandler)
+	for _, name := range metricNames {
+		g.GET("/v1/"+name, GetMetricHandler(name))
+	}
 }
 
 func InstancesHandler(c *gin.Context) {
@@ -41,24 +48,10 @@ func InstancesHandler(c *gin.Context) {
 	})
 }
 
-func CpuTimeHandler(c *gin.Context) {
-	queryMetric(c, "cpu_time")
-}
-
-func ReadRowHandler(c *gin.Context) {
-	queryMetric(c, "read_row")
-}
-
-func ReadIndexHandler(c *gin.Context) {
-	queryMetric(c, "read_index")
-}
-
-func WriteRowHandler(c *gin.Context) {
-	queryMetric(c, "write_row")
-}
-
-func WriteIndexHandler(c *gin.Context) {
-	queryMetric(c, "write_index")
+func GetMetricHandler(name string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		queryMetric(c, name)
+	}
 }
 
 func queryMetric(c *gin.Context, name string) {

@@ -154,7 +154,7 @@ func topSQLProtoToMetric(
 	instance, instanceType string,
 	record *tipb.CPUTimeRecord,
 ) (m Metric) {
-	m.Metric.Name = "cpu_time"
+	m.Metric.Name = MetricNameCPUTime
 	m.Metric.Instance = instance
 	m.Metric.InstanceType = instanceType
 	m.Metric.SQLDigest = hex.EncodeToString(record.SqlDigest)
@@ -186,7 +186,7 @@ func rsMeteringProtoToMetrics(
 
 	mCpu := Metric{
 		Metric: topSQLTags{
-			Name:         "cpu_time",
+			Name:         MetricNameCPUTime,
 			Instance:     instance,
 			InstanceType: instance_type,
 			SQLDigest:    sqlDigest,
@@ -195,7 +195,7 @@ func rsMeteringProtoToMetrics(
 	}
 	mReadRow := Metric{
 		Metric: topSQLTags{
-			Name:         "read_row",
+			Name:         MetricNameReadRow,
 			Instance:     instance,
 			InstanceType: instance_type,
 			SQLDigest:    sqlDigest,
@@ -204,7 +204,7 @@ func rsMeteringProtoToMetrics(
 	}
 	mReadIndex := Metric{
 		Metric: topSQLTags{
-			Name:         "read_index",
+			Name:         MetricNameReadIndex,
 			Instance:     instance,
 			InstanceType: instance_type,
 			SQLDigest:    sqlDigest,
@@ -213,7 +213,7 @@ func rsMeteringProtoToMetrics(
 	}
 	mWriteRow := Metric{
 		Metric: topSQLTags{
-			Name:         "write_row",
+			Name:         MetricNameWriteRow,
 			Instance:     instance,
 			InstanceType: instance_type,
 			SQLDigest:    sqlDigest,
@@ -222,7 +222,7 @@ func rsMeteringProtoToMetrics(
 	}
 	mWriteIndex := Metric{
 		Metric: topSQLTags{
-			Name:         "write_index",
+			Name:         MetricNameWriteIndex,
 			Instance:     instance,
 			InstanceType: instance_type,
 			SQLDigest:    sqlDigest,
