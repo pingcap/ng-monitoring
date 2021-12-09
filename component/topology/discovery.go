@@ -2,11 +2,11 @@ package topology
 
 import (
 	"context"
+	"github.com/pingcap/ng_monitoring/component/domain"
 	"sync"
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng_monitoring/config"
 	"github.com/pingcap/ng_monitoring/utils"
 	"github.com/pingcap/tidb-dashboard/util/topo"
 	"go.uber.org/zap"
@@ -25,12 +25,11 @@ var (
 
 type TopologyDiscoverer struct {
 	sync.Mutex
-	cli         *Client
-	subscriber  []chan []Component
-	components  []Component
-	notifyCh    chan struct{}
-	cfgChangeCh chan struct{}
-	closed      chan struct{}
+	do         *domain.Domain
+	subscriber []chan []Component
+	components []Component
+	notifyCh   chan struct{}
+	closed     chan struct{}
 }
 
 type Component struct {
@@ -42,16 +41,11 @@ type Component struct {
 
 type Subscriber = chan []Component
 
-func NewTopologyDiscoverer(cfg *config.Config, configChangeCh chan struct{}) (*TopologyDiscoverer, error) {
-	cli, err := NewClient(cfg)
-	if err != nil {
-		return nil, err
-	}
+func NewTopologyDiscoverer(do *domain.Domain) (*TopologyDiscoverer, error) {
 	d := &TopologyDiscoverer{
-		cli:         cli,
-		cfgChangeCh: configChangeCh,
-		notifyCh:    make(chan struct{}, 1),
-		closed:      make(chan struct{}),
+		do:       do,
+		notifyCh: make(chan struct{}, 1),
+		closed:   make(chan struct{}),
 	}
 	return d, nil
 }
@@ -75,7 +69,7 @@ func (d *TopologyDiscoverer) Start() {
 
 func (d *TopologyDiscoverer) Close() error {
 	close(d.closed)
-	return d.cli.Close()
+	return nil
 }
 
 func (d *TopologyDiscoverer) loadTopologyLoop() {
@@ -87,17 +81,10 @@ func (d *TopologyDiscoverer) loadTopologyLoop() {
 		select {
 		case <-d.closed:
 			return
-		case <-d.cfgChangeCh:
-			newCfg := config.GetGlobalConfig()
-			if !d.cli.pdCfg.Equal(newCfg.PD) {
-				d.cli.reCreateClient(newCfg)
-			}
 		case <-ticker.C:
 			err = d.loadTopology()
 			if err != nil {
 				log.Error("load topology failed", zap.Error(err))
-				// try to recreate client when meet error.
-				d.cli.reCreateClient(config.GetGlobalConfig())
 			} else {
 				log.Debug("load topology success", zap.Reflect("component", d.components))
 			}
@@ -148,7 +135,11 @@ func (d *TopologyDiscoverer) getAllScrapeTargets(ctx context.Context) ([]Compone
 }
 
 func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topo.GetTiDBInstances(ctx, d.cli.etcdCli)
+	etcdCli, err := d.do.GetEtcdClient()
+	if err != nil {
+		return nil, err
+	}
+	instances, err := topo.GetTiDBInstances(ctx, etcdCli)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +159,11 @@ func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component
 }
 
 func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, error) {
-	instances, err := topo.GetPDInstances(d.cli.pdCli)
+	pdCli, err := d.do.GetPDClient()
+	if err != nil {
+		return nil, err
+	}
+	instances, err := topo.GetPDInstances(pdCli)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +183,11 @@ func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, 
 }
 
 func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Component, error) {
-	tikvInstances, tiflashInstances, err := topo.GetStoreInstances(d.cli.pdCli)
+	pdCli, err := d.do.GetPDClient()
+	if err != nil {
+		return nil, err
+	}
+	tikvInstances, tiflashInstances, err := topo.GetStoreInstances(pdCli)
 	if err != nil {
 		return nil, err
 	}

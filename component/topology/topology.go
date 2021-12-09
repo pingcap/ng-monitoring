@@ -1,8 +1,7 @@
 package topology
 
 import (
-	"github.com/pingcap/ng_monitoring/config"
-	"go.etcd.io/etcd/clientv3"
+	"github.com/pingcap/ng_monitoring/component/domain"
 )
 
 var (
@@ -10,13 +9,13 @@ var (
 	syncer   *TopologySyncer
 )
 
-func Init() error {
+func Init(do *domain.Domain) error {
 	var err error
-	discover, err = NewTopologyDiscoverer(config.GetGlobalConfig(), config.SubscribeConfigChange())
+	discover, err = NewTopologyDiscoverer(do)
 	if err != nil {
 		return err
 	}
-	syncer = NewTopologySyncer()
+	syncer = NewTopologySyncer(do)
 	syncer.Start()
 	discover.Start()
 	return err
@@ -35,10 +34,6 @@ func GetCurrentComponent() []Component {
 		components = append(components, comp)
 	}
 	return components
-}
-
-func GetEtcdClient() *clientv3.Client {
-	return discover.cli.etcdCli
 }
 
 func Subscribe() Subscriber {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/pingcap/ng_monitoring/component/domain"
 	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	stdlog "log"
 	"os"
@@ -62,13 +63,16 @@ func main() {
 		stdlog.Fatalf("Failed to load config from storage, err: %s", err.Error())
 	}
 
-	err = topology.Init()
+	do := domain.NewDomain()
+	defer do.Close()
+
+	err = topology.Init(do)
 	if err != nil {
 		log.Fatal("Failed to initialize topology", zap.Error(err))
 	}
 	defer topology.Stop()
 
-	pdvariable.Init(topology.GetEtcdClient)
+	pdvariable.Init(do)
 	defer pdvariable.Stop()
 
 	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe())

@@ -3,6 +3,7 @@ package topology
 import (
 	"context"
 	"fmt"
+	"github.com/pingcap/ng_monitoring/component/domain"
 	"time"
 
 	"github.com/pingcap/log"
@@ -28,13 +29,16 @@ var (
 )
 
 type TopologySyncer struct {
+	do              *domain.Domain
 	topologySession *concurrency.Session
 	ctx             context.Context
 	cancel          context.CancelFunc
 }
 
-func NewTopologySyncer() *TopologySyncer {
-	syncer := &TopologySyncer{}
+func NewTopologySyncer(do *domain.Domain) *TopologySyncer {
+	syncer := &TopologySyncer{
+		do: do,
+	}
 	syncer.ctx, syncer.cancel = context.WithCancel(context.Background())
 	return syncer
 }
@@ -71,7 +75,10 @@ func (s *TopologySyncer) topologyInfoKeeperLoop() {
 }
 
 func (s *TopologySyncer) newTopologySessionAndStoreServerInfo() error {
-	etcdCli := GetEtcdClient()
+	etcdCli, err := s.do.GetEtcdClient()
+	if err != nil {
+		return err
+	}
 	session, err := newEtcdSession(s.ctx, etcdCli, defaultRetryCnt, topologySessionTTL)
 	if err != nil {
 		return err
@@ -86,7 +93,10 @@ func (s *TopologySyncer) storeTopologyInfo() error {
 
 	key := fmt.Sprintf("%s/%s/ttl", topologyPrefix, cfg.AdvertiseAddress)
 
-	etcdCli := GetEtcdClient()
+	etcdCli, err := s.do.GetEtcdClient()
+	if err != nil {
+		return err
+	}
 	return putKVToEtcd(s.ctx, etcdCli, defaultRetryCnt, key,
 		fmt.Sprintf("%v", time.Now().UnixNano()),
 		clientv3.WithLease(s.topologySession.Lease()))
