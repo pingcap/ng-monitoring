@@ -50,6 +50,9 @@ func doGCLoop(db *badger.DB, closed chan struct{}) {
 		ticker.Stop()
 		log.Info("badger stop running value log gc loop")
 	}()
+
+	// run gc when started.
+	runValueLogGC(db)
 	for {
 		select {
 		case <-ticker.C:
