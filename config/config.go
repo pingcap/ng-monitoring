@@ -99,11 +99,12 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 		}
 	}
 
+	override(&config)
+
 	if config.AdvertiseAddress == "" {
 		config.AdvertiseAddress = config.Address
 	}
 
-	override(&config)
 	if err := config.valid(); err != nil {
 		return nil, err
 	}
