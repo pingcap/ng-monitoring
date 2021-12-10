@@ -232,17 +232,23 @@ func rsMeteringProtoToMetrics(
 
 	for i := range record.RecordListTimestampSec {
 		tsMillis := record.RecordListTimestampSec[i] * 1000
-		cpuTime := record.RecordListCpuTimeMs[i]
-
-		mCpu.Timestamps = append(mCpu.Timestamps, tsMillis)
-		mCpu.Values = append(mCpu.Values, cpuTime)
-
+		appendMetricCPUTime(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
 		appendMetricRowIndex(i, tsMillis, record.RecordListReadKeys, &mReadRow, &mReadIndex, tag.Label)
 		appendMetricRowIndex(i, tsMillis, record.RecordListWriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
 	}
 
 	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex)
 	return
+}
+
+// appendMetricCPUTime only used in rsMeteringProtoToMetrics.
+func appendMetricCPUTime(i int, ts uint64, values []uint32, mCpu *Metric) {
+	var value uint32
+	if len(values) > i {
+		value = values[i]
+	}
+	mCpu.Timestamps = append(mCpu.Timestamps, ts)
+	mCpu.Values = append(mCpu.Values, value)
 }
 
 // appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
