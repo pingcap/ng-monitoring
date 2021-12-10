@@ -230,7 +230,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 
-	for i := range record.RecordListCpuTimeMs {
+	for i := range record.RecordListTimestampSec {
 		tsMillis := record.RecordListTimestampSec[i] * 1000
 		cpuTime := record.RecordListCpuTimeMs[i]
 
