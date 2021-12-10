@@ -14,6 +14,7 @@ import (
 	"github.com/pingcap/ng-monitoring/database/document"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
 	"github.com/pingcap/ng-monitoring/service"
+	"github.com/pingcap/ng-monitoring/utils/printer"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"
@@ -36,7 +37,7 @@ var (
 	logPath          = pflag.String(nmLogPath, "", "Log path of ng monitoring server")
 	storagePath      = pflag.String(nmStoragePath, "", "Storage path of ng monitoring server")
 	configPath       = pflag.String(nmConfig, "", "config file path")
-	advertiseAddress = pflag.String(nmAdvertiseAddress, "", "tidb server advertise IP")
+	advertiseAddress = pflag.String(nmAdvertiseAddress, "", "ngm server advertise IP:PORT")
 )
 
 func main() {
@@ -50,6 +51,7 @@ func main() {
 	}
 
 	cfg.Log.InitDefaultLogger()
+	printer.PrintNGMInfo()
 	log.Info("config", zap.Any("config", cfg))
 
 	mustCreateDirs(cfg)

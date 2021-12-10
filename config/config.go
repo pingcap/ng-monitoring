@@ -99,11 +99,12 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 		}
 	}
 
+	override(&config)
+
 	if config.AdvertiseAddress == "" {
 		config.AdvertiseAddress = config.Address
 	}
 
-	override(&config)
 	if err := config.valid(); err != nil {
 		return nil, err
 	}
@@ -144,7 +145,7 @@ type PD struct {
 
 func (p *PD) valid() error {
 	if len(p.Endpoints) == 0 {
-		return fmt.Errorf("unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"[127.0.0.1:2379]\"")
+		return fmt.Errorf("unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"127.0.0.1:2379\"")
 	}
 
 	return nil
