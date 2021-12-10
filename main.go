@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	stdlog "log"
 	"os"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/database"
 	"github.com/pingcap/ng-monitoring/database/document"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
