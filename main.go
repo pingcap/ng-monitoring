@@ -36,7 +36,7 @@ var (
 	logPath          = pflag.String(nmLogPath, "", "Log path of ng monitoring server")
 	storagePath      = pflag.String(nmStoragePath, "", "Storage path of ng monitoring server")
 	configPath       = pflag.String(nmConfig, "", "config file path")
-	advertiseAddress = pflag.String(nmAdvertiseAddress, "", "tidb server advertise IP")
+	advertiseAddress = pflag.String(nmAdvertiseAddress, "", "ngm server advertise IP:PORT")
 )
 
 func main() {
