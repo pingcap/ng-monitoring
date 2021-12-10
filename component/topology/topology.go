@@ -1,7 +1,7 @@
 package topology
 
 import (
-	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng-monitoring/config"
 	"go.etcd.io/etcd/clientv3"
 )
 

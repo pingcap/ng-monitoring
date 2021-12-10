@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pingcap/ng_monitoring/component/topsql/store"
-	"github.com/pingcap/ng_monitoring/utils"
+	"github.com/pingcap/ng-monitoring/component/topsql/store"
+	"github.com/pingcap/ng-monitoring/utils"
 
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"

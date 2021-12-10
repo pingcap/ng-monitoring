@@ -1,8 +1,8 @@
-PACKAGE_LIST  := go list ./...| grep -E "github.com/pingcap/ng_monitoring/"
-PACKAGE_LIST_TESTS  := go list ./... | grep -E "github.com/pingcap/ng_monitoring/"
+PACKAGE_LIST  := go list ./...| grep -E "github.com/pingcap/ng-monitoring/"
+PACKAGE_LIST_TESTS  := go list ./... | grep -E "github.com/pingcap/ng-monitoring/"
 PACKAGES  ?= $$($(PACKAGE_LIST))
 PACKAGES_TESTS ?= $$($(PACKAGE_LIST_TESTS))
-PACKAGE_DIRECTORIES := $(PACKAGE_LIST) | sed 's|github.com/pingcap/ng_monitoring/||'
+PACKAGE_DIRECTORIES := $(PACKAGE_LIST) | sed 's|github.com/pingcap/ng-monitoring/||'
 FILES     := $$(find $$($(PACKAGE_DIRECTORIES)) -name "*.go")
 FAIL_ON_STDOUT := awk '{ print } END { if (NR > 0) { exit 1 } }'
 

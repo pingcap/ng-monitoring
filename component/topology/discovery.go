@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/tidb-dashboard/util/topo"
 	"go.uber.org/zap"
 )

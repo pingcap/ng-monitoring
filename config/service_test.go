@@ -11,7 +11,7 @@ import (
 
 	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
-	"github.com/pingcap/ng_monitoring/utils/testutil"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
 

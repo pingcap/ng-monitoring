@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
 	"go.uber.org/zap"

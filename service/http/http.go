@@ -9,9 +9,9 @@ import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
-	conprofhttp "github.com/pingcap/ng_monitoring/component/conprof/http"
-	topsqlsvc "github.com/pingcap/ng_monitoring/component/topsql/service"
-	"github.com/pingcap/ng_monitoring/config"
+	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
+	topsqlsvc "github.com/pingcap/ng-monitoring/component/topsql/service"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )

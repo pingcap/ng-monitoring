@@ -12,7 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/genjidb/genji"
-	"github.com/pingcap/ng_monitoring/utils/testutil"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
 

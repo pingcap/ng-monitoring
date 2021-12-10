@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	configTableName           = "ng_monitoring_config"
+	configTableName           = "ng-monitoring_config"
 	continuousProfilingModule = "continuous_profiling"
 )
 
