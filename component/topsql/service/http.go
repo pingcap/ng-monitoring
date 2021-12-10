@@ -7,19 +7,54 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/ng_monitoring/component/topsql/query"
+	"github.com/pingcap/ng_monitoring/component/topsql/store"
 )
 
 var (
 	topSQLItemsP   = TopSQLItemsPool{}
 	instanceItemsP = InstanceItemsPool{}
+
+	metricNames = []string{
+		store.MetricNameCPUTime,
+		store.MetricNameReadRow,
+		store.MetricNameReadIndex,
+		store.MetricNameWriteRow,
+		store.MetricNameWriteIndex,
+	}
 )
 
 func HTTPService(g *gin.RouterGroup) {
-	g.GET("/v1/cpu_time", cpuTime)
-	g.GET("/v1/instances", instances)
+	g.GET("/v1/instances", InstancesHandler)
+	for _, name := range metricNames {
+		g.GET("/v1/"+name, GetMetricHandler(name))
+	}
 }
 
-func cpuTime(c *gin.Context) {
+func InstancesHandler(c *gin.Context) {
+	instances := instanceItemsP.Get()
+	defer instanceItemsP.Put(instances)
+
+	if err := query.AllInstances(instances); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ok",
+		"data":   instances,
+	})
+}
+
+func GetMetricHandler(name string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		queryMetric(c, name)
+	}
+}
+
+func queryMetric(c *gin.Context, name string) {
 	instance := c.Query("instance")
 	if len(instance) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -99,7 +134,7 @@ func cpuTime(c *gin.Context) {
 	items := topSQLItemsP.Get()
 	defer topSQLItemsP.Put(items)
 
-	err = query.TopSQL(int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
+	err = query.TopSQL(name, int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
@@ -111,23 +146,5 @@ func cpuTime(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 		"data":   items,
-	})
-}
-
-func instances(c *gin.Context) {
-	instances := instanceItemsP.Get()
-	defer instanceItemsP.Put(instances)
-
-	if err := query.AllInstances(instances); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"data":   instances,
 	})
 }
