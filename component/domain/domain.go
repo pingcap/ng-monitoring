@@ -2,17 +2,11 @@ package domain
 
 import (
 	"context"
-	"time"
 
 	"github.com/pingcap/ng_monitoring/config"
 	"github.com/pingcap/ng_monitoring/utils"
 	"github.com/pingcap/tidb-dashboard/util/client/pdclient"
 	"go.etcd.io/etcd/clientv3"
-)
-
-const (
-	minRetryInterval = time.Millisecond * 10
-	maxRetryInterval = time.Second
 )
 
 type Domain struct {

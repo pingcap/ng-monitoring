@@ -3,10 +3,10 @@ package topology
 import (
 	"context"
 	"fmt"
-	"github.com/pingcap/ng_monitoring/component/domain"
 	"time"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng_monitoring/component/domain"
 	"github.com/pingcap/ng_monitoring/config"
 	"github.com/pingcap/ng_monitoring/utils"
 	"go.etcd.io/etcd/clientv3"

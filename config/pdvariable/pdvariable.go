@@ -3,13 +3,13 @@ package pdvariable
 import (
 	"context"
 	"fmt"
-	"github.com/pingcap/ng_monitoring/component/domain"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng_monitoring/component/domain"
 	"github.com/pingcap/ng_monitoring/utils"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/mvcc/mvccpb"

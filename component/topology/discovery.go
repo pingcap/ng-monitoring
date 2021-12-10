@@ -2,11 +2,11 @@ package topology
 
 import (
 	"context"
-	"github.com/pingcap/ng_monitoring/component/domain"
 	"sync"
 	"time"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng_monitoring/component/domain"
 	"github.com/pingcap/ng_monitoring/utils"
 	"github.com/pingcap/tidb-dashboard/util/topo"
 	"go.uber.org/zap"

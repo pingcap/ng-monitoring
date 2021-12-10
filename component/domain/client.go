@@ -15,6 +15,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	minRetryInterval = time.Millisecond * 10
+	maxRetryInterval = time.Second
+)
+
 type ClientMaintainer struct {
 	pdCli       atomic.Value // *pdclient.APIClient
 	etcdCli     atomic.Value // *clientv3.Client
