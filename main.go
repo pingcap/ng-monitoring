@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	stdlog "log"
 	"os"
 
@@ -10,10 +9,12 @@ import (
 	"github.com/pingcap/ng_monitoring/component/topology"
 	"github.com/pingcap/ng_monitoring/component/topsql"
 	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng_monitoring/config/pdvariable"
 	"github.com/pingcap/ng_monitoring/database"
 	"github.com/pingcap/ng_monitoring/database/document"
 	"github.com/pingcap/ng_monitoring/database/timeseries"
 	"github.com/pingcap/ng_monitoring/service"
+	"github.com/pingcap/ng_monitoring/utils/printer"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"
@@ -50,6 +51,7 @@ func main() {
 	}
 
 	cfg.Log.InitDefaultLogger()
+	printer.PrintNGMInfo()
 	log.Info("config", zap.Any("config", cfg))
 
 	mustCreateDirs(cfg)
