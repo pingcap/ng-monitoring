@@ -144,7 +144,7 @@ type PD struct {
 
 func (p *PD) valid() error {
 	if len(p.Endpoints) == 0 {
-		return fmt.Errorf("unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"[127.0.0.1:2379]\"")
+		return fmt.Errorf("unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"127.0.0.1:2379\"")
 	}
 
 	return nil
