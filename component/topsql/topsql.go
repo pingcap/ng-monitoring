@@ -1,13 +1,13 @@
 package topsql
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/pingcap/ng-monitoring/component/topsql/service"
 	"net/http"
 
 	"github.com/genjidb/genji"
+	"github.com/gin-gonic/gin"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
+	"github.com/pingcap/ng-monitoring/component/topsql/service"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/component/topsql/subscriber"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
