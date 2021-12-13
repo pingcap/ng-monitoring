@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/pingcap/ng_monitoring/utils"
+	"github.com/pingcap/ng-monitoring/utils"
 
 	"github.com/genjidb/genji"
 	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
@@ -73,11 +73,18 @@ func ResourceMeteringRecord(
 	instance, instanceType string,
 	record *rsmetering.ResourceUsageRecord,
 ) error {
-	m, err := rsMeteringProtoToMetric(instance, instanceType, record)
+	ms, err := rsMeteringProtoToMetrics(instance, instanceType, record)
 	if err != nil {
 		return err
 	}
-	return writeTimeseriesDB(m)
+	if ms != nil {
+		for _, m := range ms {
+			if err := writeTimeseriesDB(m); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func SQLMeta(meta *tipb.SQLMeta) error {
@@ -147,7 +154,7 @@ func topSQLProtoToMetric(
 	instance, instanceType string,
 	record *tipb.CPUTimeRecord,
 ) (m Metric) {
-	m.Metric.Name = "cpu_time"
+	m.Metric.Name = MetricNameCPUTime
 	m.Metric.Instance = instance
 	m.Metric.InstanceType = instanceType
 	m.Metric.SQLDigest = hex.EncodeToString(record.SqlDigest)
@@ -165,33 +172,101 @@ func topSQLProtoToMetric(
 }
 
 // transform resource_usage_agent.CPUTimeRecord to util.Metric
-func rsMeteringProtoToMetric(
+func rsMeteringProtoToMetrics(
 	instance, instance_type string,
 	record *rsmetering.ResourceUsageRecord,
-) (m Metric, err error) {
+) (ms []Metric, err error) {
 	tag := tipb.ResourceGroupTag{}
-
-	m.Metric.Name = "cpu_time"
-	m.Metric.Instance = instance
-	m.Metric.InstanceType = instance_type
-
 	tag.Reset()
 	if err = tag.Unmarshal(record.ResourceGroupTag); err != nil {
 		return
 	}
+	sqlDigest := hex.EncodeToString(tag.SqlDigest)
+	planDigest := hex.EncodeToString(tag.PlanDigest)
 
-	m.Metric.SQLDigest = hex.EncodeToString(tag.SqlDigest)
-	m.Metric.PlanDigest = hex.EncodeToString(tag.PlanDigest)
-
-	for i := range record.RecordListCpuTimeMs {
-		tsMillis := record.RecordListTimestampSec[i] * 1000
-		cpuTime := record.RecordListCpuTimeMs[i]
-
-		m.Timestamps = append(m.Timestamps, tsMillis)
-		m.Values = append(m.Values, cpuTime)
+	mCpu := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameCPUTime,
+			Instance:     instance,
+			InstanceType: instance_type,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mReadRow := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameReadRow,
+			Instance:     instance,
+			InstanceType: instance_type,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mReadIndex := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameReadIndex,
+			Instance:     instance,
+			InstanceType: instance_type,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mWriteRow := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameWriteRow,
+			Instance:     instance,
+			InstanceType: instance_type,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mWriteIndex := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameWriteIndex,
+			Instance:     instance,
+			InstanceType: instance_type,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
 	}
 
+	for i := range record.RecordListTimestampSec {
+		tsMillis := record.RecordListTimestampSec[i] * 1000
+		appendMetricCPUTime(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
+		appendMetricRowIndex(i, tsMillis, record.RecordListReadKeys, &mReadRow, &mReadIndex, tag.Label)
+		appendMetricRowIndex(i, tsMillis, record.RecordListWriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
+	}
+
+	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex)
 	return
+}
+
+// appendMetricCPUTime only used in rsMeteringProtoToMetrics.
+func appendMetricCPUTime(i int, ts uint64, values []uint32, mCpu *Metric) {
+	var value uint32
+	if len(values) > i {
+		value = values[i]
+	}
+	mCpu.Timestamps = append(mCpu.Timestamps, ts)
+	mCpu.Values = append(mCpu.Values, value)
+}
+
+// appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
+func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metric, label *tipb.ResourceGroupTagLabel) {
+	var rows, indexes uint32
+	if len(values) > i {
+		if label != nil {
+			if *label == tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow {
+				rows = values[i]
+			} else if *label == tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex {
+				indexes = values[i]
+			}
+		}
+	}
+	mRow.Timestamps = append(mRow.Timestamps, ts)
+	mRow.Values = append(mRow.Values, rows)
+	mIndex.Timestamps = append(mIndex.Timestamps, ts)
+	mIndex.Values = append(mIndex.Values, indexes)
 }
 
 func writeTimeseriesDB(metric Metric) error {

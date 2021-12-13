@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/tidb-dashboard/util/client/httpclient"
 	"github.com/pingcap/tidb-dashboard/util/client/pdclient"
 	"go.etcd.io/etcd/clientv3"

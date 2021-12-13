@@ -1,7 +1,7 @@
 package topology
 
 import (
-	"github.com/pingcap/ng_monitoring/component/domain"
+	"github.com/pingcap/ng-monitoring/component/domain"
 )
 
 var (

@@ -3,8 +3,8 @@ package domain
 import (
 	"context"
 
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/tidb-dashboard/util/client/pdclient"
 	"go.etcd.io/etcd/clientv3"
 )

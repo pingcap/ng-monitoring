@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils/testutil"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 )

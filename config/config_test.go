@@ -12,7 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/genjidb/genji"
-	"github.com/pingcap/ng_monitoring/utils/testutil"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -120,7 +120,7 @@ func TestConfigValid(t *testing.T) {
 	// Test PD valid
 	pdCfg := PD{Endpoints: []string{}}
 	require.Error(t, pdCfg.valid())
-	require.Equal(t, pdCfg.valid().Error(), "unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"[127.0.0.1:2379]\"")
+	require.Equal(t, pdCfg.valid().Error(), "unexpected empty pd endpoints, please specify at least one, e.g. --pd.endpoints \"127.0.0.1:2379\"")
 	// Test Log
 	logCfg := Log{}
 	require.Equal(t, logCfg.valid().Error(), "unexpected empty log level")

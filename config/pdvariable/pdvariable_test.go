@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pingcap/ng_monitoring/component/domain"
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/config/pdvariable"
+	"github.com/pingcap/ng-monitoring/component/domain"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/integration"
 )

@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng_monitoring/component/conprof/meta"
-	"github.com/pingcap/ng_monitoring/component/conprof/store"
-	"github.com/pingcap/ng_monitoring/component/conprof/util"
-	"github.com/pingcap/ng_monitoring/component/topology"
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils"
+	"github.com/pingcap/ng-monitoring/component/conprof/meta"
+	"github.com/pingcap/ng-monitoring/component/conprof/store"
+	"github.com/pingcap/ng-monitoring/component/conprof/util"
+	"github.com/pingcap/ng-monitoring/component/topology"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils"
 	commonconfig "github.com/prometheus/common/config"
 	"go.uber.org/zap"
 )
@@ -195,9 +195,10 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 	profilingConfig := m.getProfilingConfig(component)
 	cfg := config.GetGlobalConfig()
 	httpCfg := cfg.Security.GetHTTPClientConfig()
-	addr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
+	addr := fmt.Sprintf("%v:%v", component.IP, component.Port)
+	scrapeAddr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
 	for profileName, profileConfig := range profilingConfig.PprofConfig {
-		target := NewTarget(component.Name, addr, profileName, cfg.GetHTTPScheme(), profileConfig)
+		target := NewTarget(component.Name, addr, scrapeAddr, profileName, cfg.GetHTTPScheme(), profileConfig)
 		client, err := commonconfig.NewClientFromConfig(httpCfg, component.Name)
 		if err != nil {
 			return err

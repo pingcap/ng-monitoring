@@ -9,8 +9,8 @@ import (
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/engine/badgerengine"
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils"
 	"go.uber.org/zap"
 )
 
@@ -50,6 +50,9 @@ func doGCLoop(db *badger.DB, closed chan struct{}) {
 		ticker.Stop()
 		log.Info("badger stop running value log gc loop")
 	}()
+
+	// run gc when started.
+	runValueLogGC(db)
 	for {
 		select {
 		case <-ticker.C:

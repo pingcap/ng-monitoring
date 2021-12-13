@@ -1,5 +1,13 @@
 package store
 
+const (
+	MetricNameCPUTime    = "cpu_time"
+	MetricNameReadRow    = "read_row"
+	MetricNameReadIndex  = "read_index"
+	MetricNameWriteRow   = "write_row"
+	MetricNameWriteIndex = "write_index"
+)
+
 type Metric struct {
 	Metric     topSQLTags `json:"metric"`
 	Timestamps []uint64   `json:"timestamps"` // in millisecond

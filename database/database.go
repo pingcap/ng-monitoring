@@ -1,9 +1,9 @@
 package database
 
 import (
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/database/document"
-	"github.com/pingcap/ng_monitoring/database/timeseries"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/database/document"
+	"github.com/pingcap/ng-monitoring/database/timeseries"
 
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
@@ -17,9 +17,9 @@ func Init(cfg *config.Config) {
 }
 
 func Stop() {
-	log.Info("Stopping timeserires database")
+	log.Info("Stopping timeseries database")
 	timeseries.Stop()
-	log.Info("Stop timeserires database successfully")
+	log.Info("Stop timeseries database successfully")
 
 	log.Info("Stopping document database")
 	document.Stop()

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pingcap/ng_monitoring/component/conprof/meta"
-	"github.com/pingcap/ng_monitoring/component/conprof/util"
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils/testutil"
+	"github.com/pingcap/ng-monitoring/component/conprof/meta"
+	"github.com/pingcap/ng-monitoring/component/conprof/util"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
 

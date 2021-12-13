@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng_monitoring/component/conprof/meta"
-	"github.com/pingcap/ng_monitoring/component/conprof/store"
-	"github.com/pingcap/ng_monitoring/component/conprof/util"
-	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng-monitoring/component/conprof/meta"
+	"github.com/pingcap/ng-monitoring/component/conprof/store"
+	"github.com/pingcap/ng-monitoring/component/conprof/util"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/net/context/ctxhttp"
@@ -184,7 +184,7 @@ type Target struct {
 	*url.URL
 }
 
-func NewTarget(component, address, kind, schema string, cfg *config.PprofProfilingConfig) *Target {
+func NewTarget(component, address, scrapeAddress, kind, schema string, cfg *config.PprofProfilingConfig) *Target {
 	t := &Target{
 		ProfileTarget: meta.ProfileTarget{
 			Kind:      kind,
@@ -203,7 +203,7 @@ func NewTarget(component, address, kind, schema string, cfg *config.PprofProfili
 	t.header = cfg.Header
 	t.URL = &url.URL{
 		Scheme:   schema,
-		Host:     t.Address,
+		Host:     scrapeAddress,
 		Path:     cfg.Path,
 		RawQuery: vs.Encode(),
 	}
