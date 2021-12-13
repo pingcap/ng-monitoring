@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/component/domain"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/integration"
 )
 
@@ -24,6 +25,9 @@ func TestPDVariableSubscribe(t *testing.T) {
 }
 
 func testPDVariableSubscribe(t *testing.T, init bool) {
+	cfg := config.GetDefaultConfig()
+	config.StoreGlobalConfig(&cfg)
+
 	cluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
 	defer cluster.Terminate(t)
 
@@ -33,9 +37,8 @@ func testPDVariableSubscribe(t *testing.T, init bool) {
 		require.NoError(t, err)
 	}
 
-	pdvariable.Init(func() *clientv3.Client {
-		return cluster.RandClient()
-	})
+	do := domain.NewDomainForTest(nil, cluster.RandClient())
+	pdvariable.Init(do)
 	defer pdvariable.Stop()
 
 	// wait for first load finish

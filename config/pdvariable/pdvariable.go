@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/utils"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/mvcc/mvccpb"
@@ -22,10 +23,10 @@ var (
 	defaultRetryInterval = time.Millisecond * 200
 )
 
-func Init(getCli func() *clientv3.Client) {
+func Init(do *domain.Domain) {
 	loader = &variableLoader{
-		getCli: getCli,
-		cfg:    DefaultPDVariable(),
+		do:  do,
+		cfg: DefaultPDVariable(),
 	}
 	go utils.GoWithRecovery(loader.start, nil)
 	return
@@ -48,7 +49,7 @@ func Subscribe() Subscriber {
 var loader *variableLoader
 
 type variableLoader struct {
-	getCli func() *clientv3.Client
+	do     *domain.Domain
 	cfg    *PDVariable
 	cancel context.CancelFunc
 
@@ -75,10 +76,14 @@ func Stop() {
 }
 
 func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
-	ticker := time.NewTicker(time.Minute)
-	watchCh := l.getCli().Watch(ctx, GlobalConfigPath, clientv3.WithPrefix())
+	etcdCli, err := l.do.GetEtcdClient()
+	if err != nil {
+		return
+	}
 
-	var err error
+	ticker := time.NewTicker(time.Minute)
+	watchCh := etcdCli.Watch(ctx, GlobalConfigPath, clientv3.WithPrefix())
+
 	l.cfg, err = l.loadAllGlobalConfig(ctx)
 	if err != nil {
 		log.Error("first load global config failed", zap.Error(err))
@@ -105,7 +110,11 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 		case e, ok := <-watchCh:
 			if !ok {
 				log.Info("global config watch channel closed")
-				watchCh = l.getCli().Watch(ctx, GlobalConfigPath, clientv3.WithPrefix())
+				etcdCli, err = l.do.GetEtcdClient()
+				if err != nil {
+					return
+				}
+				watchCh = etcdCli.Watch(ctx, GlobalConfigPath, clientv3.WithPrefix())
 				// sleep a while to avoid too often.
 				time.Sleep(time.Second)
 			} else {
@@ -137,8 +146,12 @@ func (l *variableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, 
 			return nil, ctx.Err()
 		default:
 		}
+		etcdCli, err := l.do.GetEtcdClient()
+		if err != nil {
+			return nil, err
+		}
 		childCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
-		resp, err = l.getCli().Get(childCtx, GlobalConfigPath, clientv3.WithPrefix())
+		resp, err = etcdCli.Get(childCtx, GlobalConfigPath, clientv3.WithPrefix())
 		cancel()
 		if err != nil {
 			log.Debug("load global config failed.", zap.Error(err))
