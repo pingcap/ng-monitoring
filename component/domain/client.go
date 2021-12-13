@@ -134,9 +134,10 @@ func createClient(cfg *config.Config) (*pdclient.APIClient, *clientv3.Client, er
 
 	pdCli, err := CreatePDClient(cfg)
 	if err != nil {
+		etcdCli.Close()
 		return nil, nil, err
 	}
-	return pdCli, etcdCli, err
+	return pdCli, etcdCli, nil
 }
 
 func CreatePDClient(cfg *config.Config) (*pdclient.APIClient, error) {
