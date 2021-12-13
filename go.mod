@@ -1,4 +1,4 @@
-module github.com/pingcap/ng_monitoring
+module github.com/pingcap/ng-monitoring
 
 go 1.16
 

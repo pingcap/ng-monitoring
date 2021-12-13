@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng-monitoring/config"
 
 	"github.com/pingcap/log"
 	"go.uber.org/zap"

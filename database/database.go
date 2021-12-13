@@ -1,9 +1,9 @@
 package database
 
 import (
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/database/document"
-	"github.com/pingcap/ng_monitoring/database/timeseries"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/database/document"
+	"github.com/pingcap/ng-monitoring/database/timeseries"
 
 	"github.com/pingcap/log"
 	"go.uber.org/zap"

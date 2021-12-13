@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/tidb-dashboard/util/client/pdclient"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/clientv3"

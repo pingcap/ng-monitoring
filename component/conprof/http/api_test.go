@@ -16,10 +16,10 @@ import (
 
 	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
-	"github.com/pingcap/ng_monitoring/component/conprof"
-	"github.com/pingcap/ng_monitoring/component/topology"
-	"github.com/pingcap/ng_monitoring/config"
-	"github.com/pingcap/ng_monitoring/utils/testutil"
+	"github.com/pingcap/ng-monitoring/component/conprof"
+	"github.com/pingcap/ng-monitoring/component/topology"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
 

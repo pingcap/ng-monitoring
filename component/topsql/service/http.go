@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/pingcap/ng_monitoring/component/topsql/query"
-	"github.com/pingcap/ng_monitoring/component/topsql/store"
+	"github.com/pingcap/ng-monitoring/component/topsql/query"
+	"github.com/pingcap/ng-monitoring/component/topsql/store"
 )
 
 var (

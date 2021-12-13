@@ -6,7 +6,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/pingcap/ng_monitoring/config"
+	"github.com/pingcap/ng-monitoring/config"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
