@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/log"
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
-	topsqlsvc "github.com/pingcap/ng-monitoring/component/topsql/service"
+	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -48,7 +48,7 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	configGroup := ng.Group("/config")
 	config.HTTPService(configGroup)
 	topSQLGroup := ng.Group("/topsql")
-	topsqlsvc.HTTPService(topSQLGroup)
+	topsql.HTTPService(topSQLGroup)
 	// register pprof http api
 	pprof.Register(ng)
 

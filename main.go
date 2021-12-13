@@ -73,7 +73,10 @@ func main() {
 	pdvariable.Init(topology.GetEtcdClient)
 	defer pdvariable.Stop()
 
-	topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe())
+	err = topsql.Init(document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe())
+	if err != nil {
+		log.Fatal("Failed to initialize topsql", zap.Error(err))
+	}
 	defer topsql.Stop()
 
 	err = conprof.Init(document.Get(), topology.Subscribe())

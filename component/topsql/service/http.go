@@ -23,18 +23,26 @@ var (
 	}
 )
 
-func HTTPService(g *gin.RouterGroup) {
-	g.GET("/v1/instances", InstancesHandler)
+type Service struct {
+	query query.Query
+}
+
+func NewService(query query.Query) *Service {
+	return &Service{query: query}
+}
+
+func (s *Service) HTTPService(g *gin.RouterGroup) {
+	g.GET("/v1/instances", s.instancesHandler)
 	for _, name := range metricNames {
-		g.GET("/v1/"+name, GetMetricHandler(name))
+		g.GET("/v1/"+name, s.metricHandler(name))
 	}
 }
 
-func InstancesHandler(c *gin.Context) {
+func (s *Service) instancesHandler(c *gin.Context) {
 	instances := instanceItemsP.Get()
 	defer instanceItemsP.Put(instances)
 
-	if err := query.AllInstances(instances); err != nil {
+	if err := s.query.AllInstances(instances); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
 			"message": err.Error(),
@@ -48,13 +56,13 @@ func InstancesHandler(c *gin.Context) {
 	})
 }
 
-func GetMetricHandler(name string) gin.HandlerFunc {
+func (s *Service) metricHandler(name string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		queryMetric(c, name)
+		s.queryMetric(c, name)
 	}
 }
 
-func queryMetric(c *gin.Context, name string) {
+func (s *Service) queryMetric(c *gin.Context, name string) {
 	instance := c.Query("instance")
 	if len(instance) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -134,7 +142,7 @@ func queryMetric(c *gin.Context, name string) {
 	items := topSQLItemsP.Get()
 	defer topSQLItemsP.Put(items)
 
-	err = query.TopSQL(name, int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
+	err = s.query.TopSQL(name, int(startSecs), int(endSecs), int(windowSecs), int(top), instance, items)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
