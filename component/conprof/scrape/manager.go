@@ -283,6 +283,10 @@ func (m *Manager) GetAllCurrentScrapeSuite() ([]meta.ProfileTarget, []*ScrapeSui
 	return targets, suites
 }
 
+func (m *Manager) GetLastScrapeTime() time.Time {
+	return m.ticker.lastTime
+}
+
 func (m *Manager) Close() {
 	if m.cancel != nil {
 		m.cancel()

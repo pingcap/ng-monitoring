@@ -124,9 +124,10 @@ func getProfileEstimateSize(component topology.Component) int {
 }
 
 var (
-	QueryStateSuccess       string = "success"
-	QueryStateFailed        string = "failed"
-	QueryStatePartialFailed string = "partial failed"
+	QueryStateSuccess        string = "success"
+	QueryStatePartialSuccess string = "partial success"
+	QueryStateFailed         string = "failed"
+	QueryStatePartialFailed  string = "partial failed"
 )
 
 type ComponentNum struct {
@@ -192,11 +193,14 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 		}
 	}
 	groupProfiles := make([]GroupProfiles, 0, len(m))
+	components := conprof.GetManager().GetCurrentScrapeComponents()
+	lastTS := conprof.GetManager().GetLastScrapeTime().Unix()
 	for ts, targets := range m {
 		compMap := map[string]int{}
 		for target := range targets {
 			compMap[target.Component] += 1
 		}
+		totalCompNum := 0
 		compNum := ComponentNum{}
 		for comp, num := range compMap {
 			switch comp {
@@ -209,11 +213,17 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 			case topology.ComponentTiFlash:
 				compNum.TiFlash = num
 			}
+			totalCompNum += num
 		}
+		state := QueryStateSuccess
+		if ts == lastTS && totalCompNum < len(components) {
+			state = QueryStatePartialSuccess
+		}
+
 		groupProfiles = append(groupProfiles, GroupProfiles{
 			Ts:          ts,
 			ProfileSecs: config.GetGlobalConfig().ContinueProfiling.ProfileSeconds, // todo: fix me
-			State:       QueryStateSuccess,
+			State:       state,
 			CompNum:     compNum,
 		})
 	}
