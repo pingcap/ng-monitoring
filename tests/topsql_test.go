@@ -25,8 +25,6 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
-	"github.com/pingcap/ng-monitoring/component/topsql/service"
-	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
@@ -65,6 +63,7 @@ type testTopSQLSuite struct {
 	tikvServer *MockTiKVServer
 	topCh      chan []topology.Component
 	varCh      chan *pdvariable.PDVariable
+	ng         *gin.Engine
 }
 
 func (s *testTopSQLSuite) SetupSuite() {
@@ -125,6 +124,10 @@ func (s *testTopSQLSuite) SetupSuite() {
 	}}
 	time.Sleep(100 * time.Millisecond)
 
+	ng := gin.New()
+	topsql.HTTPService(ng.Group(""))
+	s.ng = ng
+
 	// init data
 	s.tikvServer.PushRecords([]*rua.ResourceUsageRecord{{
 		ResourceGroupTag:       s.encodeTag([]byte("sql-1"), []byte("plan-1"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow),
@@ -160,8 +163,9 @@ func (s *testTopSQLSuite) TearDownSuite() {
 
 func (s *testTopSQLSuite) TestInstances() {
 	w := NewMockResponseWriter()
-	ctx, _ := gin.CreateTestContext(w)
-	service.InstancesHandler(ctx)
+	req, err := http.NewRequest(http.MethodGet, "/v1/instances", nil)
+	s.NoError(err)
+	s.ng.ServeHTTP(w, req)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -206,18 +210,16 @@ func (s *testTopSQLSuite) TestWriteIndex() {
 }
 
 func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
-	var err error
 	w := NewMockResponseWriter()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
+	req, err := http.NewRequest(http.MethodGet, "/v1/cpu_time", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
-	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.GetMetricHandler(store.MetricNameCPUTime)(ctx)
+	req.URL.RawQuery = urlQuery.Encode()
+	s.ng.ServeHTTP(w, req)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -241,18 +243,16 @@ func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
 }
 
 func (s *testTopSQLSuite) testReadRow(baseTs int, baseValue int) {
-	var err error
 	w := NewMockResponseWriter()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
+	req, err := http.NewRequest(http.MethodGet, "/v1/read_row", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
-	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.GetMetricHandler(store.MetricNameReadRow)(ctx)
+	req.URL.RawQuery = urlQuery.Encode()
+	s.ng.ServeHTTP(w, req)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -280,18 +280,16 @@ func (s *testTopSQLSuite) testReadRow(baseTs int, baseValue int) {
 }
 
 func (s *testTopSQLSuite) testReadIndex(baseTs int, baseValue int) {
-	var err error
 	w := NewMockResponseWriter()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
+	req, err := http.NewRequest(http.MethodGet, "/v1/read_index", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
-	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.GetMetricHandler(store.MetricNameReadIndex)(ctx)
+	req.URL.RawQuery = urlQuery.Encode()
+	s.ng.ServeHTTP(w, req)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -321,16 +319,15 @@ func (s *testTopSQLSuite) testReadIndex(baseTs int, baseValue int) {
 func (s *testTopSQLSuite) testWriteRow(baseTs int, baseValue int) {
 	var err error
 	w := NewMockResponseWriter()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
+	req, err := http.NewRequest(http.MethodGet, "/v1/write_row", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
-	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.GetMetricHandler(store.MetricNameWriteRow)(ctx)
+	req.URL.RawQuery = urlQuery.Encode()
+	s.ng.ServeHTTP(w, req)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
@@ -358,18 +355,16 @@ func (s *testTopSQLSuite) testWriteRow(baseTs int, baseValue int) {
 }
 
 func (s *testTopSQLSuite) testWriteIndex(baseTs int, baseValue int) {
-	var err error
 	w := NewMockResponseWriter()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request, err = http.NewRequest(http.MethodGet, "", nil)
+	req, err := http.NewRequest(http.MethodGet, "/v1/write_index", nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
-	ctx.Request.URL.RawQuery = urlQuery.Encode()
-	service.GetMetricHandler(store.MetricNameWriteIndex)(ctx)
+	req.URL.RawQuery = urlQuery.Encode()
+	s.ng.ServeHTTP(w, req)
 	if w.StatusCode != http.StatusOK {
 		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
 	}
