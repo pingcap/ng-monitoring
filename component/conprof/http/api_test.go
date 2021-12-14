@@ -143,36 +143,42 @@ func testAPISingleProfileView(t *testing.T, httpAddr string, ts int64, component
 }
 
 func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topology.Component) {
-	resp, err := http.Get("http://" + httpAddr + "/continuous_profiling/download?ts=" + strconv.Itoa(int(ts)))
-	require.NoError(t, err)
-	require.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-	require.NoError(t, err)
-	require.True(t, len(zr.File) > len(components))
-	for _, f := range zr.File {
-		// file name format is: kind_component_ip_port_ts
-		fields := strings.Split(f.Name, "_")
-		require.True(t, len(fields) >= 4)
-		reader, err := f.Open()
+	urls := []string{
+		fmt.Sprintf("http://%v/continuous_profiling/download?ts=%v", httpAddr, ts),
+		fmt.Sprintf("http://%v/continuous_profiling/download?begin_time=%v&end_time=%v", httpAddr, ts, ts),
+	}
+	for _, url := range urls {
+		resp, err := http.Get(url)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode)
+		body, err := ioutil.ReadAll(resp.Body)
 		require.NoError(t, err)
 
-		// check content
-		buf := make([]byte, len(fields[0]))
-		n, _ := reader.Read(buf)
-		require.Equal(t, len(fields[0]), n)
-		require.Equal(t, fields[0], string(buf))
+		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+		require.NoError(t, err)
+		require.True(t, len(zr.File) > len(components))
+		for _, f := range zr.File {
+			// file name format is: kind_component_ip_port_ts
+			fields := strings.Split(f.Name, "_")
+			require.True(t, len(fields) >= 4)
+			reader, err := f.Open()
+			require.NoError(t, err)
 
-		found := false
-		for _, comp := range components {
-			if fields[1] == comp.Name && fields[2] == comp.IP {
-				found = true
-				break
+			// check content
+			buf := make([]byte, len(fields[0]))
+			n, _ := reader.Read(buf)
+			require.Equal(t, len(fields[0]), n)
+			require.Equal(t, fields[0], string(buf))
+
+			found := false
+			for _, comp := range components {
+				if fields[1] == comp.Name && fields[2] == comp.IP {
+					found = true
+					break
+				}
 			}
+			require.True(t, found, f.Name)
 		}
-		require.True(t, found, f.Name)
 	}
 }
 
@@ -238,6 +244,8 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		// test for /download api.
 		{"/download", `{"message":"need param ts","status":"error"}`},
 		{"/download?ts=x", `{"message":"invalid param ts value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
+		{"/download?begin_time=x", `{"message":"invalid param begin_time value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
+		{"/download?begin_time=1&end_time=x", `{"message":"invalid param end_time value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
 	}
 
 	for _, ca := range cases {
