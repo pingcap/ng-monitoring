@@ -291,7 +291,13 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 }
 
 func queryAndDownload(c *gin.Context) error {
-	param, err := getTsParam(c.Request)
+	var param *meta.BasicQueryParam
+	var err error
+	if v := c.Request.FormValue(beginTimeParamStr); len(v) > 0 {
+		param, err = getBeginAndEndTimeParam(c.Request)
+	} else {
+		param, err = getTsParam(c.Request)
+	}
 	if err != nil {
 		return err
 	}
