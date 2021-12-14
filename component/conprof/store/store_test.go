@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
-	"github.com/pingcap/ng-monitoring/component/conprof/util"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
@@ -21,7 +20,7 @@ func TestProfileStorage(t *testing.T) {
 		err := os.RemoveAll(tmpDir)
 		require.NoError(t, err)
 	}()
-	baseTs := util.GetTimeStamp(time.Now())
+	baseTs := time.Now().Unix()
 	for i := 0; i < 2; i++ {
 		testProfileStorage(t, tmpDir, baseTs+int64(i*1000), i > 0)
 	}

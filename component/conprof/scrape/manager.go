@@ -11,7 +11,6 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
-	"github.com/pingcap/ng-monitoring/component/conprof/util"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils"
@@ -100,7 +99,7 @@ func (m *Manager) updateTargetMeta() {
 	targets, suites := m.GetAllCurrentScrapeSuite()
 	count := 0
 	for i, suite := range suites {
-		ts := util.GetTimeStamp(suite.lastScrape)
+		ts := suite.lastScrape.Unix()
 		if ts <= 0 {
 			continue
 		}

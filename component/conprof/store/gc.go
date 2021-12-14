@@ -8,7 +8,6 @@ import (
 	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
-	"github.com/pingcap/ng-monitoring/component/conprof/util"
 	"github.com/pingcap/ng-monitoring/config"
 	"go.uber.org/zap"
 )
@@ -102,5 +101,5 @@ func (s *ProfileStorage) loadAllTargetsFromTable() ([]meta.ProfileTarget, []meta
 func (s *ProfileStorage) getLastSafePointTs() int64 {
 	cfg := config.GetGlobalConfig()
 	safePoint := time.Now().Add(time.Duration(-cfg.ContinueProfiling.DataRetentionSeconds) * time.Second)
-	return util.GetTimeStamp(safePoint)
+	return safePoint.Unix()
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
-	"github.com/pingcap/ng-monitoring/component/conprof/util"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
@@ -72,8 +71,8 @@ func TestManager(t *testing.T) {
 
 	t2 := time.Now()
 	param := &meta.BasicQueryParam{
-		Begin:   util.GetTimeStamp(t1),
-		End:     util.GetTimeStamp(t2),
+		Begin:   t1.Unix(),
+		End:     t2.Unix(),
 		Limit:   1000,
 		Targets: nil,
 	}
@@ -127,7 +126,7 @@ func TestManager(t *testing.T) {
 		info := storage.GetTargetInfoFromCache(list.Target)
 		require.NotNil(t, info)
 		require.True(t, info.ID > 0)
-		require.True(t, info.LastScrapeTs >= util.GetTimeStamp(t1))
+		require.True(t, info.LastScrapeTs >= t1.Unix())
 	}
 
 	// test for GetCurrentScrapeComponents
@@ -171,8 +170,8 @@ func TestManager(t *testing.T) {
 
 	t3 := time.Now()
 	param = &meta.BasicQueryParam{
-		Begin:   util.GetTimeStamp(t3) - 1,
-		End:     util.GetTimeStamp(t3),
+		Begin:   t3.Unix() - 1,
+		End:     t3.Unix(),
 		Limit:   1000,
 		Targets: nil,
 	}

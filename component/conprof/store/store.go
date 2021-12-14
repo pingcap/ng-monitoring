@@ -12,7 +12,6 @@ import (
 	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
-	"github.com/pingcap/ng-monitoring/component/conprof/util"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/valyala/gozstd"
 	"go.uber.org/atomic"
@@ -409,7 +408,7 @@ func (s *ProfileStorage) prepareProfileTable(pt meta.ProfileTarget) (*meta.Targe
 func (s *ProfileStorage) createProfileTable(pt meta.ProfileTarget) (*meta.TargetInfo, error) {
 	info := &meta.TargetInfo{
 		ID:           s.allocID(),
-		LastScrapeTs: util.GetTimeStamp(time.Now()),
+		LastScrapeTs: time.Now().Unix(),
 	}
 	tbName := s.getProfileMetaTableName(info)
 	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY)", tbName)

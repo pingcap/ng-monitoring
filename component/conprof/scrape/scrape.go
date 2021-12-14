@@ -15,7 +15,6 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
-	"github.com/pingcap/ng-monitoring/component/conprof/util"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -79,7 +78,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 		if scrapeErr == nil {
 			if buf.Len() > 0 {
 				sl.lastScrapeSize = buf.Len()
-				ts := util.GetTimeStamp(start)
+				ts := start.Unix()
 				err := sl.store.AddProfile(meta.ProfileTarget{
 					Kind:      sl.scraper.target.Kind,
 					Component: sl.scraper.target.Component,
