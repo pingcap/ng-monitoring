@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"time"
@@ -26,10 +27,10 @@ var (
 )
 
 type Scraper struct {
-	ctx     context.Context
-	isDown  *atomic.Bool
-	closeCh chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
 
+	isDown    *atomic.Bool
 	component topology.Component
 
 	store store.Store
@@ -40,10 +41,12 @@ func NewScraper(
 	component topology.Component,
 	store store.Store,
 ) *Scraper {
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Scraper{
 		ctx:       ctx,
+		cancel:    cancel,
 		isDown:    atomic.NewBool(false),
-		closeCh:   make(chan struct{}),
 		component: component,
 		store:     store,
 	}
@@ -54,10 +57,10 @@ func (s *Scraper) IsDown() bool {
 }
 
 func (s *Scraper) Close() {
-	close(s.closeCh)
+	s.cancel()
 }
 
-func (s *Scraper) run() {
+func (s *Scraper) Run() {
 	defer s.isDown.Store(true)
 	log.Info("starting to scrape top SQL from the component", zap.Any("component", s.component))
 
@@ -73,7 +76,7 @@ func (s *Scraper) run() {
 
 func (s *Scraper) scrapeTiDB() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.StatusPort)
-	conn, err := dial(addr)
+	conn, err := dial(s.ctx, addr)
 	if err != nil {
 		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
 		return
@@ -134,24 +137,20 @@ func (s *Scraper) scrapeTiDB() {
 	select {
 	case <-s.ctx.Done():
 	case <-stopCh:
-	case <-s.closeCh:
 	}
 }
 
 func (s *Scraper) scrapeTiKV() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.Port)
-	conn, err := dial(addr)
+	conn, err := dial(s.ctx, addr)
 	if err != nil {
 		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
 		return
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
-	records, err := client.Subscribe(ctx, &resource_usage_agent.ResourceMeteringRequest{})
+	records, err := client.Subscribe(s.ctx, &resource_usage_agent.ResourceMeteringRequest{})
 	if err != nil {
 		log.Error("failed to call SubCPUTimeRecord", zap.Any("component", s.component), zap.Error(err))
 		return
@@ -186,12 +185,14 @@ func (s *Scraper) scrapeTiKV() {
 	select {
 	case <-s.ctx.Done():
 	case <-stopCh:
-	case <-s.closeCh:
 	}
 }
 
-func dial(addr string) (*grpc.ClientConn, error) {
-	tlsConfig := config.GetGlobalConfig().Security.GetTLSConfig()
+func dial(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+	var tlsConfig *tls.Config
+	if globalConfig := config.GetGlobalConfig(); globalConfig != nil {
+		tlsConfig = globalConfig.Security.GetTLSConfig()
+	}
 
 	var tlsOption grpc.DialOption
 	if tlsConfig == nil {
@@ -200,7 +201,7 @@ func dial(addr string) (*grpc.ClientConn, error) {
 		tlsOption = grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))
 	}
 
-	dialCtx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	dialCtx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
 
 	return grpc.DialContext(

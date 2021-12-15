@@ -77,7 +77,11 @@ func notifyConfigChange() {
 }
 
 func GetGlobalConfig() *Config {
-	return globalConf.Load().(*Config)
+	if v := globalConf.Load(); v == nil {
+		return nil
+	} else {
+		return v.(*Config)
+	}
 }
 
 func GetDefaultConfig() Config {
