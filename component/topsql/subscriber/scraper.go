@@ -12,7 +12,6 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/config"
-	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/tipb/go-tipb"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -90,53 +89,43 @@ func (s *Scraper) scrapeTiDB() {
 		return
 	}
 
-	stopCh := make(chan struct{})
-	go utils.GoWithRecovery(func() {
-		defer close(stopCh)
+	if err := s.store.Instance(addr, topology.ComponentTiDB); err != nil {
+		log.Warn("failed to store instance", zap.Error(err))
+		return
+	}
 
-		if err := s.store.Instance(addr, topology.ComponentTiDB); err != nil {
-			log.Warn("failed to store instance", zap.Error(err))
-			return
+	for {
+		r, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Warn("failed to receive records from stream", zap.Error(err))
+			break
 		}
 
-		for {
-			r, err := stream.Recv()
-			if err == io.EOF {
-				break
-			}
+		if record := r.GetRecord(); record != nil {
+			err = s.store.TopSQLRecord(addr, topology.ComponentTiDB, record)
 			if err != nil {
-				log.Warn("failed to receive records from stream", zap.Error(err))
-				break
+				log.Warn("failed to store top SQL records", zap.Error(err))
 			}
+			continue
+		}
 
-			if record := r.GetRecord(); record != nil {
-				err = s.store.TopSQLRecord(addr, topology.ComponentTiDB, record)
-				if err != nil {
-					log.Warn("failed to store top SQL records", zap.Error(err))
-				}
-				continue
+		if meta := r.GetSqlMeta(); meta != nil {
+			err = s.store.SQLMeta(meta)
+			if err != nil {
+				log.Warn("failed to store SQL meta", zap.Error(err))
 			}
+			continue
+		}
 
-			if meta := r.GetSqlMeta(); meta != nil {
-				err = s.store.SQLMeta(meta)
-				if err != nil {
-					log.Warn("failed to store SQL meta", zap.Error(err))
-				}
-				continue
-			}
-
-			if meta := r.GetPlanMeta(); meta != nil {
-				err = s.store.PlanMeta(meta)
-				if err != nil {
-					log.Warn("failed to store SQL meta", zap.Error(err))
-				}
+		if meta := r.GetPlanMeta(); meta != nil {
+			err = s.store.PlanMeta(meta)
+			if err != nil {
+				log.Warn("failed to store SQL meta", zap.Error(err))
 			}
 		}
-	}, nil)
-
-	select {
-	case <-s.ctx.Done():
-	case <-stopCh:
 	}
 }
 
@@ -156,36 +145,27 @@ func (s *Scraper) scrapeTiKV() {
 		return
 	}
 
-	stopCh := make(chan struct{})
-	go utils.GoWithRecovery(func() {
-		defer close(stopCh)
-
-		if err := s.store.Instance(addr, topology.ComponentTiKV); err != nil {
-			log.Warn("failed to store instance", zap.Error(err))
-			return
-		}
-
-		for {
-			r, err := records.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				log.Warn("failed to receive records from stream", zap.Error(err))
-				break
-			}
-
-			err = s.store.ResourceMeteringRecord(addr, topology.ComponentTiKV, r)
-			if err != nil {
-				log.Warn("failed to store resource metering records", zap.Error(err))
-			}
-		}
-	}, nil)
-
-	select {
-	case <-s.ctx.Done():
-	case <-stopCh:
+	if err := s.store.Instance(addr, topology.ComponentTiKV); err != nil {
+		log.Warn("failed to store instance", zap.Error(err))
+		return
 	}
+
+	for {
+		r, err := records.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Warn("failed to receive records from stream", zap.Error(err))
+			break
+		}
+
+		err = s.store.ResourceMeteringRecord(addr, topology.ComponentTiKV, r)
+		if err != nil {
+			log.Warn("failed to store resource metering records", zap.Error(err))
+		}
+	}
+
 }
 
 func dial(ctx context.Context, addr string) (*grpc.ClientConn, error) {
