@@ -63,11 +63,11 @@ func TestTiDBScraperBasic(t *testing.T) {
 		if _, ok := store.Instances[addr]; !ok {
 			return false
 		}
-		require.Equal(t, store.Instances[addr].InstanceType, "tidb")
-
 		if _, ok := store.TopSQLRecords[addr]; !ok {
 			return false
 		}
+
+		require.Equal(t, store.Instances[addr].InstanceType, "tidb")
 		record := store.TopSQLRecords[addr]["mock_sql_digest"]["mock_plan_digest"]
 		require.Equal(t, record.RecordListTimestampSec, []uint64{1639541002})
 		require.Equal(t, record.RecordListCpuTimeMs, []uint32{100})
@@ -117,11 +117,11 @@ func TestTiKVScraperBasic(t *testing.T) {
 		if _, ok := store.Instances[addr]; !ok {
 			return false
 		}
-		require.Equal(t, store.Instances[addr].InstanceType, "tikv")
-
 		if _, ok := store.ResourceMeteringRecords[addr]; !ok {
 			return false
 		}
+
+		require.Equal(t, store.Instances[addr].InstanceType, "tikv")
 		record := store.ResourceMeteringRecords[addr]["mock_resource_group_tag"]
 		require.Equal(t, record.RecordListTimestampSec, []uint64{1639541002})
 		require.Equal(t, record.RecordListCpuTimeMs, []uint32{100})
