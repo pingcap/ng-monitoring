@@ -21,6 +21,7 @@ func TestConfig(t *testing.T) {
 	config.PD.Endpoints = append(config.PD.Endpoints, "10.0.1.8:2379")
 	require.NoError(t, config.valid())
 	require.Equal(t, config.PD, PD{Endpoints: []string{"10.0.1.8:2379"}})
+	require.Equal(t, config.Address, "0.0.0.0:12020")
 
 	config = Config{}
 	_, localFile, _, _ := runtime.Caller(0)
