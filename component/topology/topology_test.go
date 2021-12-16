@@ -3,11 +3,13 @@ package topology
 import (
 	"context"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils/printer"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/clientv3"
@@ -71,39 +73,67 @@ func TestTopology(t *testing.T) {
 	discoverInterval = time.Millisecond * 100
 	go discover.loadTopologyLoop()
 
-	// test for config change channel
-	//discover.cfgChangeCh <- struct{}{}
-
 	components := <-sub
 	require.Equal(t, len(components), 2)
 	require.Equal(t, components[0].Name, "pd")
 	require.Equal(t, components[1].Name, "tikv")
 
 	// test syncer
+	printer.NGMGitHash = "b225682e6660cb617b8f4ccc77da252f845f411c"
 	syncer = NewTopologySyncer(do)
+	require.Equal(t, "10.0.1.8", syncer.serverInfo.IP)
+	require.Equal(t, uint64(12020), syncer.serverInfo.Port)
+	require.Equal(t, "b225682e6660cb617b8f4ccc77da252f845f411c", syncer.serverInfo.GitHash)
+	require.True(t, syncer.serverInfo.StartTimestamp > 0)
+	syncer.serverInfo.StartTimestamp = 1639643120
 	err = syncer.newTopologySessionAndStoreServerInfo()
 	require.NoError(t, err)
 	err = syncer.storeTopologyInfo()
 	require.NoError(t, err)
 
-	// get ngm topology from etcd.
 	etcdCli := cluster.RandClient()
-	resp, err := etcdCli.Get(context.Background(), topologyPrefix, clientv3.WithPrefix())
-	require.NoError(t, err)
-	require.Equal(t, 1, int(resp.Count))
-	require.Equal(t, "/topology/ng-monitoring/10.0.1.8:12020/ttl", string(resp.Kvs[0].Key))
+	check := func() {
+		// get ngm topology from etcd.
+		resp, err := etcdCli.Get(context.Background(), "/topology/ng-monitoring/10.0.1.8:12020/ttl")
+		require.NoError(t, err)
+		require.Equal(t, 1, int(resp.Count))
+		require.Equal(t, "/topology/ng-monitoring/10.0.1.8:12020/ttl", string(resp.Kvs[0].Key))
+		ts, err := strconv.Atoi(string(resp.Kvs[0].Value))
+		require.NoError(t, err)
+		require.True(t, ts > 0)
+
+		// get ngm server info from etcd.
+		resp, err = etcdCli.Get(context.Background(), "/topology/ng-monitoring/10.0.1.8:12020/info")
+		require.NoError(t, err)
+		require.Equal(t, 1, int(resp.Count))
+		require.Equal(t, "/topology/ng-monitoring/10.0.1.8:12020/info", string(resp.Kvs[0].Key))
+		require.Equal(t, `{"git_hash":"b225682e6660cb617b8f4ccc77da252f845f411c","ip":"10.0.1.8","listening_port":12020,"start_timestamp":1639643120}`, string(resp.Kvs[0].Value))
+	}
+	check()
 
 	// test syncer sync.
 	topologyTimeToRefresh = time.Millisecond * 10
 	syncer.Start()
 	respd, err := etcdCli.Delete(context.Background(), topologyPrefix, clientv3.WithPrefix())
 	require.NoError(t, err)
-	require.Equal(t, 1, int(respd.Deleted))
+	require.Equal(t, 2, int(respd.Deleted))
 	// wait syncer to restore the info.
 	time.Sleep(time.Millisecond * 100)
-	resp, err = etcdCli.Get(context.Background(), topologyPrefix, clientv3.WithPrefix())
+	resp, err := etcdCli.Get(context.Background(), topologyPrefix, clientv3.WithPrefix())
 	require.NoError(t, err)
-	require.Equal(t, 1, int(resp.Count))
-	require.Equal(t, "/topology/ng-monitoring/10.0.1.8:12020/ttl", string(resp.Kvs[0].Key))
+	require.Equal(t, 2, int(resp.Count))
+	check()
 	Stop()
+
+	// Test invalid address
+	cfg.AdvertiseAddress = "abcd"
+	config.StoreGlobalConfig(&cfg)
+	serverInfo := getServerInfo()
+	require.Equal(t, "", serverInfo.IP)
+	require.Equal(t, uint64(0), serverInfo.Port)
+	cfg.AdvertiseAddress = "abcd:x"
+	config.StoreGlobalConfig(&cfg)
+	serverInfo = getServerInfo()
+	require.Equal(t, "abcd", serverInfo.IP)
+	require.Equal(t, uint64(0), serverInfo.Port)
 }
