@@ -123,11 +123,13 @@ func getProfileEstimateSize(component topology.Component) int {
 	return defaultProfileSize
 }
 
+type ProfilingState = string
+
 var (
-	QueryStateSuccess        string = "success"
-	QueryStatePartialSuccess string = "partial success"
-	QueryStateFailed         string = "failed"
-	QueryStatePartialFailed  string = "partial failed"
+	ProfilingStateRunning        ProfilingState = "running"
+	ProfilingStateSuccess        ProfilingState = "success"
+	ProfilingStatePartialSuccess ProfilingState = "partial success"
+	ProfilingStateFailed         ProfilingState = "failed"
 )
 
 type ComponentNum struct {
@@ -215,9 +217,9 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 			}
 			totalCompNum += num
 		}
-		state := QueryStateSuccess
+		state := ProfilingStateSuccess
 		if ts == lastTS && totalCompNum < len(components) {
-			state = QueryStatePartialSuccess
+			state = ProfilingStateRunning
 		}
 
 		groupProfiles = append(groupProfiles, GroupProfiles{
@@ -251,7 +253,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
 	for _, plist := range profileLists {
 		targetProfiles = append(targetProfiles, ProfileDetail{
-			State: QueryStateSuccess,
+			State: ProfilingStateSuccess,
 			Type:  plist.Target.Kind,
 			Target: Target{
 				Component: plist.Target.Component,
@@ -265,7 +267,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	return &GroupProfileDetail{
 		Ts:             param.Begin,
 		ProfileSecs:    config.GetGlobalConfig().ContinueProfiling.ProfileSeconds,
-		State:          QueryStateSuccess,
+		State:          ProfilingStateSuccess,
 		TargetProfiles: targetProfiles,
 	}, nil
 }
