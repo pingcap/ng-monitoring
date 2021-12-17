@@ -13,7 +13,6 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/tipb/go-tipb"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -29,10 +28,8 @@ type Scraper struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	isDown    *atomic.Bool
 	component topology.Component
-
-	store store.Store
+	store     store.Store
 }
 
 func NewScraper(
@@ -45,14 +42,18 @@ func NewScraper(
 	return &Scraper{
 		ctx:       ctx,
 		cancel:    cancel,
-		isDown:    atomic.NewBool(false),
 		component: component,
 		store:     store,
 	}
 }
 
 func (s *Scraper) IsDown() bool {
-	return s.isDown.Load()
+	select {
+	case <-s.ctx.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Scraper) Close() {
@@ -60,7 +61,7 @@ func (s *Scraper) Close() {
 }
 
 func (s *Scraper) Run() {
-	defer s.isDown.Store(true)
+	defer s.cancel()
 	log.Info("starting to scrape top SQL from the component", zap.Any("component", s.component))
 
 	switch s.component.Name {
