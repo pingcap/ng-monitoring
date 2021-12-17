@@ -416,6 +416,10 @@ func getDataFormatParam(r *http.Request, param *meta.BasicQueryParam) error {
 	return nil
 }
 
+//func buildQueryParam(r *http.Request, requires []string, options []string) (*meta.BasicQueryParam, error) {
+//	//
+//}
+
 func getTsAndTargetParam(r *http.Request) (*meta.BasicQueryParam, error) {
 	queryParam, err := getTsParam(r)
 	if err != nil {
