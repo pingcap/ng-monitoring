@@ -162,11 +162,7 @@ type Target struct {
 }
 
 func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
-	param, err := getBeginAndEndTimeParam(c.Request)
-	if err != nil {
-		return nil, err
-	}
-	err = getLimitParam(c.Request, param)
+	param, err := buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr})
 	if err != nil {
 		return nil, err
 	}
@@ -223,11 +219,7 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 }
 
 func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
-	param, err := getTsParam(c.Request)
-	if err != nil {
-		return nil, err
-	}
-	err = getLimitParam(c.Request, param)
+	param, err := buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr})
 	if err != nil {
 		return nil, err
 	}
@@ -260,15 +252,11 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 }
 
 func querySingleProfileView(c *gin.Context) ([]byte, error) {
-	param, err := getTsAndTargetParam(c.Request)
+	param, err := buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr, dataFormatParamStr})
 	if err != nil {
 		return nil, err
 	}
-	err = getLimitParam(c.Request, param)
-	if err != nil {
-		return nil, err
-	}
-	err = getDataFormatParam(c.Request, param)
+	err = getTargetFromRequest(c.Request, param, true)
 	if err != nil {
 		return nil, err
 	}
@@ -293,18 +281,15 @@ func queryAndDownload(c *gin.Context) error {
 	var param *meta.BasicQueryParam
 	var err error
 	if v := c.Request.FormValue(beginTimeParamStr); len(v) > 0 {
-		param, err = getBeginAndEndTimeParam(c.Request)
+		param, err = buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr, dataFormatParamStr})
 	} else {
-		param, err = getTsParam(c.Request)
+		param, err = buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr, dataFormatParamStr})
 	}
 	if err != nil {
 		return err
 	}
-	err = getLimitParam(c.Request, param)
-	if err != nil {
-		return err
-	}
-	err = getDataFormatParam(c.Request, param)
+
+	err = getTargetFromRequest(c.Request, param, false)
 	if err != nil {
 		return err
 	}
@@ -346,63 +331,73 @@ func queryAndDownload(c *gin.Context) error {
 }
 
 var (
-	beginTimeParamStr  = "begin_time"
-	endTimeParamStr    = "end_time"
-	tsParamStr         = "ts"
-	limitParamStr      = "limit"
-	dataFormatParamStr = "data_format"
-	defdataFormatParam = meta.ProfileDataFormatSVG
+	beginTimeParamStr   = "begin_time"
+	endTimeParamStr     = "end_time"
+	tsParamStr          = "ts"
+	limitParamStr       = "limit"
+	dataFormatParamStr  = "data_format"
+	defdataFormatParam  = meta.ProfileDataFormatSVG
+	profileTypeParamStr = "profile_type"
+	componentParamStr   = "component"
+	addressParamStr     = "address"
 )
 
-func getBeginAndEndTimeParam(r *http.Request) (*meta.BasicQueryParam, error) {
-	queryParam := &meta.BasicQueryParam{}
-	params := []string{beginTimeParamStr, endTimeParamStr}
-	for _, field := range params {
-		v, ok, err := parseIntParamFromRequest(r, field)
+func buildQueryParam(r *http.Request, requires []string, options []string) (*meta.BasicQueryParam, error) {
+	param := &meta.BasicQueryParam{}
+	for _, paramName := range requires {
+		err := getParamFromRequest(r, param, paramName, true)
 		if err != nil {
-			return nil, fmt.Errorf("invalid param %v value, error: %v", field, err)
-		}
-		if !ok {
-			return nil, fmt.Errorf("need param %v", field)
-		}
-		switch field {
-		case beginTimeParamStr:
-			queryParam.Begin = v
-		case endTimeParamStr:
-			queryParam.End = v
+			return nil, err
 		}
 	}
-	return queryParam, nil
+	for _, paramName := range options {
+		err := getParamFromRequest(r, param, paramName, false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// set default value
+	if param.DataFormat == "" {
+		param.DataFormat = defdataFormatParam
+	}
+	return param, nil
 }
 
-func getTsParam(r *http.Request) (*meta.BasicQueryParam, error) {
-	v, ok, err := parseIntParamFromRequest(r, tsParamStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid param %v value, error: %v", tsParamStr, err)
+func getParamFromRequest(r *http.Request, param *meta.BasicQueryParam, paramName string, isRequired bool) error {
+	v := r.FormValue(paramName)
+	if len(v) == 0 {
+		if isRequired {
+			return fmt.Errorf("need param %v", paramName)
+		}
+		return nil
 	}
-	if !ok {
-		return nil, fmt.Errorf("need param %v", tsParamStr)
-	}
-	queryParam := &meta.BasicQueryParam{
-		Begin: v,
-		End:   v,
-	}
-	return queryParam, nil
-}
-
-func getLimitParam(r *http.Request, param *meta.BasicQueryParam) error {
-	v, ok, err := parseIntParamFromRequest(r, limitParamStr)
-	if err != nil {
-		return fmt.Errorf("invalid param %v value, error: %v", limitParamStr, err)
-	}
-	if ok {
-		param.Limit = v
-	}
-	return nil
-}
-
-func getDataFormatParam(r *http.Request, param *meta.BasicQueryParam) error {
-	if v := r.FormValue(dataFormatParamStr); len(v) > 0 {
+	switch paramName {
+	case tsParamStr:
+		value, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid param %v value, error: %v", paramName, err)
+		}
+		param.Begin, param.End = value, value
+	case beginTimeParamStr:
+		value, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid param %v value, error: %v", paramName, err)
+		}
+		param.Begin = value
+	case endTimeParamStr:
+		value, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid param %v value, error: %v", paramName, err)
+		}
+		param.End = value
+	case limitParamStr:
+		value, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid param %v value, error: %v", paramName, err)
+		}
+		param.Limit = value
+	case dataFormatParamStr:
 		switch v {
 		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf:
 			param.DataFormat = v
@@ -410,45 +405,29 @@ func getDataFormatParam(r *http.Request, param *meta.BasicQueryParam) error {
 			return fmt.Errorf("invalid param %v value %v, expected: %v, %v",
 				dataFormatParamStr, v, meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf)
 		}
-	} else {
-		param.DataFormat = defdataFormatParam
+	default:
+		return fmt.Errorf("unknow param %s", paramName)
 	}
 	return nil
 }
 
-//func buildQueryParam(r *http.Request, requires []string, options []string) (*meta.BasicQueryParam, error) {
-//	//
-//}
-
-func getTsAndTargetParam(r *http.Request) (*meta.BasicQueryParam, error) {
-	queryParam, err := getTsParam(r)
-	if err != nil {
-		return nil, err
-	}
-	params := []string{"profile_type", "component", "address"}
-	values := make([]string, len(params))
-	for i, param := range params {
-		if v := r.FormValue(param); len(v) > 0 {
+func getTargetFromRequest(r *http.Request, param *meta.BasicQueryParam, isRequired bool) error {
+	paramNames := []string{profileTypeParamStr, componentParamStr, addressParamStr}
+	values := make([]string, len(paramNames))
+	for i, paramName := range paramNames {
+		if v := r.FormValue(paramName); len(v) > 0 {
 			values[i] = v
 		} else {
-			return nil, fmt.Errorf("need param %v", param)
+			if isRequired {
+				return fmt.Errorf("need param %v", paramName)
+			}
+			return nil
 		}
 	}
-	queryParam.Targets = append(queryParam.Targets, meta.ProfileTarget{
+	param.Targets = append(param.Targets, meta.ProfileTarget{
 		Kind:      values[0],
 		Component: values[1],
 		Address:   values[2],
 	})
-	return queryParam, nil
-}
-
-func parseIntParamFromRequest(r *http.Request, param string) (value int64, ok bool, err error) {
-	if v := r.FormValue(param); len(v) > 0 {
-		value, err = strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return value, true, err
-		}
-		return value, true, nil
-	}
-	return value, false, nil
+	return nil
 }
