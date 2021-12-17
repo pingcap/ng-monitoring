@@ -2,13 +2,17 @@ package topology
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
+	"strconv"
 	"time"
 
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils"
+	"github.com/pingcap/ng-monitoring/utils/printer"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
 	"go.uber.org/zap"
@@ -31,13 +35,15 @@ var (
 type TopologySyncer struct {
 	do              *domain.Domain
 	topologySession *concurrency.Session
+	serverInfo      *ServerInfo
 	ctx             context.Context
 	cancel          context.CancelFunc
 }
 
 func NewTopologySyncer(do *domain.Domain) *TopologySyncer {
 	syncer := &TopologySyncer{
-		do: do,
+		do:         do,
+		serverInfo: getServerInfo(),
 	}
 	syncer.ctx, syncer.cancel = context.WithCancel(context.Background())
 	return syncer
@@ -83,9 +89,27 @@ func (s *TopologySyncer) newTopologySessionAndStoreServerInfo() error {
 	if err != nil {
 		return err
 	}
-
 	s.topologySession = session
+
+	err = s.storeServerInfo(etcdCli)
+	if err != nil {
+		return err
+	}
+
 	return s.storeTopologyInfo()
+}
+
+func (s *TopologySyncer) storeServerInfo(etcdCli *clientv3.Client) error {
+	cfg := config.GetGlobalConfig()
+	key := fmt.Sprintf("%s/%s/info", topologyPrefix, cfg.AdvertiseAddress)
+	infoBuf, err := json.Marshal(s.serverInfo)
+	if err != nil {
+		return err
+	}
+	value := string(infoBuf)
+	// Note: no lease is required here.
+	err = putKVToEtcd(s.ctx, etcdCli, defaultRetryCnt, key, value)
+	return err
 }
 
 func (s *TopologySyncer) storeTopologyInfo() error {
@@ -164,4 +188,30 @@ func isContextDone(ctx context.Context) bool {
 	default:
 	}
 	return false
+}
+
+// ServerInfo is server static information.
+// It will not be updated when server running.
+// So please only put static information in ServerInfo struct.
+type ServerInfo struct {
+	GitHash        string `json:"git_hash"`
+	IP             string `json:"ip"`
+	Port           uint64 `json:"listening_port"`
+	StartTimestamp int64  `json:"start_timestamp"`
+}
+
+func getServerInfo() *ServerInfo {
+	info := &ServerInfo{
+		GitHash:        printer.NGMGitHash,
+		IP:             "",
+		Port:           0,
+		StartTimestamp: time.Now().Unix(),
+	}
+	cfg := config.GetGlobalConfig()
+	host, port, err := net.SplitHostPort(cfg.AdvertiseAddress)
+	if err == nil {
+		info.IP = host
+		info.Port, _ = strconv.ParseUint(port, 10, 64)
+	}
+	return info
 }
