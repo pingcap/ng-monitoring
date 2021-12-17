@@ -128,8 +128,6 @@ type ProfilingState = string
 var (
 	ProfilingStateRunning        ProfilingState = "running"
 	ProfilingStateSuccess        ProfilingState = "success"
-	ProfilingStatePartialSuccess ProfilingState = "partial success"
-	ProfilingStateFailed         ProfilingState = "failed"
 )
 
 type ComponentNum struct {
