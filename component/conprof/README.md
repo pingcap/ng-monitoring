@@ -86,4 +86,7 @@ curl "http://0.0.0.0:12020/continuous_profiling/download?ts=1634836910" > d.zip
 
 # Download profile data and specify data type
 curl "http://0.0.0.0:12020/continuous_profiling/download?ts=1635480630&data_format=protobuf" > d.zip
+
+# Download single profile data by specify target
+curl "http://0.0.0.0:12020/continuous_profiling/download?ts=1639733820&profile_type=profile&component=pd&address=10.0.1.11:21379&data_format=protobuf" > profile.zip
 ```
