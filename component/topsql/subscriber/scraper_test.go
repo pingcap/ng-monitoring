@@ -46,14 +46,29 @@ func TestTiDBScraperBasic(t *testing.T) {
 	wg.Add(1)
 	tidb.AccessStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
 		defer wg.Done()
-		return stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
+		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
 			Record: &tipb.CPUTimeRecord{
 				SqlDigest:              []byte("mock_sql_digest"),
 				PlanDigest:             []byte("mock_plan_digest"),
 				RecordListTimestampSec: []uint64{1639541002},
 				RecordListCpuTimeMs:    []uint32{100},
 			},
-		}})
+		}}))
+
+		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_SqlMeta{
+			SqlMeta: &tipb.SQLMeta{
+				SqlDigest:     []byte("mock_sql_digest"),
+				NormalizedSql: "mock_normalized_sql",
+			},
+		}}))
+
+		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_PlanMeta{
+			PlanMeta: &tipb.PlanMeta{
+				PlanDigest:     []byte("mock_plan_digest"),
+				NormalizedPlan: "mock_normalized_plan",
+			},
+		}}))
+		return nil
 	})
 	wg.Wait()
 
@@ -66,12 +81,19 @@ func TestTiDBScraperBasic(t *testing.T) {
 		if _, ok := store.TopSQLRecords[addr]; !ok {
 			return false
 		}
+		if _, ok := store.SQLMetas["mock_sql_digest"]; !ok {
+			return false
+		}
+		if _, ok := store.PlanMetas["mock_plan_digest"]; !ok {
+			return false
+		}
 
 		require.Equal(t, store.Instances[addr].InstanceType, "tidb")
 		record := store.TopSQLRecords[addr]["mock_sql_digest"]["mock_plan_digest"]
 		require.Equal(t, record.RecordListTimestampSec, []uint64{1639541002})
 		require.Equal(t, record.RecordListCpuTimeMs, []uint32{100})
-
+		require.Equal(t, store.SQLMetas["mock_sql_digest"].Meta.NormalizedSql, "mock_normalized_sql")
+		require.Equal(t, store.PlanMetas["mock_plan_digest"].Meta.NormalizedPlan, "mock_normalized_plan")
 		return true
 	}, 10*time.Millisecond, 1*time.Second))
 }
