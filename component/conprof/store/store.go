@@ -122,7 +122,7 @@ func (s *ProfileStorage) UpdateProfileTargetInfo(pt meta.ProfileTarget, ts int64
 	return true, nil
 }
 
-func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profileData []byte) error {
+func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, t time.Time, profileData []byte) error {
 	if s.isClose() {
 		return ErrStoreIsClosed
 	}
@@ -135,6 +135,7 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, ts int64, profileData
 		profileData = gozstd.Compress(nil, profileData)
 	}
 
+	ts := t.Unix()
 	sql := fmt.Sprintf("INSERT INTO %v (ts, data) VALUES (?, ?)", s.getProfileDataTableName(info))
 	err = s.db.Exec(sql, ts, profileData)
 	if err != nil {

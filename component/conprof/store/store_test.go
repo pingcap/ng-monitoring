@@ -72,7 +72,7 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 	for i, ca := range cases {
 		pt := meta.ProfileTarget{Kind: ca.kind, Component: ca.component, Address: ca.address}
 		ts := baseTs + int64(i)
-		err = storage.AddProfile(pt, ts, ca.data)
+		err = storage.AddProfile(pt, time.Unix(ts, 0), ca.data)
 		require.NoError(t, err)
 
 		param := &meta.BasicQueryParam{

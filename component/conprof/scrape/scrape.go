@@ -78,12 +78,11 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 		if scrapeErr == nil {
 			if buf.Len() > 0 {
 				sl.lastScrapeSize = buf.Len()
-				ts := start.Unix()
 				err := sl.store.AddProfile(meta.ProfileTarget{
 					Kind:      sl.scraper.target.Kind,
 					Component: sl.scraper.target.Component,
 					Address:   sl.scraper.target.Address,
-				}, ts, buf.Bytes())
+				}, start, buf.Bytes())
 
 				if err == nil {
 					sl.lastScrape = start
@@ -92,7 +91,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 						zap.String("component", target.Component),
 						zap.String("address", target.Address),
 						zap.String("kind", target.Kind),
-						zap.Int64("ts", ts),
+						zap.Time("start", start),
 						zap.Error(err))
 				}
 			}
