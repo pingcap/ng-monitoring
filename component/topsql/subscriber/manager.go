@@ -107,7 +107,7 @@ func (m *Manager) updateScrapers() {
 		m.wg.Add(1)
 		go utils.GoWithRecovery(func() {
 			defer m.wg.Done()
-			scraper.run()
+			scraper.Run()
 		}, nil)
 	}
 }
