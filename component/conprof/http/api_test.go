@@ -87,7 +87,7 @@ func TestAPI(t *testing.T) {
 
 func testAPIGroupProfiles(t *testing.T, httpAddr string) int64 {
 	ts := time.Now().Unix()
-	resp, err := http.Get("http://" + httpAddr + "/continuous_profiling/group_profiles?begin_time=0&end_time=" + strconv.Itoa(int(ts)))
+	resp, err := http.Get(fmt.Sprintf("http://%v/continuous_profiling/group_profiles?begin_time=%v&end_time=%v", httpAddr, ts-2*60*60, ts))
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
@@ -228,6 +228,7 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		{"/group_profiles", `{"message":"need param begin_time","status":"error"}`},
 		{"/group_profiles?begin_time=0", `{"message":"need param end_time","status":"error"}`},
 		{"/group_profiles?begin_time=0&end_time=zx", `{"message":"invalid param end_time value, error: strconv.ParseInt: parsing \"zx\": invalid syntax","status":"error"}`},
+		{"/group_profiles?begin_time=1639962239&end_time=1639969440", `{"message":"query time range too large, should no more than 2 hours","status":"error"}`},
 
 		// test for /group_profile/detail api.
 		{"/group_profile/detail", `{"message":"need param ts","status":"error"}`},
