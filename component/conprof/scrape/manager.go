@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
@@ -25,30 +24,28 @@ var (
 // Manager maintains a set of scrape pools and manages start/stop cycles
 // when receiving new target groups form the discovery manager.
 type Manager struct {
-	store          *store.ProfileStorage
-	topoSubScribe  topology.Subscriber
-	configChangeCh config.Subscriber
-	curComponents  map[topology.Component]struct{}
-	lastComponents map[topology.Component]struct{}
+	store           *store.ProfileStorage
+	topoSubScribe   topology.Subscriber
+	configChangeCh  config.Subscriber
+	latestTopoComps map[topology.Component]struct{}
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	mu           sync.Mutex
-	scrapeSuites map[meta.ProfileTarget]*ScrapeSuite
-	ticker       *Ticker
+	mu                  sync.Mutex
+	runningScrapeSuites map[topology.Component][]*ScrapeSuite
+	ticker              *Ticker
 }
 
 // NewManager is the Manager constructor
 func NewManager(store *store.ProfileStorage, topoSubScribe topology.Subscriber) *Manager {
 	return &Manager{
-		store:          store,
-		topoSubScribe:  topoSubScribe,
-		configChangeCh: config.Subscribe(),
-		curComponents:  map[topology.Component]struct{}{},
-		lastComponents: map[topology.Component]struct{}{},
-		scrapeSuites:   make(map[meta.ProfileTarget]*ScrapeSuite),
-		ticker:         NewTicker(time.Duration(config.GetGlobalConfig().ContinueProfiling.IntervalSeconds) * time.Second),
+		store:               store,
+		topoSubScribe:       topoSubScribe,
+		configChangeCh:      config.Subscribe(),
+		latestTopoComps:     map[topology.Component]struct{}{},
+		runningScrapeSuites: make(map[topology.Component][]*ScrapeSuite),
+		ticker:              NewTicker(time.Duration(config.GetGlobalConfig().ContinueProfiling.IntervalSeconds) * time.Second),
 	}
 }
 
@@ -65,9 +62,29 @@ func (m *Manager) Start() {
 	log.Info("continuous profiling manager started")
 }
 
+func (m *Manager) GetRunningScrapeComponents() []topology.Component {
+	components := make([]topology.Component, 0, len(m.runningScrapeSuites))
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for comp, suites := range m.runningScrapeSuites {
+		if len(suites) == 0 {
+			continue
+		}
+		// if topology changed, and a new component is added, if the scrape suite is never start to scrape,
+		// then the component scrape suite is not running.
+		if suites[0].lastScrape.Unix() == 0 {
+			continue
+		}
+		components = append(components, comp)
+	}
+	return components
+}
+
 func (m *Manager) GetCurrentScrapeComponents() []topology.Component {
-	components := make([]topology.Component, 0, len(m.curComponents))
-	for comp := range m.curComponents {
+	components := make([]topology.Component, 0, len(m.runningScrapeSuites))
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for comp := range m.runningScrapeSuites {
 		components = append(components, comp)
 	}
 	sort.Slice(components, func(i, j int) bool {
@@ -96,14 +113,14 @@ func (m *Manager) updateTargetMetaLoop(ctx context.Context) {
 }
 
 func (m *Manager) updateTargetMeta() {
-	targets, suites := m.GetAllCurrentScrapeSuite()
+	suites := m.GetAllCurrentScrapeSuite()
 	count := 0
-	for i, suite := range suites {
+	for _, suite := range suites {
 		ts := suite.lastScrape.Unix()
 		if ts <= 0 {
 			continue
 		}
-		target := targets[i]
+		target := suite.scraper.target.ProfileTarget
 		updated, err := m.store.UpdateProfileTargetInfo(target, ts)
 		if err != nil {
 			log.Error("update profile target info failed",
@@ -132,7 +149,7 @@ func (m *Manager) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case components := <-m.topoSubScribe:
-			m.lastComponents = buildMap(components)
+			m.latestTopoComps = buildMap(components)
 		case <-m.configChangeCh:
 			break
 		}
@@ -155,25 +172,18 @@ func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProf
 
 	needReload := m.isProfilingConfigChanged(oldCfg, newCfg)
 	// close for old components
-	for comp := range m.curComponents {
-		_, exist := m.lastComponents[comp]
-		if exist && !needReload {
-			continue
-		}
+	comps := m.getComponentNeedStopScrape(needReload)
+	for _, comp := range comps {
 		m.stopScrape(comp)
 	}
 
-	// close for old components
 	if !newCfg.Enable {
 		return
 	}
 
 	//start for new component.
-	for comp := range m.lastComponents {
-		_, exist := m.curComponents[comp]
-		if exist && !needReload {
-			continue
-		}
+	comps = m.getComponentNeedStartScrape(needReload)
+	for _, comp := range comps {
 		err := m.startScrape(ctx, comp, newCfg)
 		if err != nil {
 			log.Error("start scrape failed",
@@ -200,20 +210,13 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 		}
 		scrape := newScraper(target, client)
 		scrapeSuite := newScrapeSuite(ctx, scrape, m.store)
-		pt := meta.ProfileTarget{
-			Kind:      profileName,
-			Component: component.Name,
-			Address:   addr,
-		}
-
 		m.wg.Add(1)
 		go utils.GoWithRecovery(func() {
 			defer m.wg.Done()
 			scrapeSuite.run(m.ticker.Subscribe())
 		}, nil)
-		m.addScrapeSuite(pt, scrapeSuite)
+		m.addScrapeSuite(component, scrapeSuite)
 	}
-	m.curComponents[component] = struct{}{}
 	log.Info("start component scrape",
 		zap.String("component", component.Name),
 		zap.String("address", addr))
@@ -221,19 +224,12 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 }
 
 func (m *Manager) stopScrape(component topology.Component) {
-	delete(m.curComponents, component)
 	addr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
 	log.Info("stop component scrape",
 		zap.String("component", component.Name),
 		zap.String("address", addr))
-	profilingConfig := m.getProfilingConfig(component)
-	for profileName := range profilingConfig.PprofConfig {
-		key := meta.ProfileTarget{
-			Kind:      profileName,
-			Component: component.Name,
-			Address:   addr,
-		}
-		suite := m.deleteScrapeSuite(key)
+	suites := m.deleteScrapeSuite(component)
+	for _, suite := range suites {
 		if suite == nil {
 			continue
 		}
@@ -250,32 +246,56 @@ func (m *Manager) getProfilingConfig(component topology.Component) *config.Profi
 	}
 }
 
-func (m *Manager) addScrapeSuite(pt meta.ProfileTarget, suite *ScrapeSuite) {
+func (m *Manager) getComponentNeedStopScrape(needReload bool) []topology.Component {
+	comps := []topology.Component{}
 	m.mu.Lock()
-	m.scrapeSuites[pt] = suite
-	m.mu.Unlock()
-}
-
-func (m *Manager) deleteScrapeSuite(pt meta.ProfileTarget) *ScrapeSuite {
-	m.mu.Lock()
-	suite := m.scrapeSuites[pt]
-	if suite != nil {
-		delete(m.scrapeSuites, pt)
+	for comp := range m.runningScrapeSuites {
+		_, exist := m.latestTopoComps[comp]
+		if exist && !needReload {
+			continue
+		}
+		comps = append(comps, comp)
 	}
 	m.mu.Unlock()
-	return suite
+	return comps
 }
 
-func (m *Manager) GetAllCurrentScrapeSuite() ([]meta.ProfileTarget, []*ScrapeSuite) {
+func (m *Manager) getComponentNeedStartScrape(needReload bool) []topology.Component {
+	comps := []topology.Component{}
+	m.mu.Lock()
+	for comp := range m.latestTopoComps {
+		_, exist := m.runningScrapeSuites[comp]
+		if exist && !needReload {
+			continue
+		}
+		comps = append(comps, comp)
+	}
+	m.mu.Unlock()
+	return comps
+}
+
+func (m *Manager) addScrapeSuite(component topology.Component, suite *ScrapeSuite) {
+	m.mu.Lock()
+	m.runningScrapeSuites[component] = append(m.runningScrapeSuites[component], suite)
+	m.mu.Unlock()
+}
+
+func (m *Manager) deleteScrapeSuite(component topology.Component) []*ScrapeSuite {
+	m.mu.Lock()
+	suites := m.runningScrapeSuites[component]
+	delete(m.runningScrapeSuites, component)
+	m.mu.Unlock()
+	return suites
+}
+
+func (m *Manager) GetAllCurrentScrapeSuite() []*ScrapeSuite {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	targets := make([]meta.ProfileTarget, 0, len(m.scrapeSuites))
-	suites := make([]*ScrapeSuite, 0, len(m.scrapeSuites))
-	for target, suite := range m.scrapeSuites {
-		targets = append(targets, target)
-		suites = append(suites, suite)
+	result := make([]*ScrapeSuite, 0, len(m.runningScrapeSuites))
+	for _, suites := range m.runningScrapeSuites {
+		result = append(result, suites...)
 	}
-	return targets, suites
+	return result
 }
 
 func (m *Manager) GetLastScrapeTime() time.Time {

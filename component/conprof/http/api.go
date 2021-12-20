@@ -191,7 +191,7 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 		}
 	}
 	groupProfiles := make([]GroupProfiles, 0, len(m))
-	components := conprof.GetManager().GetCurrentScrapeComponents()
+	components := conprof.GetManager().GetRunningScrapeComponents()
 	lastTS := conprof.GetManager().GetLastScrapeTime().Unix()
 	for ts, targets := range m {
 		compMap := map[string]int{}
