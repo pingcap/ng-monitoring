@@ -13,13 +13,13 @@ type Domain struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	cm          *ClientMaintainer
-	cfgChangeCh chan struct{}
+	cfgChangeCh config.Subscriber
 }
 
 func NewDomain() *Domain {
 	do := &Domain{
 		cm:          NewClientMaintainer(),
-		cfgChangeCh: config.SubscribeConfigChange(),
+		cfgChangeCh: config.Subscribe(),
 	}
 	do.ctx, do.cancel = context.WithCancel(context.Background())
 	go utils.GoWithRecovery(do.start, nil)
@@ -29,7 +29,7 @@ func NewDomain() *Domain {
 func NewDomainForTest(pdCli *pdclient.APIClient, etcdCli *clientv3.Client) *Domain {
 	do := &Domain{
 		cm:          NewClientMaintainer(),
-		cfgChangeCh: config.SubscribeConfigChange(),
+		cfgChangeCh: config.Subscribe(),
 	}
 	do.ctx, do.cancel = context.WithCancel(context.Background())
 	do.cm.Init(config.GetGlobalConfig().PD, pdCli, etcdCli)

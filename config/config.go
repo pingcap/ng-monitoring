@@ -8,6 +8,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -58,19 +59,31 @@ var defaultConfig = Config{
 	},
 }
 
-var globalConf atomic.Value
-var configChangeSubscribers []chan struct{}
+type Subscriber = chan *Config
 
-func SubscribeConfigChange() chan struct{} {
-	ch := make(chan struct{})
+var (
+	globalConf atomic.Value
+
+	mu                      sync.Mutex
+	configChangeSubscribers []Subscriber
+)
+
+func Subscribe() Subscriber {
+	mu.Lock()
+	defer mu.Unlock()
+
+	ch := make(chan *Config, 1)
 	configChangeSubscribers = append(configChangeSubscribers, ch)
 	return ch
 }
 
-func notifyConfigChange() {
+func notifyConfigChange(config *Config) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	for _, ch := range configChangeSubscribers {
 		select {
-		case ch <- struct{}{}:
+		case ch <- config:
 		default:
 		}
 	}
@@ -91,7 +104,7 @@ func GetDefaultConfig() Config {
 // StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
 func StoreGlobalConfig(config *Config) {
 	globalConf.Store(config)
-	notifyConfigChange()
+	notifyConfigChange(config)
 }
 
 func InitConfig(configPath string, override func(config *Config)) (*Config, error) {

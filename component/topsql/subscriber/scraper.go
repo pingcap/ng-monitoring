@@ -11,7 +11,6 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
-	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/tipb/go-tipb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -25,23 +24,20 @@ var (
 )
 
 type Scraper struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
+	ctx       context.Context
+	cancel    context.CancelFunc
+	tlsConfig *tls.Config
 	component topology.Component
 	store     store.Store
 }
 
-func NewScraper(
-	ctx context.Context,
-	component topology.Component,
-	store store.Store,
-) *Scraper {
+func NewScraper(ctx context.Context, component topology.Component, store store.Store, tlsConfig *tls.Config) *Scraper {
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &Scraper{
 		ctx:       ctx,
 		cancel:    cancel,
+		tlsConfig: tlsConfig,
 		component: component,
 		store:     store,
 	}
@@ -76,7 +72,7 @@ func (s *Scraper) Run() {
 
 func (s *Scraper) scrapeTiDB() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.StatusPort)
-	conn, err := dial(s.ctx, addr)
+	conn, err := dial(s.ctx, s.tlsConfig, addr)
 	if err != nil {
 		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
 		return
@@ -132,7 +128,7 @@ func (s *Scraper) scrapeTiDB() {
 
 func (s *Scraper) scrapeTiKV() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.Port)
-	conn, err := dial(s.ctx, addr)
+	conn, err := dial(s.ctx, s.tlsConfig, addr)
 	if err != nil {
 		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
 		return
@@ -169,12 +165,7 @@ func (s *Scraper) scrapeTiKV() {
 
 }
 
-func dial(ctx context.Context, addr string) (*grpc.ClientConn, error) {
-	var tlsConfig *tls.Config
-	if globalConfig := config.GetGlobalConfig(); globalConfig != nil {
-		tlsConfig = globalConfig.Security.GetTLSConfig()
-	}
-
+func dial(ctx context.Context, tlsConfig *tls.Config, addr string) (*grpc.ClientConn, error) {
 	var tlsOption grpc.DialOption
 	if tlsConfig == nil {
 		tlsOption = grpc.WithInsecure()

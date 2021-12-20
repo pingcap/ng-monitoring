@@ -61,8 +61,9 @@ type testTopSQLSuite struct {
 	db         *genji.DB
 	tikvAddr   string
 	tikvServer *MockTiKVServer
-	topCh      chan []topology.Component
-	varCh      chan *pdvariable.PDVariable
+	topCh      topology.Subscriber
+	varCh      pdvariable.Subscriber
+	cfgCh      config.Subscriber
 	ng         *gin.Engine
 }
 
@@ -111,9 +112,12 @@ func (s *testTopSQLSuite) SetupSuite() {
 	vminsert.Init()
 
 	// init topsql
-	s.topCh = make(chan []topology.Component)
-	s.varCh = make(chan *pdvariable.PDVariable)
-	topsql.Init(s.db, timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
+	cfg := config.GetDefaultConfig()
+	s.cfg = &cfg
+	s.topCh = make(topology.Subscriber)
+	s.varCh = make(pdvariable.Subscriber)
+	s.cfgCh = make(config.Subscriber)
+	topsql.Init(s.cfg, s.cfgCh, s.db, timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
 	s.varCh <- &pdvariable.PDVariable{EnableTopSQL: true}
 	time.Sleep(100 * time.Millisecond)
 	s.topCh <- []topology.Component{{

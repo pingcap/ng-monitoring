@@ -28,7 +28,7 @@ var (
 type Manager struct {
 	store          *store.ProfileStorage
 	topoSubScribe  topology.Subscriber
-	configChangeCh chan struct{}
+	configChangeCh config.Subscriber
 	curComponents  map[topology.Component]struct{}
 	lastComponents map[topology.Component]struct{}
 
@@ -45,7 +45,7 @@ func NewManager(store *store.ProfileStorage, topoSubScribe topology.Subscriber) 
 	return &Manager{
 		store:          store,
 		topoSubScribe:  topoSubScribe,
-		configChangeCh: config.SubscribeConfigChange(),
+		configChangeCh: config.Subscribe(),
 		curComponents:  map[topology.Component]struct{}{},
 		lastComponents: map[topology.Component]struct{}{},
 		scrapeSuites:   make(map[meta.ProfileTarget]*ScrapeSuite),
