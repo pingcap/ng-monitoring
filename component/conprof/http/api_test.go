@@ -87,7 +87,7 @@ func TestAPI(t *testing.T) {
 
 func testAPIGroupProfiles(t *testing.T, httpAddr string) int64 {
 	ts := time.Now().Unix()
-	resp, err := http.Get("http://" + httpAddr + "/continuous_profiling/group_profiles?begin_time=0&end_time=" + strconv.Itoa(int(ts)))
+	resp, err := http.Get(fmt.Sprintf("http://%v/continuous_profiling/group_profiles?begin_time=%v&end_time=%v", httpAddr, ts-2*60*60, ts))
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
@@ -143,36 +143,54 @@ func testAPISingleProfileView(t *testing.T, httpAddr string, ts int64, component
 }
 
 func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topology.Component) {
-	resp, err := http.Get("http://" + httpAddr + "/continuous_profiling/download?ts=" + strconv.Itoa(int(ts)))
-	require.NoError(t, err)
-	require.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
-	require.NoError(t, err)
-	require.True(t, len(zr.File) > len(components))
-	for _, f := range zr.File {
-		// file name format is: kind_component_ip_port_ts
-		fields := strings.Split(f.Name, "_")
-		require.True(t, len(fields) >= 4)
-		reader, err := f.Open()
+	urls := []string{
+		fmt.Sprintf("http://%v/continuous_profiling/download?ts=%v", httpAddr, ts),
+		fmt.Sprintf("http://%v/continuous_profiling/download?begin_time=%v&end_time=%v&limit=1000", httpAddr, ts, ts),
+		fmt.Sprintf("http://%v/continuous_profiling/download?ts=%v&profile_type=profile&component=%v&address=%v:%v&data_format=protobuf",
+			httpAddr, ts, components[0].Name, components[0].IP, components[0].Port),
+	}
+	for idx, url := range urls {
+		resp, err := http.Get(url)
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode)
+		body, err := ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 		require.NoError(t, err)
 
-		// check content
-		buf := make([]byte, len(fields[0]))
-		n, _ := reader.Read(buf)
-		require.Equal(t, len(fields[0]), n)
-		require.Equal(t, fields[0], string(buf))
-
-		found := false
-		for _, comp := range components {
-			if fields[1] == comp.Name && fields[2] == comp.IP {
-				found = true
-				break
-			}
+		if idx == len(urls)-1 {
+			require.True(t, len(zr.File) == 1)
+		} else {
+			require.True(t, len(zr.File) > len(components))
 		}
-		require.True(t, found, f.Name)
+		for _, f := range zr.File {
+			// file name format is: kind_component_ip_port_ts
+			fields := strings.Split(f.Name, "_")
+			require.True(t, len(fields) >= 4)
+			reader, err := f.Open()
+			require.NoError(t, err)
+
+			// check content
+			buf := make([]byte, len(fields[0]))
+			n, _ := reader.Read(buf)
+			require.Equal(t, len(fields[0]), n)
+			require.Equal(t, fields[0], string(buf))
+
+			if idx == len(urls)-1 {
+				// test for download single profile
+				require.Equal(t, fields[1], components[0].Name)
+				require.Equal(t, fields[2], components[0].IP)
+				continue
+			}
+			found := false
+			for _, comp := range components {
+				if fields[1] == comp.Name && fields[2] == comp.IP {
+					found = true
+					break
+				}
+			}
+			require.True(t, found, f.Name)
+		}
 	}
 }
 
@@ -222,6 +240,7 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		{"/group_profiles", `{"message":"need param begin_time","status":"error"}`},
 		{"/group_profiles?begin_time=0", `{"message":"need param end_time","status":"error"}`},
 		{"/group_profiles?begin_time=0&end_time=zx", `{"message":"invalid param end_time value, error: strconv.ParseInt: parsing \"zx\": invalid syntax","status":"error"}`},
+		{"/group_profiles?begin_time=1639962239&end_time=1639969440", `{"message":"query time range too large, should no more than 2 hours","status":"error"}`},
 
 		// test for /group_profile/detail api.
 		{"/group_profile/detail", `{"message":"need param ts","status":"error"}`},
@@ -232,12 +251,16 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		{"/single_profile/view", `{"message":"need param ts","status":"error"}`},
 		{"/single_profile/view?ts=x", `{"message":"invalid param ts value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
 		{"/single_profile/view?ts=0", `{"message":"need param profile_type","status":"error"}`},
+		{"/single_profile/view?ts=0&data_format=svg", `{"message":"need param profile_type","status":"error"}`},
+		{"/single_profile/view?ts=0&data_format=unknown", `{"message":"invalid param data_format value unknown, expected: svg, protobuf","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap", `{"message":"need param component","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap&component=tidb", `{"message":"need param address","status":"error"}`},
 
 		// test for /download api.
 		{"/download", `{"message":"need param ts","status":"error"}`},
 		{"/download?ts=x", `{"message":"invalid param ts value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
+		{"/download?begin_time=x", `{"message":"invalid param begin_time value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
+		{"/download?begin_time=1&end_time=x", `{"message":"invalid param end_time value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
 	}
 
 	for _, ca := range cases {

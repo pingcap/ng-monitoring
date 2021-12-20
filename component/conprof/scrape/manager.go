@@ -11,7 +11,6 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
-	"github.com/pingcap/ng-monitoring/component/conprof/util"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils"
@@ -28,7 +27,7 @@ var (
 type Manager struct {
 	store          *store.ProfileStorage
 	topoSubScribe  topology.Subscriber
-	configChangeCh chan struct{}
+	configChangeCh config.Subscriber
 	curComponents  map[topology.Component]struct{}
 	lastComponents map[topology.Component]struct{}
 
@@ -45,7 +44,7 @@ func NewManager(store *store.ProfileStorage, topoSubScribe topology.Subscriber) 
 	return &Manager{
 		store:          store,
 		topoSubScribe:  topoSubScribe,
-		configChangeCh: config.SubscribeConfigChange(),
+		configChangeCh: config.Subscribe(),
 		curComponents:  map[topology.Component]struct{}{},
 		lastComponents: map[topology.Component]struct{}{},
 		scrapeSuites:   make(map[meta.ProfileTarget]*ScrapeSuite),
@@ -100,7 +99,7 @@ func (m *Manager) updateTargetMeta() {
 	targets, suites := m.GetAllCurrentScrapeSuite()
 	count := 0
 	for i, suite := range suites {
-		ts := util.GetTimeStamp(suite.lastScrape)
+		ts := suite.lastScrape.Unix()
 		if ts <= 0 {
 			continue
 		}
@@ -186,10 +185,6 @@ func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProf
 
 func (m *Manager) startScrape(ctx context.Context, component topology.Component, continueProfilingCfg config.ContinueProfilingConfig) error {
 	if !continueProfilingCfg.Enable {
-		return nil
-	}
-	// TODO: remove this after TiFlash fix the profile bug.
-	if component.Name == topology.ComponentTiFlash {
 		return nil
 	}
 	profilingConfig := m.getProfilingConfig(component)

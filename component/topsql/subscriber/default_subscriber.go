@@ -7,6 +7,7 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/utils"
 )
@@ -18,8 +19,10 @@ type DefaultSubscriber struct {
 }
 
 func NewDefaultSubscriber(
+	cfg *config.Config,
 	topoSubscriber topology.Subscriber,
 	varSubscriber pdvariable.Subscriber,
+	cfgSubscriber config.Subscriber,
 	store store.Store,
 ) *DefaultSubscriber {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -28,7 +31,7 @@ func NewDefaultSubscriber(
 	wg.Add(1)
 	go utils.GoWithRecovery(func() {
 		defer wg.Done()
-		sm := NewManager(ctx, wg, varSubscriber, topoSubscriber, store)
+		sm := NewManager(ctx, wg, cfg, varSubscriber, topoSubscriber, cfgSubscriber, store)
 		sm.run()
 	}, nil)
 

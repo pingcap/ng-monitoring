@@ -10,6 +10,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topsql/service"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/component/topsql/subscriber"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 )
 
@@ -21,6 +22,8 @@ var (
 )
 
 func Init(
+	config *config.Config,
+	cfgSub config.Subscriber,
 	gj *genji.DB,
 	insertHdr, selectHdr http.HandlerFunc,
 	topSub topology.Subscriber,
@@ -32,7 +35,7 @@ func Init(
 	}
 
 	defQuery = query.NewDefaultQuery(selectHdr, gj)
-	defSubscriber = subscriber.NewDefaultSubscriber(topSub, varSub, defStore)
+	defSubscriber = subscriber.NewDefaultSubscriber(config, topSub, varSub, cfgSub, defStore)
 	defService = service.NewService(defQuery)
 
 	return nil

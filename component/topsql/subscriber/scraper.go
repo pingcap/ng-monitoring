@@ -2,6 +2,7 @@ package subscriber
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"time"
@@ -10,10 +11,7 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
-	"github.com/pingcap/ng-monitoring/config"
-	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/tipb/go-tipb"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
@@ -26,39 +24,40 @@ var (
 )
 
 type Scraper struct {
-	ctx     context.Context
-	isDown  *atomic.Bool
-	closeCh chan struct{}
-
+	ctx       context.Context
+	cancel    context.CancelFunc
+	tlsConfig *tls.Config
 	component topology.Component
-
-	store store.Store
+	store     store.Store
 }
 
-func NewScraper(
-	ctx context.Context,
-	component topology.Component,
-	store store.Store,
-) *Scraper {
+func NewScraper(ctx context.Context, component topology.Component, store store.Store, tlsConfig *tls.Config) *Scraper {
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Scraper{
 		ctx:       ctx,
-		isDown:    atomic.NewBool(false),
-		closeCh:   make(chan struct{}),
+		cancel:    cancel,
+		tlsConfig: tlsConfig,
 		component: component,
 		store:     store,
 	}
 }
 
 func (s *Scraper) IsDown() bool {
-	return s.isDown.Load()
+	select {
+	case <-s.ctx.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Scraper) Close() {
-	close(s.closeCh)
+	s.cancel()
 }
 
-func (s *Scraper) run() {
-	defer s.isDown.Store(true)
+func (s *Scraper) Run() {
+	defer s.cancel()
 	log.Info("starting to scrape top SQL from the component", zap.Any("component", s.component))
 
 	switch s.component.Name {
@@ -73,7 +72,7 @@ func (s *Scraper) run() {
 
 func (s *Scraper) scrapeTiDB() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.StatusPort)
-	conn, err := dial(addr)
+	conn, err := dial(s.ctx, s.tlsConfig, addr)
 	if err != nil {
 		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
 		return
@@ -87,112 +86,86 @@ func (s *Scraper) scrapeTiDB() {
 		return
 	}
 
-	stopCh := make(chan struct{})
-	go utils.GoWithRecovery(func() {
-		defer close(stopCh)
+	if err := s.store.Instance(addr, topology.ComponentTiDB); err != nil {
+		log.Warn("failed to store instance", zap.Error(err))
+		return
+	}
 
-		if err := s.store.Instance(addr, topology.ComponentTiDB); err != nil {
-			log.Warn("failed to store instance", zap.Error(err))
-			return
+	for {
+		r, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Warn("failed to receive records from stream", zap.Error(err))
+			break
 		}
 
-		for {
-			r, err := stream.Recv()
-			if err == io.EOF {
-				break
-			}
+		if record := r.GetRecord(); record != nil {
+			err = s.store.TopSQLRecord(addr, topology.ComponentTiDB, record)
 			if err != nil {
-				log.Warn("failed to receive records from stream", zap.Error(err))
-				break
+				log.Warn("failed to store top SQL records", zap.Error(err))
 			}
+			continue
+		}
 
-			if record := r.GetRecord(); record != nil {
-				err = s.store.TopSQLRecord(addr, topology.ComponentTiDB, record)
-				if err != nil {
-					log.Warn("failed to store top SQL records", zap.Error(err))
-				}
-				continue
+		if meta := r.GetSqlMeta(); meta != nil {
+			err = s.store.SQLMeta(meta)
+			if err != nil {
+				log.Warn("failed to store SQL meta", zap.Error(err))
 			}
+			continue
+		}
 
-			if meta := r.GetSqlMeta(); meta != nil {
-				err = s.store.SQLMeta(meta)
-				if err != nil {
-					log.Warn("failed to store SQL meta", zap.Error(err))
-				}
-				continue
-			}
-
-			if meta := r.GetPlanMeta(); meta != nil {
-				err = s.store.PlanMeta(meta)
-				if err != nil {
-					log.Warn("failed to store SQL meta", zap.Error(err))
-				}
+		if meta := r.GetPlanMeta(); meta != nil {
+			err = s.store.PlanMeta(meta)
+			if err != nil {
+				log.Warn("failed to store SQL meta", zap.Error(err))
 			}
 		}
-	}, nil)
-
-	select {
-	case <-s.ctx.Done():
-	case <-stopCh:
-	case <-s.closeCh:
 	}
 }
 
 func (s *Scraper) scrapeTiKV() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.Port)
-	conn, err := dial(addr)
+	conn, err := dial(s.ctx, s.tlsConfig, addr)
 	if err != nil {
 		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
 		return
 	}
 	defer conn.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
-	records, err := client.Subscribe(ctx, &resource_usage_agent.ResourceMeteringRequest{})
+	records, err := client.Subscribe(s.ctx, &resource_usage_agent.ResourceMeteringRequest{})
 	if err != nil {
 		log.Error("failed to call SubCPUTimeRecord", zap.Any("component", s.component), zap.Error(err))
 		return
 	}
 
-	stopCh := make(chan struct{})
-	go utils.GoWithRecovery(func() {
-		defer close(stopCh)
-
-		if err := s.store.Instance(addr, topology.ComponentTiKV); err != nil {
-			log.Warn("failed to store instance", zap.Error(err))
-			return
-		}
-
-		for {
-			r, err := records.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				log.Warn("failed to receive records from stream", zap.Error(err))
-				break
-			}
-
-			err = s.store.ResourceMeteringRecord(addr, topology.ComponentTiKV, r)
-			if err != nil {
-				log.Warn("failed to store resource metering records", zap.Error(err))
-			}
-		}
-	}, nil)
-
-	select {
-	case <-s.ctx.Done():
-	case <-stopCh:
-	case <-s.closeCh:
+	if err := s.store.Instance(addr, topology.ComponentTiKV); err != nil {
+		log.Warn("failed to store instance", zap.Error(err))
+		return
 	}
+
+	for {
+		r, err := records.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Warn("failed to receive records from stream", zap.Error(err))
+			break
+		}
+
+		err = s.store.ResourceMeteringRecord(addr, topology.ComponentTiKV, r)
+		if err != nil {
+			log.Warn("failed to store resource metering records", zap.Error(err))
+		}
+	}
+
 }
 
-func dial(addr string) (*grpc.ClientConn, error) {
-	tlsConfig := config.GetGlobalConfig().Security.GetTLSConfig()
-
+func dial(ctx context.Context, tlsConfig *tls.Config, addr string) (*grpc.ClientConn, error) {
 	var tlsOption grpc.DialOption
 	if tlsConfig == nil {
 		tlsOption = grpc.WithInsecure()
@@ -200,7 +173,7 @@ func dial(addr string) (*grpc.ClientConn, error) {
 		tlsOption = grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig))
 	}
 
-	dialCtx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	dialCtx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
 
 	return grpc.DialContext(
