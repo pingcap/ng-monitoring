@@ -8,6 +8,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
+	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/utils"
 )
@@ -22,6 +23,9 @@ type Manager struct {
 	scrapers       map[topology.Component]*Scraper
 	topoSubscriber topology.Subscriber
 
+	config        *config.Config
+	cfgSubscriber config.Subscriber
+
 	store store.Store
 	query query.Query
 }
@@ -29,8 +33,10 @@ type Manager struct {
 func NewManager(
 	ctx context.Context,
 	wg *sync.WaitGroup,
+	cfg *config.Config,
 	varSubscriber pdvariable.Subscriber,
 	topoSubscriber topology.Subscriber,
+	cfgSubscriber config.Subscriber,
 	store store.Store,
 ) *Manager {
 	return &Manager{
@@ -39,7 +45,11 @@ func NewManager(
 		varSubscriber:  varSubscriber,
 		scrapers:       make(map[topology.Component]*Scraper),
 		topoSubscriber: topoSubscriber,
-		store:          store,
+
+		config:        cfg,
+		cfgSubscriber: cfgSubscriber,
+
+		store: store,
 	}
 }
 
@@ -76,6 +86,8 @@ out:
 			if m.enabled {
 				m.updateScrapers()
 			}
+		case cfg := <-m.cfgSubscriber:
+			m.config = cfg
 		case <-m.ctx.Done():
 			break out
 		}
@@ -101,7 +113,7 @@ func (m *Manager) updateScrapers() {
 
 	// set up incoming scrapers
 	for i := range in {
-		scraper := NewScraper(m.ctx, in[i], m.store)
+		scraper := NewScraper(m.ctx, in[i], m.store, m.config.Security.GetTLSConfig())
 		m.scrapers[in[i]] = scraper
 
 		m.wg.Add(1)

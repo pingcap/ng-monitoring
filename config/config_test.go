@@ -96,7 +96,7 @@ level = "ERROR"
 endpoints = ["10.0.1.8:2378", "10.0.1.9:2379"]
 [storage]
 path = "data1"`
-	cfgSub := SubscribeConfigChange()
+	cfgSub := Subscribe()
 	err = ioutil.WriteFile(cfgFileName, []byte(cfgData), 0666)
 	require.NoError(t, err)
 

@@ -38,7 +38,7 @@ func TestTiDBScraperBasic(t *testing.T) {
 		IP:         ip,
 		StatusPort: port,
 	}
-	scraper := subscriber.NewScraper(context.Background(), component, store)
+	scraper := subscriber.NewScraper(context.Background(), component, store, nil)
 	go scraper.Run()
 	defer scraper.Close()
 
@@ -115,7 +115,7 @@ func TestTiKVScraperBasic(t *testing.T) {
 		IP:   ip,
 		Port: port,
 	}
-	scraper := subscriber.NewScraper(context.Background(), component, store)
+	scraper := subscriber.NewScraper(context.Background(), component, store, nil)
 	go scraper.Run()
 	defer scraper.Close()
 
