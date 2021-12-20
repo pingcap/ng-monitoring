@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -169,7 +170,20 @@ func (l *QueryLimiter) IsFull() bool {
 	return l.cnt.Load() >= l.limit
 }
 
-var errResultFull = errors.New("reach the query limit")
+var (
+	errResultFull         = errors.New("reach the query limit")
+	errQueryRangeTooLarge = errors.New("query time range too large, should no more than 2 hours")
+)
+
+func (s *ProfileStorage) checkParam(param *meta.BasicQueryParam) error {
+	if param.End-param.Begin > 2*60*60 {
+		return errQueryRangeTooLarge
+	}
+	if param.Limit == 0 {
+		param.Limit = math.MaxInt64
+	}
+	return nil
+}
 
 func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta.ProfileList, error) {
 	if s.isClose() {
@@ -178,8 +192,9 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 	if param == nil {
 		return nil, nil
 	}
-	if param.Limit == 0 {
-		param.Limit = 100
+	err := s.checkParam(param)
+	if err != nil {
+		return nil, err
 	}
 	targets := param.Targets
 	if len(targets) == 0 {
@@ -231,7 +246,7 @@ func (s *ProfileStorage) QueryTargetProfiles(pt meta.ProfileTarget, ptInfo *meta
 	queryLimiter := newQueryLimiter(param.Limit)
 	result := meta.ProfileList{Target: pt}
 	args := []interface{}{param.Begin, param.End}
-	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ?", s.getProfileMetaTableName(ptInfo))
+	query := fmt.Sprintf("SELECT ts FROM %v WHERE ts >= ? and ts <= ? ORDER BY ts DESC", s.getProfileMetaTableName(ptInfo))
 	res, err := s.db.Query(query, args...)
 	if err != nil {
 		return result, err
@@ -263,8 +278,9 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 	if param == nil || handleFn == nil {
 		return nil
 	}
-	if param.Limit == 0 {
-		param.Limit = 100
+	err := s.checkParam(param)
+	if err != nil {
+		return err
 	}
 	targets := param.Targets
 	if len(targets) == 0 {
@@ -314,7 +330,7 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 func (s *ProfileStorage) QueryTargetProfileData(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam, handleFn func(meta.ProfileTarget, int64, []byte) error) error {
 	queryLimiter := newQueryLimiter(param.Limit)
 	args := []interface{}{param.Begin, param.End}
-	query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ?", s.getProfileDataTableName(ptInfo))
+	query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ? ORDER BY ts DESC", s.getProfileDataTableName(ptInfo))
 	res, err := s.db.Query(query, args...)
 	if err != nil {
 		return err
