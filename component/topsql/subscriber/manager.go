@@ -6,7 +6,6 @@ import (
 
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
-	"github.com/pingcap/ng-monitoring/component/topsql/query"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
@@ -14,7 +13,9 @@ import (
 )
 
 type Manager struct {
-	ctx           context.Context
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	wg            *sync.WaitGroup
 	enabled       bool
 	varSubscriber pdvariable.Subscriber
@@ -27,7 +28,6 @@ type Manager struct {
 	cfgSubscriber config.Subscriber
 
 	store store.Store
-	query query.Query
 }
 
 func NewManager(
@@ -39,8 +39,10 @@ func NewManager(
 	cfgSubscriber config.Subscriber,
 	store store.Store,
 ) *Manager {
+	ctx, cancel := context.WithCancel(ctx)
 	return &Manager{
 		ctx:            ctx,
+		cancel:         cancel,
 		wg:             wg,
 		varSubscriber:  varSubscriber,
 		scrapers:       make(map[topology.Component]*Scraper),
@@ -53,7 +55,7 @@ func NewManager(
 	}
 }
 
-func (m *Manager) run() {
+func (m *Manager) Run() {
 	defer func() {
 		for _, v := range m.scrapers {
 			v.Close()
@@ -92,6 +94,10 @@ out:
 			break out
 		}
 	}
+}
+
+func (m *Manager) Close() {
+	m.cancel()
 }
 
 func (m *Manager) updateScrapers() {

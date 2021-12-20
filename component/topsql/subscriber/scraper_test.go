@@ -2,7 +2,9 @@ package subscriber_test
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -10,28 +12,90 @@ import (
 	rua "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/mock"
-	"github.com/pingcap/ng-monitoring/component/topsql/mock/pubsub"
 	"github.com/pingcap/ng-monitoring/component/topsql/subscriber"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/pingcap/tipb/go-tipb"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
-func TestMain(m *testing.M) {
-	goleak.VerifyTestMain(m)
+func TestScraperTiDBBasic(t *testing.T) {
+	t.Parallel()
+
+	// insecure
+	testScraperTiDBBasic(t, nil, nil)
+
+	// tls
+	serverTLS, clientTLS, err := testutil.SetupCert()
+	require.NoError(t, err)
+	testScraperTiDBBasic(t, serverTLS, clientTLS)
 }
 
-func TestTiDBScraperBasic(t *testing.T) {
+func TestScraperTiKVBasic(t *testing.T) {
+	t.Parallel()
+
+	// insecure
+	testScraperTiKVBasic(t, nil, nil)
+
+	// tls
+	serverTLS, clientTLS, err := testutil.SetupCert()
+	require.NoError(t, err)
+	testScraperTiKVBasic(t, serverTLS, clientTLS)
+}
+
+func testScraperTiDBBasic(t *testing.T, serverTLS *tls.Config, clientTLS *tls.Config) {
+	store := mock.NewMemStore()
+	defer store.Close()
+
+	pubsub := mock.NewMockPubSub()
+	ip, port, err := pubsub.Listen("127.0.0.1:0", serverTLS)
+	require.NoError(t, err)
+	go pubsub.Serve()
+	defer pubsub.Stop()
+
+	component := topology.Component{
+		Name:       "tidb",
+		IP:         ip,
+		StatusPort: port,
+	}
+	scraper := subscriber.NewScraper(context.Background(), component, store, clientTLS)
+	go scraper.Run()
+	defer scraper.Close()
+
+	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, store)
+}
+
+func testScraperTiKVBasic(t *testing.T, serverTLS *tls.Config, clientTLS *tls.Config) {
+	store := mock.NewMemStore()
+	defer store.Close()
+
+	pubsub := mock.NewMockPubSub()
+	ip, port, err := pubsub.Listen("127.0.0.1:0", serverTLS)
+	require.NoError(t, err)
+	go pubsub.Serve()
+	defer pubsub.Stop()
+
+	component := topology.Component{
+		Name: "tikv",
+		IP:   ip,
+		Port: port,
+	}
+	scraper := subscriber.NewScraper(context.Background(), component, store, clientTLS)
+	go scraper.Run()
+	defer scraper.Close()
+
+	checkTiKVScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, store)
+}
+
+func TestScraperTiDBRestart(t *testing.T) {
 	t.Parallel()
 
 	store := mock.NewMemStore()
 	defer store.Close()
 
-	tidb := pubsub.NewMockTiDBPubSub()
-	ip, port, err := tidb.Listen()
+	pubsub := mock.NewMockPubSub()
+	ip, port, err := pubsub.Listen("127.0.0.1:0", nil)
 	require.NoError(t, err)
-	go tidb.Serve()
-	defer tidb.Stop()
+	go pubsub.Serve()
 
 	component := topology.Component{
 		Name:       "tidb",
@@ -42,73 +106,30 @@ func TestTiDBScraperBasic(t *testing.T) {
 	go scraper.Run()
 	defer scraper.Close()
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	tidb.AccessStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
-		defer wg.Done()
-		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
-			Record: &tipb.CPUTimeRecord{
-				SqlDigest:              []byte("mock_sql_digest"),
-				PlanDigest:             []byte("mock_plan_digest"),
-				RecordListTimestampSec: []uint64{1639541002},
-				RecordListCpuTimeMs:    []uint32{100},
-			},
-		}}))
+	addr := fmt.Sprintf("%s:%d", ip, port)
+	checkTiDBScrape(t, addr, pubsub, store)
 
-		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_SqlMeta{
-			SqlMeta: &tipb.SQLMeta{
-				SqlDigest:     []byte("mock_sql_digest"),
-				NormalizedSql: "mock_normalized_sql",
-			},
-		}}))
+	pubsub.Stop()
+	time.Sleep(5 * time.Second)
 
-		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_PlanMeta{
-			PlanMeta: &tipb.PlanMeta{
-				PlanDigest:     []byte("mock_plan_digest"),
-				NormalizedPlan: "mock_normalized_plan",
-			},
-		}}))
-		return nil
-	})
-	wg.Wait()
-
-	require.True(t, store.Predict(func(store *mock.MemStore) bool {
-		addr := fmt.Sprintf("%s:%d", ip, port)
-
-		if _, ok := store.Instances[addr]; !ok {
-			return false
-		}
-		if _, ok := store.TopSQLRecords[addr]; !ok {
-			return false
-		}
-		if _, ok := store.SQLMetas["mock_sql_digest"]; !ok {
-			return false
-		}
-		if _, ok := store.PlanMetas["mock_plan_digest"]; !ok {
-			return false
-		}
-
-		require.Equal(t, store.Instances[addr].InstanceType, "tidb")
-		record := store.TopSQLRecords[addr]["mock_sql_digest"]["mock_plan_digest"]
-		require.Equal(t, record.RecordListTimestampSec, []uint64{1639541002})
-		require.Equal(t, record.RecordListCpuTimeMs, []uint32{100})
-		require.Equal(t, store.SQLMetas["mock_sql_digest"].Meta.NormalizedSql, "mock_normalized_sql")
-		require.Equal(t, store.PlanMetas["mock_plan_digest"].Meta.NormalizedPlan, "mock_normalized_plan")
-		return true
-	}, 10*time.Millisecond, 1*time.Second))
+	pubsub = mock.NewMockPubSub()
+	_, _, err = pubsub.Listen(addr, nil)
+	require.NoError(t, err)
+	go pubsub.Serve()
+	defer pubsub.Stop()
+	checkTiDBScrape(t, addr, pubsub, store)
 }
 
-func TestTiKVScraperBasic(t *testing.T) {
+func TestScraperTiKVRestart(t *testing.T) {
 	t.Parallel()
 
 	store := mock.NewMemStore()
 	defer store.Close()
 
-	tikv := pubsub.NewMockTiKVPubSub()
-	ip, port, err := tikv.Listen()
+	pubsub := mock.NewMockPubSub()
+	ip, port, err := pubsub.Listen("127.0.0.1:0", nil)
 	require.NoError(t, err)
-	go tikv.Serve()
-	defer tikv.Stop()
+	go pubsub.Serve()
 
 	component := topology.Component{
 		Name: "tikv",
@@ -119,37 +140,145 @@ func TestTiKVScraperBasic(t *testing.T) {
 	go scraper.Run()
 	defer scraper.Close()
 
+	addr := fmt.Sprintf("%s:%d", ip, port)
+	checkTiKVScrape(t, addr, pubsub, store)
+
+	pubsub.Stop()
+	time.Sleep(5 * time.Second)
+
+	pubsub = mock.NewMockPubSub()
+	_, _, err = pubsub.Listen(addr, nil)
+	require.NoError(t, err)
+	go pubsub.Serve()
+	defer pubsub.Stop()
+	checkTiKVScrape(t, addr, pubsub, store)
+}
+
+func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *mock.MemStore) {
+	rand.Seed(time.Now().Unix())
+	tsSec := rand.Uint64()
+	cpuTimeMs := rand.Uint32()
+	meta := rand.Int()
+	sqlDigest := fmt.Sprintf("mock_sql_digest_%d", meta)
+	sqlText := fmt.Sprintf("mock_normalized_sql_%d", meta)
+	planDigest := fmt.Sprintf("mock_plan_digest_%d", meta)
+	planText := fmt.Sprintf("mock__normalized_plan_%d", meta)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
-	tikv.AccessStream(func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
+	pubsub.AccessTiDBStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
+		defer wg.Done()
+		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
+			Record: &tipb.CPUTimeRecord{
+				SqlDigest:              []byte(sqlDigest),
+				PlanDigest:             []byte(planDigest),
+				RecordListTimestampSec: []uint64{tsSec},
+				RecordListCpuTimeMs:    []uint32{cpuTimeMs},
+			},
+		}}))
+
+		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_SqlMeta{
+			SqlMeta: &tipb.SQLMeta{
+				SqlDigest:     []byte(sqlDigest),
+				NormalizedSql: sqlText,
+			},
+		}}))
+
+		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_PlanMeta{
+			PlanMeta: &tipb.PlanMeta{
+				PlanDigest:     []byte(planDigest),
+				NormalizedPlan: planText,
+			},
+		}}))
+		return nil
+	})
+	wg.Wait()
+
+	require.True(t, store.Predict(func(store *mock.MemStore) bool {
+		if _, ok := store.Instances[mock.Component{
+			Name: "tidb",
+			Addr: addr,
+		}]; !ok {
+			return false
+		}
+		if _, ok := store.TopSQLRecords[addr]; !ok {
+			return false
+		}
+		if _, ok := store.TopSQLRecords[addr][sqlDigest]; !ok {
+			return false
+		}
+		if _, ok := store.TopSQLRecords[addr][sqlDigest][planDigest]; !ok {
+			return false
+		}
+		if _, ok := store.SQLMetas[sqlDigest]; !ok {
+			return false
+		}
+		if _, ok := store.PlanMetas[planDigest]; !ok {
+			return false
+		}
+
+		require.Equal(t, store.SQLMetas[sqlDigest].Meta.NormalizedSql, sqlText)
+		require.Equal(t, store.PlanMetas[planDigest].Meta.NormalizedPlan, planText)
+		record := store.TopSQLRecords[addr][sqlDigest][planDigest]
+		got := false
+		for i, v := range record.RecordListTimestampSec {
+			if v == tsSec {
+				got = true
+				require.Equal(t, record.RecordListCpuTimeMs[i], cpuTimeMs)
+			}
+		}
+		require.True(t, got)
+		return true
+	}, 10*time.Millisecond, 1*time.Second))
+}
+
+func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *mock.MemStore) {
+	rand.Seed(time.Now().Unix())
+	tsSec := rand.Uint64()
+	cpuMs := rand.Uint32()
+	rdKeys := rand.Uint32()
+	wtKeys := rand.Uint32()
+	tag := fmt.Sprintf("mock_resource_group_tag_%d", rand.Int())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	pubsub.AccessTiKVStream(func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
 		defer wg.Done()
 		return stream.Send(&rua.ResourceUsageRecord{
-			ResourceGroupTag:       []byte("mock_resource_group_tag"),
-			RecordListTimestampSec: []uint64{1639541002},
-			RecordListCpuTimeMs:    []uint32{100},
-			RecordListReadKeys:     []uint32{200},
-			RecordListWriteKeys:    []uint32{300},
+			ResourceGroupTag:       []byte(tag),
+			RecordListTimestampSec: []uint64{tsSec},
+			RecordListCpuTimeMs:    []uint32{cpuMs},
+			RecordListReadKeys:     []uint32{rdKeys},
+			RecordListWriteKeys:    []uint32{wtKeys},
 		})
 	})
 	wg.Wait()
 
 	require.True(t, store.Predict(func(store *mock.MemStore) bool {
-		addr := fmt.Sprintf("%s:%d", ip, port)
-
-		if _, ok := store.Instances[addr]; !ok {
+		if _, ok := store.Instances[mock.Component{
+			Name: "tikv",
+			Addr: addr,
+		}]; !ok {
 			return false
 		}
 		if _, ok := store.ResourceMeteringRecords[addr]; !ok {
 			return false
 		}
+		if _, ok := store.ResourceMeteringRecords[addr][tag]; !ok {
+			return false
+		}
 
-		require.Equal(t, store.Instances[addr].InstanceType, "tikv")
-		record := store.ResourceMeteringRecords[addr]["mock_resource_group_tag"]
-		require.Equal(t, record.RecordListTimestampSec, []uint64{1639541002})
-		require.Equal(t, record.RecordListCpuTimeMs, []uint32{100})
-		require.Equal(t, record.RecordListReadKeys, []uint32{200})
-		require.Equal(t, record.RecordListWriteKeys, []uint32{300})
-
+		record := store.ResourceMeteringRecords[addr][tag]
+		got := false
+		for i, v := range record.RecordListTimestampSec {
+			if v == tsSec {
+				got = true
+				require.Equal(t, record.RecordListCpuTimeMs[i], cpuMs)
+				require.Equal(t, record.RecordListReadKeys[i], rdKeys)
+				require.Equal(t, record.RecordListWriteKeys[i], wtKeys)
+			}
+		}
+		require.True(t, got)
 		return true
 	}, 10*time.Millisecond, 1*time.Second))
 }
