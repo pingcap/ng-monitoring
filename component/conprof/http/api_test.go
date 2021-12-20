@@ -145,18 +145,24 @@ func testAPISingleProfileView(t *testing.T, httpAddr string, ts int64, component
 func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topology.Component) {
 	urls := []string{
 		fmt.Sprintf("http://%v/continuous_profiling/download?ts=%v", httpAddr, ts),
-		fmt.Sprintf("http://%v/continuous_profiling/download?begin_time=%v&end_time=%v", httpAddr, ts, ts),
+		fmt.Sprintf("http://%v/continuous_profiling/download?begin_time=%v&end_time=%v&limit=1000", httpAddr, ts, ts),
+		fmt.Sprintf("http://%v/continuous_profiling/download?ts=%v&profile_type=profile&component=%v&address=%v:%v&data_format=protobuf",
+			httpAddr, ts, components[0].Name, components[0].IP, components[0].Port),
 	}
-	for _, url := range urls {
+	for idx, url := range urls {
 		resp, err := http.Get(url)
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.StatusCode)
 		body, err := ioutil.ReadAll(resp.Body)
 		require.NoError(t, err)
-
 		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 		require.NoError(t, err)
-		require.True(t, len(zr.File) > len(components))
+
+		if idx == len(urls)-1 {
+			require.True(t, len(zr.File) == 1)
+		} else {
+			require.True(t, len(zr.File) > len(components))
+		}
 		for _, f := range zr.File {
 			// file name format is: kind_component_ip_port_ts
 			fields := strings.Split(f.Name, "_")
@@ -170,6 +176,12 @@ func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topol
 			require.Equal(t, len(fields[0]), n)
 			require.Equal(t, fields[0], string(buf))
 
+			if idx == len(urls)-1 {
+				// test for download single profile
+				require.Equal(t, fields[1], components[0].Name)
+				require.Equal(t, fields[2], components[0].IP)
+				continue
+			}
 			found := false
 			for _, comp := range components {
 				if fields[1] == comp.Name && fields[2] == comp.IP {
@@ -239,6 +251,8 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		{"/single_profile/view", `{"message":"need param ts","status":"error"}`},
 		{"/single_profile/view?ts=x", `{"message":"invalid param ts value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
 		{"/single_profile/view?ts=0", `{"message":"need param profile_type","status":"error"}`},
+		{"/single_profile/view?ts=0&data_format=svg", `{"message":"need param profile_type","status":"error"}`},
+		{"/single_profile/view?ts=0&data_format=unknown", `{"message":"invalid param data_format value unknown, expected: svg, protobuf","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap", `{"message":"need param component","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap&component=tidb", `{"message":"need param address","status":"error"}`},
 
