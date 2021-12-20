@@ -72,17 +72,11 @@ func (s *Scraper) Run() {
 
 func (s *Scraper) scrapeTiDB() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.StatusPort)
-	conn, err := dial(s.ctx, s.tlsConfig, addr)
-	if err != nil {
-		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
-		return
-	}
-	defer conn.Close()
+	bo := newBackoffScrape(s.ctx, s.tlsConfig, addr, s.component)
+	defer bo.close()
 
-	client := tipb.NewTopSQLPubSubClient(conn)
-	stream, err := client.Subscribe(s.ctx, &tipb.TopSQLSubRequest{})
-	if err != nil {
-		log.Error("failed to call Subscribe", zap.Any("component", s.component), zap.Error(err))
+	stream := bo.reconnectTiDB()
+	if stream == nil {
 		return
 	}
 
@@ -94,11 +88,15 @@ func (s *Scraper) scrapeTiDB() {
 	for {
 		r, err := stream.Recv()
 		if err == io.EOF {
-			break
+			return
 		}
 		if err != nil {
 			log.Warn("failed to receive records from stream", zap.Error(err))
-			break
+			stream = bo.reconnectTiDB()
+			if stream == nil {
+				return
+			}
+			continue
 		}
 
 		if record := r.GetRecord(); record != nil {
@@ -128,17 +126,11 @@ func (s *Scraper) scrapeTiDB() {
 
 func (s *Scraper) scrapeTiKV() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.Port)
-	conn, err := dial(s.ctx, s.tlsConfig, addr)
-	if err != nil {
-		log.Error("failed to dial scrape target", zap.Any("component", s.component), zap.Error(err))
-		return
-	}
-	defer conn.Close()
+	bo := newBackoffScrape(s.ctx, s.tlsConfig, addr, s.component)
+	defer bo.close()
 
-	client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
-	records, err := client.Subscribe(s.ctx, &resource_usage_agent.ResourceMeteringRequest{})
-	if err != nil {
-		log.Error("failed to call SubCPUTimeRecord", zap.Any("component", s.component), zap.Error(err))
+	stream := bo.reconnectTiKV()
+	if stream == nil {
 		return
 	}
 
@@ -148,13 +140,17 @@ func (s *Scraper) scrapeTiKV() {
 	}
 
 	for {
-		r, err := records.Recv()
+		r, err := stream.Recv()
 		if err == io.EOF {
-			break
+			return
 		}
 		if err != nil {
 			log.Warn("failed to receive records from stream", zap.Error(err))
-			break
+			stream = bo.reconnectTiKV()
+			if stream == nil {
+				return
+			}
+			continue
 		}
 
 		err = s.store.ResourceMeteringRecord(addr, topology.ComponentTiKV, r)
@@ -194,4 +190,120 @@ func dial(ctx context.Context, tlsConfig *tls.Config, addr string) (*grpc.Client
 			},
 		}),
 	)
+}
+
+type backoffScrape struct {
+	ctx       context.Context
+	tlsCfg    *tls.Config
+	address   string
+	component topology.Component
+
+	conn   *grpc.ClientConn
+	client interface{}
+	stream interface{}
+
+	retryTimes    uint
+	maxRetryTimes uint
+}
+
+func newBackoffScrape(ctx context.Context, tlsCfg *tls.Config, address string, component topology.Component) *backoffScrape {
+	return &backoffScrape{
+		ctx:       ctx,
+		tlsCfg:    tlsCfg,
+		address:   address,
+		component: component,
+
+		retryTimes:    0,
+		maxRetryTimes: 8,
+	}
+}
+
+func (bo *backoffScrape) reconnect() {
+	for {
+		if bo.conn != nil {
+			_ = bo.conn.Close()
+			bo.conn = nil
+			bo.client = nil
+			bo.stream = nil
+		}
+
+		select {
+		case <-bo.ctx.Done():
+			return
+		default:
+		}
+
+		if bo.retryTimes > bo.maxRetryTimes {
+			log.Warn("retry to scrape component too many times, stop", zap.Any("component", bo.component), zap.Uint("retried", bo.retryTimes))
+			return
+		}
+
+		if bo.retryTimes > 0 {
+			time.Sleep(time.Second * (2 << bo.retryTimes))
+			log.Warn("retry to scrape component", zap.Any("component", bo.component), zap.Uint("retried", bo.retryTimes))
+		}
+
+		conn, err := dial(bo.ctx, bo.tlsCfg, bo.address)
+		if err != nil {
+			log.Warn("failed to dial scrape target", zap.Any("component", bo.component), zap.Error(err))
+			bo.retryTimes += 1
+			continue
+		}
+
+		bo.conn = conn
+		switch bo.component.Name {
+		case "tidb":
+			client := tipb.NewTopSQLPubSubClient(conn)
+			bo.client = client
+			if bo.stream, err = client.Subscribe(bo.ctx, &tipb.TopSQLSubRequest{}); err != nil {
+				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
+				bo.retryTimes += 1
+				continue
+			}
+		case "tikv":
+			client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
+			bo.client = client
+			if bo.stream, err = client.Subscribe(bo.ctx, &resource_usage_agent.ResourceMeteringRequest{}); err != nil {
+				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
+				bo.retryTimes += 1
+				continue
+			}
+		default:
+			break
+		}
+
+		bo.retryTimes = 0
+		return
+	}
+}
+
+func (bo *backoffScrape) reconnectTiDB() tipb.TopSQLPubSub_SubscribeClient {
+	bo.reconnect()
+	if bo.stream == nil {
+		return nil
+	}
+	if stream, ok := bo.stream.(tipb.TopSQLPubSub_SubscribeClient); ok {
+		return stream
+	}
+	return nil
+}
+
+func (bo *backoffScrape) reconnectTiKV() resource_usage_agent.ResourceMeteringPubSub_SubscribeClient {
+	bo.reconnect()
+	if bo.stream == nil {
+		return nil
+	}
+	if stream, ok := bo.stream.(resource_usage_agent.ResourceMeteringPubSub_SubscribeClient); ok {
+		return stream
+	}
+	return nil
+}
+
+func (bo *backoffScrape) close() {
+	if bo.conn != nil {
+		_ = bo.conn.Close()
+		bo.conn = nil
+		bo.client = nil
+		bo.stream = nil
+	}
 }

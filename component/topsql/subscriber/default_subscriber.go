@@ -32,7 +32,7 @@ func NewDefaultSubscriber(
 	go utils.GoWithRecovery(func() {
 		defer wg.Done()
 		sm := NewManager(ctx, wg, cfg, varSubscriber, topoSubscriber, cfgSubscriber, store)
-		sm.run()
+		sm.Run()
 	}, nil)
 
 	return &DefaultSubscriber{

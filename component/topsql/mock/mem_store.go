@@ -9,14 +9,16 @@ import (
 	"github.com/pingcap/tipb/go-tipb"
 )
 
+type Component struct {
+	Name string
+	Addr string
+}
+
 type MemStore struct {
 	sync.Mutex
 
 	// instance -> value
-	Instances map[string]struct {
-		Instance     string
-		InstanceType string
-	}
+	Instances map[Component]struct{}
 
 	// instance -> sql digest -> plan digest -> records
 	TopSQLRecords map[string]map[string]map[string]*tipb.CPUTimeRecord
@@ -37,10 +39,7 @@ type MemStore struct {
 
 func NewMemStore() *MemStore {
 	return &MemStore{
-		Instances: make(map[string]struct {
-			Instance     string
-			InstanceType string
-		}),
+		Instances:               make(map[Component]struct{}),
 		TopSQLRecords:           make(map[string]map[string]map[string]*tipb.CPUTimeRecord),
 		ResourceMeteringRecords: make(map[string]map[string]*rsmetering.ResourceUsageRecord),
 		SQLMetas: make(map[string]struct {
@@ -83,10 +82,10 @@ var _ store.Store = &MemStore{}
 
 func (m *MemStore) Instance(instance, instanceType string) error {
 	m.Lock()
-	m.Instances[instance] = struct {
-		Instance     string
-		InstanceType string
-	}{Instance: instance, InstanceType: instanceType}
+	m.Instances[Component{
+		Name: instanceType,
+		Addr: instance,
+	}] = struct{}{}
 	m.Unlock()
 
 	return nil
