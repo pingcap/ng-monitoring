@@ -6,7 +6,6 @@ import (
 
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
-	"github.com/pingcap/ng-monitoring/component/topsql/query"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
@@ -29,7 +28,6 @@ type Manager struct {
 	cfgSubscriber config.Subscriber
 
 	store store.Store
-	query query.Query
 }
 
 func NewManager(

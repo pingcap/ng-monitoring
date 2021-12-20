@@ -110,10 +110,10 @@ func TestScraperTiDBRestart(t *testing.T) {
 	checkTiDBScrape(t, addr, pubsub, store)
 
 	pubsub.Stop()
-	time.Sleep(20 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	pubsub = mock.NewMockPubSub()
-	ip, port, err = pubsub.Listen(addr, nil)
+	_, _, err = pubsub.Listen(addr, nil)
 	require.NoError(t, err)
 	go pubsub.Serve()
 	defer pubsub.Stop()
@@ -144,10 +144,10 @@ func TestScraperTiKVRestart(t *testing.T) {
 	checkTiKVScrape(t, addr, pubsub, store)
 
 	pubsub.Stop()
-	time.Sleep(20 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	pubsub = mock.NewMockPubSub()
-	ip, port, err = pubsub.Listen(addr, nil)
+	_, _, err = pubsub.Listen(addr, nil)
 	require.NoError(t, err)
 	go pubsub.Serve()
 	defer pubsub.Stop()
