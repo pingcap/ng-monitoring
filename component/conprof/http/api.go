@@ -281,9 +281,9 @@ func queryAndDownload(c *gin.Context) error {
 	var param *meta.BasicQueryParam
 	var err error
 	if v := c.Request.FormValue(beginTimeParamStr); len(v) > 0 {
-		param, err = buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr, dataFormatParamStr})
+		param, err = buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr})
 	} else {
-		param, err = buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr, dataFormatParamStr})
+		param, err = buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr})
 	}
 	if err != nil {
 		return err
@@ -304,19 +304,7 @@ func queryAndDownload(c *gin.Context) error {
 		if pt.Kind == meta.ProfileKindGoroutine {
 			fileName += ".txt"
 		} else {
-			isSVG := false
-			if param.DataFormat == meta.ProfileDataFormatSVG {
-				svg, err := ConvertToSVG(data)
-				if err == nil {
-					data = svg
-					isSVG = true
-				}
-			}
-			if isSVG {
-				fileName += ".svg"
-			} else {
-				fileName += ".proto"
-			}
+			fileName += ".proto"
 		}
 		fw, err := zw.CreateHeader(&zip.FileHeader{
 			Name:     fileName,
