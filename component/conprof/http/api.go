@@ -301,15 +301,18 @@ func queryAndDownload(c *gin.Context) error {
 	fn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
 		fileName := fmt.Sprintf("%v_%v_%v_%v", pt.Kind, pt.Component, pt.Address, ts)
 		fileName = strings.ReplaceAll(fileName, ":", "_")
-		if param.DataFormat == meta.ProfileDataFormatSVG {
-			svg, err := ConvertToSVG(data)
-			if err == nil {
-				data = svg
-				fileName += ".svg"
-			}
-		}
 		if pt.Kind == meta.ProfileKindGoroutine {
 			fileName += ".txt"
+		} else {
+			if param.DataFormat == meta.ProfileDataFormatSVG {
+				svg, err := ConvertToSVG(data)
+				if err == nil {
+					data = svg
+					fileName += ".svg"
+				}
+			} else {
+				fileName += ".proto"
+			}
 		}
 		fw, err := zw.Create(fileName)
 		if err != nil {
@@ -323,12 +326,27 @@ func queryAndDownload(c *gin.Context) error {
 	if err != nil {
 		return err
 	}
+	fw, err := zw.Create("README.md")
+	if err != nil {
+		return err
+	}
+	_, err = fw.Write([]byte(downloadReadme))
+	if err != nil {
+		return err
+	}
 	err = zw.Close()
 	if err != nil {
 		log.Error("handle download request failed", zap.Error(err))
 	}
 	return nil
 }
+
+const downloadReadme = "# Usage\n\n" +
+	"1. Install `go`.\n\n" +
+	"2. Using `go tool pprof` to read the profile:\n\n" +
+	"    ```\n" +
+	"    go tool pprof --http=0.0.0.0:6060 profile_tidb_172.16.5.40_4019_1640141340\n" +
+	"    ```\n"
 
 var (
 	beginTimeParamStr   = "begin_time"
