@@ -236,19 +236,17 @@ func (bo *backoffScrape) backoffScrape() interface{} {
 			bo.stream = nil
 		}
 
-		select {
-		case <-bo.ctx.Done():
-			return nil
-		default:
-		}
-
 		if bo.retryTimes > bo.maxRetryTimes {
 			log.Warn("retry to scrape component too many times, stop", zap.Any("component", bo.component), zap.Uint("retried", bo.retryTimes))
 			return nil
 		}
 
 		if bo.retryTimes > 0 {
-			time.Sleep(time.Second * (2 << bo.retryTimes))
+			select {
+			case <-time.After(time.Second * (2 << bo.retryTimes)):
+			case <-bo.ctx.Done():
+				return nil
+			}
 			log.Warn("retry to scrape component", zap.Any("component", bo.component), zap.Uint("retried", bo.retryTimes))
 		}
 
