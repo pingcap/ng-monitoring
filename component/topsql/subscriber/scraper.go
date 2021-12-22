@@ -231,7 +231,9 @@ func (bo *backoffScrape) scrape() interface{} {
 
 func (bo *backoffScrape) backoffScrape() (record interface{}) {
 	utils.WithRetryBackoff(bo.ctx, bo.maxRetryTimes, bo.firstWaitTime, func(retried uint) bool {
-		log.Warn("retry to scrape component", zap.Any("component", bo.component), zap.Uint("retried", retried))
+		if retried != 0 {
+			log.Warn("retry to scrape component", zap.Any("component", bo.component), zap.Uint("retried", retried))
+		}
 
 		if bo.conn != nil {
 			_ = bo.conn.Close()
