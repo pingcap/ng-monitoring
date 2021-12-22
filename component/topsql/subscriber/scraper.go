@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
@@ -75,48 +74,35 @@ func (s *Scraper) scrapeTiDB() {
 	bo := newBackoffScrape(s.ctx, s.tlsConfig, addr, s.component)
 	defer bo.close()
 
-	stream := bo.reconnectTiDB()
-	if stream == nil {
-		return
-	}
-
 	if err := s.store.Instance(addr, topology.ComponentTiDB); err != nil {
 		log.Warn("failed to store instance", zap.Error(err))
 		return
 	}
 
 	for {
-		r, err := stream.Recv()
-		if err == io.EOF {
+		record := bo.scrapeTiDBRecord()
+		if record == nil {
 			return
 		}
-		if err != nil {
-			log.Warn("failed to receive records from stream", zap.Error(err))
-			stream = bo.reconnectTiDB()
-			if stream == nil {
-				return
-			}
-			continue
-		}
 
-		if record := r.GetRecord(); record != nil {
-			err = s.store.TopSQLRecord(addr, topology.ComponentTiDB, record)
+		if cpu := record.GetRecord(); cpu != nil {
+			err := s.store.TopSQLRecord(addr, topology.ComponentTiDB, cpu)
 			if err != nil {
 				log.Warn("failed to store top SQL records", zap.Error(err))
 			}
 			continue
 		}
 
-		if meta := r.GetSqlMeta(); meta != nil {
-			err = s.store.SQLMeta(meta)
+		if meta := record.GetSqlMeta(); meta != nil {
+			err := s.store.SQLMeta(meta)
 			if err != nil {
 				log.Warn("failed to store SQL meta", zap.Error(err))
 			}
 			continue
 		}
 
-		if meta := r.GetPlanMeta(); meta != nil {
-			err = s.store.PlanMeta(meta)
+		if meta := record.GetPlanMeta(); meta != nil {
+			err := s.store.PlanMeta(meta)
 			if err != nil {
 				log.Warn("failed to store SQL meta", zap.Error(err))
 			}
@@ -129,31 +115,18 @@ func (s *Scraper) scrapeTiKV() {
 	bo := newBackoffScrape(s.ctx, s.tlsConfig, addr, s.component)
 	defer bo.close()
 
-	stream := bo.reconnectTiKV()
-	if stream == nil {
-		return
-	}
-
 	if err := s.store.Instance(addr, topology.ComponentTiKV); err != nil {
 		log.Warn("failed to store instance", zap.Error(err))
 		return
 	}
 
 	for {
-		r, err := stream.Recv()
-		if err == io.EOF {
+		record := bo.scrapeTiKVRecord()
+		if record == nil {
 			return
 		}
-		if err != nil {
-			log.Warn("failed to receive records from stream", zap.Error(err))
-			stream = bo.reconnectTiKV()
-			if stream == nil {
-				return
-			}
-			continue
-		}
 
-		err = s.store.ResourceMeteringRecord(addr, topology.ComponentTiKV, r)
+		err := s.store.ResourceMeteringRecord(addr, topology.ComponentTiKV, record)
 		if err != nil {
 			log.Warn("failed to store resource metering records", zap.Error(err))
 		}
@@ -218,7 +191,43 @@ func newBackoffScrape(ctx context.Context, tlsCfg *tls.Config, address string, c
 	}
 }
 
-func (bo *backoffScrape) reconnect() {
+func (bo *backoffScrape) scrapeTiDBRecord() *tipb.TopSQLSubResponse {
+	if record := bo.scrape(); record != nil {
+		if res, ok := record.(*tipb.TopSQLSubResponse); ok {
+			return res
+		}
+	}
+
+	return nil
+}
+
+func (bo *backoffScrape) scrapeTiKVRecord() *resource_usage_agent.ResourceUsageRecord {
+	if record := bo.scrape(); record != nil {
+		if res, ok := record.(*resource_usage_agent.ResourceUsageRecord); ok {
+			return res
+		}
+	}
+
+	return nil
+}
+
+func (bo *backoffScrape) scrape() interface{} {
+	if bo.stream != nil {
+		if tidbStream, ok := bo.stream.(tipb.TopSQLPubSub_SubscribeClient); ok {
+			if record, _ := tidbStream.Recv(); record != nil {
+				return record
+			}
+		} else if tikvStream, ok := bo.stream.(resource_usage_agent.ResourceMeteringPubSub_SubscribeClient); ok {
+			if record, _ := tikvStream.Recv(); record != nil {
+				return record
+			}
+		}
+	}
+
+	return bo.backoffScrape()
+}
+
+func (bo *backoffScrape) backoffScrape() interface{} {
 	for {
 		if bo.conn != nil {
 			_ = bo.conn.Close()
@@ -229,13 +238,13 @@ func (bo *backoffScrape) reconnect() {
 
 		select {
 		case <-bo.ctx.Done():
-			return
+			return nil
 		default:
 		}
 
 		if bo.retryTimes > bo.maxRetryTimes {
 			log.Warn("retry to scrape component too many times, stop", zap.Any("component", bo.component), zap.Uint("retried", bo.retryTimes))
-			return
+			return nil
 		}
 
 		if bo.retryTimes > 0 {
@@ -255,48 +264,47 @@ func (bo *backoffScrape) reconnect() {
 		case "tidb":
 			client := tipb.NewTopSQLPubSubClient(conn)
 			bo.client = client
-			if bo.stream, err = client.Subscribe(bo.ctx, &tipb.TopSQLSubRequest{}); err != nil {
+			stream, err := client.Subscribe(bo.ctx, &tipb.TopSQLSubRequest{})
+			if err != nil {
 				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
 				bo.retryTimes += 1
 				continue
 			}
+			bo.stream = stream
+			record, err := stream.Recv()
+			if err != nil {
+				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
+				bo.retryTimes += 1
+				continue
+			}
+
+			bo.retryTimes = 0
+			return record
+
 		case "tikv":
 			client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
 			bo.client = client
-			if bo.stream, err = client.Subscribe(bo.ctx, &resource_usage_agent.ResourceMeteringRequest{}); err != nil {
+			stream, err := client.Subscribe(bo.ctx, &resource_usage_agent.ResourceMeteringRequest{})
+			if err != nil {
 				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
 				bo.retryTimes += 1
 				continue
 			}
+			bo.stream = stream
+			record, err := stream.Recv()
+			if err != nil {
+				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
+				bo.retryTimes += 1
+				continue
+			}
+
+			bo.retryTimes = 0
+			return record
+
 		default:
 			break
 		}
-
-		bo.retryTimes = 0
-		return
 	}
-}
-
-func (bo *backoffScrape) reconnectTiDB() tipb.TopSQLPubSub_SubscribeClient {
-	bo.reconnect()
-	if bo.stream == nil {
-		return nil
-	}
-	if stream, ok := bo.stream.(tipb.TopSQLPubSub_SubscribeClient); ok {
-		return stream
-	}
-	return nil
-}
-
-func (bo *backoffScrape) reconnectTiKV() resource_usage_agent.ResourceMeteringPubSub_SubscribeClient {
-	bo.reconnect()
-	if bo.stream == nil {
-		return nil
-	}
-	if stream, ok := bo.stream.(resource_usage_agent.ResourceMeteringPubSub_SubscribeClient); ok {
-		return stream
-	}
-	return nil
 }
 
 func (bo *backoffScrape) close() {

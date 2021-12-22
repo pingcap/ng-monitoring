@@ -93,6 +93,8 @@ func (m *MemStore) Instance(instance, instanceType string) error {
 
 func (m *MemStore) TopSQLRecord(instance, _ string, record *tipb.CPUTimeRecord) error {
 	m.Lock()
+	defer m.Unlock()
+
 	if _, ok := m.TopSQLRecords[instance]; !ok {
 		m.TopSQLRecords[instance] = make(map[string]map[string]*tipb.CPUTimeRecord)
 	}
@@ -108,13 +110,14 @@ func (m *MemStore) TopSQLRecord(instance, _ string, record *tipb.CPUTimeRecord) 
 	r := m.TopSQLRecords[instance][string(record.SqlDigest)][string(record.PlanDigest)]
 	r.RecordListTimestampSec = append(r.RecordListTimestampSec, record.RecordListTimestampSec...)
 	r.RecordListCpuTimeMs = append(r.RecordListCpuTimeMs, record.RecordListCpuTimeMs...)
-	m.Unlock()
 
 	return nil
 }
 
 func (m *MemStore) ResourceMeteringRecord(instance, _ string, record *rsmetering.ResourceUsageRecord) error {
 	m.Lock()
+	defer m.Unlock()
+
 	if _, ok := m.ResourceMeteringRecords[instance]; !ok {
 		m.ResourceMeteringRecords[instance] = make(map[string]*rsmetering.ResourceUsageRecord)
 	}
@@ -128,7 +131,6 @@ func (m *MemStore) ResourceMeteringRecord(instance, _ string, record *rsmetering
 	r.RecordListCpuTimeMs = append(r.RecordListCpuTimeMs, record.RecordListCpuTimeMs...)
 	r.RecordListReadKeys = append(r.RecordListReadKeys, record.RecordListReadKeys...)
 	r.RecordListWriteKeys = append(r.RecordListWriteKeys, record.RecordListWriteKeys...)
-	m.Unlock()
 
 	return nil
 }
