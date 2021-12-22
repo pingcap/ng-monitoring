@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/pingcap/ng-monitoring/utils"
 	"time"
 
 	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
@@ -175,7 +176,7 @@ type backoffScrape struct {
 	client interface{}
 	stream interface{}
 
-	retryTimes    uint
+	firstWaitTime time.Duration
 	maxRetryTimes uint
 }
 
@@ -186,7 +187,7 @@ func newBackoffScrape(ctx context.Context, tlsCfg *tls.Config, address string, c
 		address:   address,
 		component: component,
 
-		retryTimes:    0,
+		firstWaitTime: 2 * time.Second,
 		maxRetryTimes: 8,
 	}
 }
@@ -213,12 +214,13 @@ func (bo *backoffScrape) scrapeTiKVRecord() *resource_usage_agent.ResourceUsageR
 
 func (bo *backoffScrape) scrape() interface{} {
 	if bo.stream != nil {
-		if tidbStream, ok := bo.stream.(tipb.TopSQLPubSub_SubscribeClient); ok {
-			if record, _ := tidbStream.Recv(); record != nil {
+		switch s := bo.stream.(type) {
+		case tipb.TopSQLPubSub_SubscribeClient:
+			if record, _ := s.Recv(); record != nil {
 				return record
 			}
-		} else if tikvStream, ok := bo.stream.(resource_usage_agent.ResourceMeteringPubSub_SubscribeClient); ok {
-			if record, _ := tikvStream.Recv(); record != nil {
+		case resource_usage_agent.ResourceMeteringPubSub_SubscribeClient:
+			if record, _ := s.Recv(); record != nil {
 				return record
 			}
 		}
@@ -227,8 +229,10 @@ func (bo *backoffScrape) scrape() interface{} {
 	return bo.backoffScrape()
 }
 
-func (bo *backoffScrape) backoffScrape() interface{} {
-	for {
+func (bo *backoffScrape) backoffScrape() (record interface{}) {
+	utils.WithRetryBackoff(bo.ctx, bo.maxRetryTimes, bo.firstWaitTime, func(retried uint) bool {
+		log.Warn("retry to scrape component", zap.Any("component", bo.component), zap.Uint("retried", retried))
+
 		if bo.conn != nil {
 			_ = bo.conn.Close()
 			bo.conn = nil
@@ -236,25 +240,10 @@ func (bo *backoffScrape) backoffScrape() interface{} {
 			bo.stream = nil
 		}
 
-		if bo.retryTimes > bo.maxRetryTimes {
-			log.Warn("retry to scrape component too many times, stop", zap.Any("component", bo.component), zap.Uint("retried", bo.retryTimes))
-			return nil
-		}
-
-		if bo.retryTimes > 0 {
-			select {
-			case <-time.After(time.Second * (2 << bo.retryTimes)):
-			case <-bo.ctx.Done():
-				return nil
-			}
-			log.Warn("retry to scrape component", zap.Any("component", bo.component), zap.Uint("retried", bo.retryTimes))
-		}
-
 		conn, err := dial(bo.ctx, bo.tlsCfg, bo.address)
 		if err != nil {
 			log.Warn("failed to dial scrape target", zap.Any("component", bo.component), zap.Error(err))
-			bo.retryTimes += 1
-			continue
+			return false
 		}
 
 		bo.conn = conn
@@ -265,19 +254,16 @@ func (bo *backoffScrape) backoffScrape() interface{} {
 			stream, err := client.Subscribe(bo.ctx, &tipb.TopSQLSubRequest{})
 			if err != nil {
 				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
-				bo.retryTimes += 1
-				continue
+				return false
 			}
 			bo.stream = stream
-			record, err := stream.Recv()
+			record, err = stream.Recv()
 			if err != nil {
 				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
-				bo.retryTimes += 1
-				continue
+				return false
 			}
 
-			bo.retryTimes = 0
-			return record
+			return true
 
 		case "tikv":
 			client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
@@ -285,24 +271,22 @@ func (bo *backoffScrape) backoffScrape() interface{} {
 			stream, err := client.Subscribe(bo.ctx, &resource_usage_agent.ResourceMeteringRequest{})
 			if err != nil {
 				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
-				bo.retryTimes += 1
-				continue
+				return false
 			}
 			bo.stream = stream
-			record, err := stream.Recv()
+			record, err = stream.Recv()
 			if err != nil {
 				log.Warn("failed to call Subscribe", zap.Any("component", bo.component), zap.Error(err))
-				bo.retryTimes += 1
-				continue
+				return false
 			}
 
-			bo.retryTimes = 0
-			return record
-
+			return true
 		default:
-			break
+			return true
 		}
-	}
+	})
+
+	return
 }
 
 func (bo *backoffScrape) close() {
