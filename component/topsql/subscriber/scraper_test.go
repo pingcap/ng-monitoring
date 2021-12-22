@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"math/rand"
-	"sync"
 	"testing"
 	"time"
 
@@ -164,10 +163,7 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	planDigest := fmt.Sprintf("mock_plan_digest_%d", meta)
 	planText := fmt.Sprintf("mock__normalized_plan_%d", meta)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
 	pubsub.AccessTiDBStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
-		defer wg.Done()
 		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
 			Record: &tipb.CPUTimeRecord{
 				SqlDigest:              []byte(sqlDigest),
@@ -192,7 +188,6 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 		}}))
 		return nil
 	})
-	wg.Wait()
 
 	require.True(t, store.Predict(func(store *mock.MemStore) bool {
 		if _, ok := store.Instances[mock.Component{
@@ -240,10 +235,7 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	wtKeys := rand.Uint32()
 	tag := fmt.Sprintf("mock_resource_group_tag_%d", rand.Int())
 
-	var wg sync.WaitGroup
-	wg.Add(1)
 	pubsub.AccessTiKVStream(func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
-		defer wg.Done()
 		return stream.Send(&rua.ResourceUsageRecord{
 			ResourceGroupTag:       []byte(tag),
 			RecordListTimestampSec: []uint64{tsSec},
@@ -252,7 +244,6 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 			RecordListWriteKeys:    []uint32{wtKeys},
 		})
 	})
-	wg.Wait()
 
 	require.True(t, store.Predict(func(store *mock.MemStore) bool {
 		if _, ok := store.Instances[mock.Component{
