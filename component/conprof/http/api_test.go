@@ -118,7 +118,7 @@ func testAPIGroupProfileDetail(t *testing.T, httpAddr string, ts int64, componen
 	require.True(t, len(groupProfileDetail.TargetProfiles) >= len(components))
 	for _, tp := range groupProfileDetail.TargetProfiles {
 		require.Equal(t, "", tp.Error)
-		require.Equal(t, "success", tp.State)
+		require.Equal(t, "finished", tp.State)
 		found := false
 		for _, comp := range components {
 			if tp.Target.Component == comp.Name && tp.Target.Address == fmt.Sprintf("%v:%v", comp.IP, comp.Port) {

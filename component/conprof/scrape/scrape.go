@@ -63,6 +63,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 		case <-sl.ctx.Done():
 			return
 		case start = <-ticker.ch:
+			sl.lastScrape = start
 		}
 
 		if sl.lastScrapeSize > 0 && buf.Cap() > 2*sl.lastScrapeSize {
@@ -84,9 +85,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 					Address:   sl.scraper.target.Address,
 				}, start, buf.Bytes())
 
-				if err == nil {
-					sl.lastScrape = start
-				} else {
+				if err != nil {
 					log.Error("save scrape data failed",
 						zap.String("component", target.Component),
 						zap.String("address", target.Address),

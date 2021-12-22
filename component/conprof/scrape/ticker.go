@@ -14,6 +14,7 @@ type Ticker struct {
 	subscribers map[int]chan time.Time
 	idAlloc     int
 	cancel      context.CancelFunc
+	lastTime    time.Time
 }
 
 func NewTicker(d time.Duration) *Ticker {
@@ -99,6 +100,7 @@ func (t *Ticker) run(ctx context.Context) {
 func (t *Ticker) notify(now time.Time) {
 	t.Lock()
 	defer t.Unlock()
+	t.lastTime = now
 	for _, ch := range t.subscribers {
 		select {
 		case ch <- now:

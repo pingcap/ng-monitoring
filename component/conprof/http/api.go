@@ -122,10 +122,14 @@ func getProfileEstimateSize(component topology.Component) int {
 	return defaultProfileSize
 }
 
+type ProfilingState = string
+
 var (
-	QueryStateSuccess       string = "success"
-	QueryStateFailed        string = "failed"
-	QueryStatePartialFailed string = "partial failed"
+	ProfilingStateRunning  ProfilingState = "running"
+	ProfilingStateFinished ProfilingState = "finished"
+	// TODO(crazycs520): support following status.
+	ProfilingStateFinishedWithError ProfilingState = "finished_with_error"
+	ProfilingStateFailed            ProfilingState = "failed"
 )
 
 type ComponentNum struct {
@@ -187,11 +191,14 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 		}
 	}
 	groupProfiles := make([]GroupProfiles, 0, len(m))
+	components := conprof.GetManager().GetRunningScrapeComponents()
+	lastTS := conprof.GetManager().GetLastScrapeTime().Unix()
 	for ts, targets := range m {
 		compMap := map[string]int{}
 		for target := range targets {
 			compMap[target.Component] += 1
 		}
+		totalCompNum := 0
 		compNum := ComponentNum{}
 		for comp, num := range compMap {
 			switch comp {
@@ -204,11 +211,18 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 			case topology.ComponentTiFlash:
 				compNum.TiFlash = num
 			}
+			totalCompNum += num
 		}
+
+		state := ProfilingStateFinished
+		if ts == lastTS && totalCompNum < len(components) {
+			state = ProfilingStateRunning
+		}
+
 		groupProfiles = append(groupProfiles, GroupProfiles{
 			Ts:          ts,
 			ProfileSecs: config.GetGlobalConfig().ContinueProfiling.ProfileSeconds, // todo: fix me
-			State:       QueryStateSuccess,
+			State:       state,
 			CompNum:     compNum,
 		})
 	}
@@ -232,7 +246,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
 	for _, plist := range profileLists {
 		targetProfiles = append(targetProfiles, ProfileDetail{
-			State: QueryStateSuccess,
+			State: ProfilingStateFinished,
 			Type:  plist.Target.Kind,
 			Target: Target{
 				Component: plist.Target.Component,
@@ -246,7 +260,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	return &GroupProfileDetail{
 		Ts:             param.Begin,
 		ProfileSecs:    config.GetGlobalConfig().ContinueProfiling.ProfileSeconds,
-		State:          QueryStateSuccess,
+		State:          ProfilingStateFinished,
 		TargetProfiles: targetProfiles,
 	}, nil
 }
