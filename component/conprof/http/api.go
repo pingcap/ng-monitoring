@@ -304,12 +304,16 @@ func queryAndDownload(c *gin.Context) error {
 		if pt.Kind == meta.ProfileKindGoroutine {
 			fileName += ".txt"
 		} else {
+			isSVG := false
 			if param.DataFormat == meta.ProfileDataFormatSVG {
 				svg, err := ConvertToSVG(data)
 				if err == nil {
 					data = svg
-					fileName += ".svg"
+					isSVG = true
 				}
+			}
+			if isSVG {
+				fileName += ".svg"
 			} else {
 				fileName += ".proto"
 			}
