@@ -349,12 +349,11 @@ func queryAndDownload(c *gin.Context) error {
 	return nil
 }
 
-const downloadReadme = "# Usage\n\n" +
-	"1. Install `go`.\n\n" +
-	"2. Using `go tool pprof` to read the profile:\n\n" +
-	"    ```\n" +
-	"    go tool pprof --http=0.0.0.0:6060 profile_tidb_172.16.5.40_4019_1640141340\n" +
-	"    ```\n"
+const downloadReadme = `
+To review the CPU profiling or heap profiling result interactively:
+
+$ go tool pprof --http=0.0.0.0:6060 profile_xxx.proto
+`
 
 var (
 	beginTimeParamStr   = "begin_time"
