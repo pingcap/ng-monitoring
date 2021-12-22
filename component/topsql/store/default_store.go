@@ -9,6 +9,7 @@ import (
 	"github.com/genjidb/genji"
 	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/tipb/go-tipb"
 	"go.uber.org/zap"
@@ -66,9 +67,14 @@ func (ds *DefaultStore) Instance(instance, instanceType string) error {
 	return prepare.Exec(instance, instanceType)
 }
 
-func (ds *DefaultStore) TopSQLRecord(instance, instanceType string, record *tipb.CPUTimeRecord) error {
-	m := topSQLProtoToMetric(instance, instanceType, record)
-	return ds.writeTimeseriesDB(m)
+func (ds *DefaultStore) TopSQLRecord(instance, instanceType string, record *tipb.TopSQLRecord) error {
+	ms := topSQLProtoToMetrics(instance, instanceType, record)
+	for _, m := range ms {
+		if err := ds.writeTimeseriesDB(m); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (ds *DefaultStore) ResourceMeteringRecord(
@@ -111,29 +117,59 @@ func (ds *DefaultStore) PlanMeta(meta *tipb.PlanMeta) error {
 
 func (ds *DefaultStore) Close() {}
 
-// transform tipb.CPUTimeRecord to util.Metric
-func topSQLProtoToMetric(
+// transform tipb.TopSQLRecord to metrics
+func topSQLProtoToMetrics(
 	instance, instanceType string,
-	record *tipb.CPUTimeRecord,
-) (m Metric) {
-	m.Metric.Name = MetricNameCPUTime
-	m.Metric.Instance = instance
-	m.Metric.InstanceType = instanceType
-	m.Metric.SQLDigest = hex.EncodeToString(record.SqlDigest)
-	m.Metric.PlanDigest = hex.EncodeToString(record.PlanDigest)
+	record *tipb.TopSQLRecord,
+) (ms []Metric) {
+	sqlDigest := hex.EncodeToString(record.SqlDigest)
+	planDigest := hex.EncodeToString(record.PlanDigest)
+
+	mCpu := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameCPUTime,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mExecCount := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameSQLExecCount,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mDurationSum := Metric{
+		Metric: topSQLTags{
+			Name:         MetricNameSQLDurationSum,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mKvExecCount := map[string]*Metric{}
 
 	for i := range record.RecordListCpuTimeMs {
 		tsMillis := record.RecordListTimestampSec[i] * 1000
-		cpuTime := record.RecordListCpuTimeMs[i]
-
-		m.Timestamps = append(m.Timestamps, tsMillis)
-		m.Values = append(m.Values, cpuTime)
+		appendMetricUint32List(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
+		appendMetricUint64List(i, tsMillis, record.RecordListStmtExecCount, &mExecCount)
+		appendMetricUint64List(i, tsMillis, record.RecordListStmtDurationSumNs, &mDurationSum)
+		appendMetricKvExecCount(i, tsMillis, record.RecordListStmtKvExecCount, mKvExecCount, sqlDigest, planDigest)
 	}
 
+	ms = append(ms, mCpu, mExecCount, mDurationSum)
+	for _, m := range mKvExecCount {
+		ms = append(ms, *m)
+	}
 	return
 }
 
-// transform resource_usage_agent.CPUTimeRecord to util.Metric
+// transform resource_usage_agent.ResourceUsageRecord to metrics
 func rsMeteringProtoToMetrics(
 	instance, instanceType string,
 	record *rsmetering.ResourceUsageRecord,
@@ -194,7 +230,7 @@ func rsMeteringProtoToMetrics(
 
 	for i := range record.RecordListTimestampSec {
 		tsMillis := record.RecordListTimestampSec[i] * 1000
-		appendMetricCPUTime(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
+		appendMetricUint32List(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
 		appendMetricRowIndex(i, tsMillis, record.RecordListReadKeys, &mReadRow, &mReadIndex, tag.Label)
 		appendMetricRowIndex(i, tsMillis, record.RecordListWriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
 	}
@@ -203,17 +239,45 @@ func rsMeteringProtoToMetrics(
 	return
 }
 
-// appendMetricCPUTime only used in rsMeteringProtoToMetrics.
-func appendMetricCPUTime(i int, ts uint64, values []uint32, mCpu *Metric) {
+func appendMetricUint32List(i int, ts uint64, values []uint32, metric *Metric) {
 	var value uint32
 	if len(values) > i {
 		value = values[i]
 	}
-	mCpu.Timestamps = append(mCpu.Timestamps, ts)
-	mCpu.Values = append(mCpu.Values, value)
+	metric.Timestamps = append(metric.Timestamps, ts)
+	metric.Values = append(metric.Values, uint64(value))
 }
 
-// appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
+func appendMetricUint64List(i int, ts uint64, values []uint64, metric *Metric) {
+	var value uint64
+	if len(values) > i {
+		value = values[i]
+	}
+	metric.Timestamps = append(metric.Timestamps, ts)
+	metric.Values = append(metric.Values, value)
+}
+
+func appendMetricKvExecCount(i int, ts uint64, values []*tipb.TopSQLStmtKvExecCount, metrics map[string]*Metric, sqlDigest, planDigest string) {
+	kvExecCount := values[i]
+	for target, execCount := range kvExecCount.ExecCount {
+		metric, ok := metrics[target]
+		if !ok {
+			metrics[target] = &Metric{
+				Metric: topSQLTags{
+					Name:         MetricNameSQLExecCount,
+					Instance:     target,
+					InstanceType: topology.ComponentTiKV,
+					SQLDigest:    sqlDigest,
+					PlanDigest:   planDigest,
+				},
+			}
+			metric = metrics[target]
+		}
+		metric.Timestamps = append(metric.Timestamps, ts)
+		metric.Values = append(metric.Values, execCount)
+	}
+}
+
 func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metric, label *tipb.ResourceGroupTagLabel) {
 	var rows, indexes uint32
 	if len(values) > i {
@@ -226,9 +290,9 @@ func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metri
 		}
 	}
 	mRow.Timestamps = append(mRow.Timestamps, ts)
-	mRow.Values = append(mRow.Values, rows)
+	mRow.Values = append(mRow.Values, uint64(rows))
 	mIndex.Timestamps = append(mIndex.Timestamps, ts)
-	mIndex.Values = append(mIndex.Values, indexes)
+	mIndex.Values = append(mIndex.Values, uint64(indexes))
 }
 
 func (ds *DefaultStore) writeTimeseriesDB(metric Metric) error {

@@ -80,13 +80,13 @@ func (dq *DefaultQuery) Close() {}
 type planSeries struct {
 	planDigest    string
 	timestampSecs []uint64
-	values        []uint32
+	values        []uint64
 }
 
 type sqlGroup struct {
 	sqlDigest  string
 	planSeries []planSeries
-	valueSum   uint32
+	valueSum   uint64
 }
 
 func (dq *DefaultQuery) fetchTimeseriesDB(name string, startSecs int, endSecs int, windowSecs int, instance string, metricResponse *metricResp) error {
@@ -169,9 +169,9 @@ func groupBySQLDigest(resp []metricRespDataResult, target *[]sqlGroup) {
 				continue
 			}
 
-			group.valueSum += uint32(v)
+			group.valueSum += v
 			ps.timestampSecs = append(ps.timestampSecs, ts)
-			ps.values = append(ps.values, uint32(v))
+			ps.values = append(ps.values, v)
 		}
 
 		m[r.Metric.SQLDigest] = group
@@ -251,6 +251,10 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill *[]Top
 					planItem.WriteRows = series.values
 				case store.MetricNameWriteIndex:
 					planItem.WriteIndexes = series.values
+				case store.MetricNameSQLExecCount:
+					planItem.SQLExecCount = series.values
+				case store.MetricNameSQLDurationSum:
+					planItem.SQLDurationSum = series.values
 				}
 				item.Plans = append(item.Plans, planItem)
 			}

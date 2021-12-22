@@ -7,8 +7,79 @@ import (
 	"time"
 
 	rua "github.com/pingcap/kvproto/pkg/resource_usage_agent"
+	"github.com/pingcap/tipb/go-tipb"
 	"google.golang.org/grpc"
 )
+
+var _ tipb.TopSQLPubSubServer = &MockTiDBServer{}
+
+type MockTiDBServer struct {
+	listener net.Listener
+	server   *grpc.Server
+	records  []tipb.TopSQLRecord
+	changed  bool
+	mu       sync.Mutex
+}
+
+func NewMockTiDBServer() *MockTiDBServer {
+	return &MockTiDBServer{}
+}
+
+func (s *MockTiDBServer) PushRecords(records []tipb.TopSQLRecord) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.records = append(s.records, records...)
+	s.changed = true
+}
+
+func (s *MockTiDBServer) Listen() (addr string, err error) {
+	s.listener, err = net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return
+	}
+	return s.listener.Addr().String(), nil
+}
+
+func (s *MockTiDBServer) Serve() error {
+	s.server = grpc.NewServer()
+	tipb.RegisterTopSQLPubSubServer(s.server, s)
+	return s.server.Serve(s.listener)
+}
+
+func (s *MockTiDBServer) Stop() {
+	s.server.Stop()
+}
+
+func (s *MockTiDBServer) Subscribe(req *tipb.TopSQLSubRequest, stream tipb.TopSQLPubSub_SubscribeServer) error {
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stream.Context().Done():
+			return nil
+		case <-ticker.C:
+			s.mu.Lock()
+			records := s.records
+			changed := s.changed
+			s.records = nil
+			s.mu.Unlock()
+			if !changed {
+				continue
+			}
+			if records != nil {
+				for _, record := range records {
+					if err := stream.Send(&tipb.TopSQLSubResponse{
+						RespOneof: &tipb.TopSQLSubResponse_DataRecord{
+							DataRecord: &record,
+						},
+					}); err != nil {
+						panic(err)
+					}
+				}
+			}
+		}
+	}
+}
 
 var _ rua.ResourceMeteringPubSubServer = &MockTiKVServer{}
 
