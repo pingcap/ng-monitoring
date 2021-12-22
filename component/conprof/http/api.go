@@ -314,7 +314,11 @@ func queryAndDownload(c *gin.Context) error {
 				fileName += ".proto"
 			}
 		}
-		fw, err := zw.Create(fileName)
+		fw, err := zw.CreateHeader(&zip.FileHeader{
+			Name:     fileName,
+			Method:   zip.Deflate,
+			Modified: time.Now(),
+		})
 		if err != nil {
 			return err
 		}
@@ -326,7 +330,11 @@ func queryAndDownload(c *gin.Context) error {
 	if err != nil {
 		return err
 	}
-	fw, err := zw.Create("README.md")
+	fw, err := zw.CreateHeader(&zip.FileHeader{
+		Name:     "README.md",
+		Method:   zip.Deflate,
+		Modified: time.Now(),
+	})
 	if err != nil {
 		return err
 	}

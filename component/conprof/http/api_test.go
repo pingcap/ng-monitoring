@@ -159,11 +159,15 @@ func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topol
 		require.NoError(t, err)
 
 		if idx == len(urls)-1 {
-			require.True(t, len(zr.File) == 1)
+			require.True(t, len(zr.File) == 2) // profile file + readme.md file
 		} else {
 			require.True(t, len(zr.File) > len(components))
 		}
 		for _, f := range zr.File {
+			require.True(t, f.Modified.Unix() > 0)
+			if f.Name == "README.md" {
+				continue
+			}
 			// file name format is: kind_component_ip_port_ts
 			fields := strings.Split(f.Name, "_")
 			require.True(t, len(fields) >= 4)
