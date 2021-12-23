@@ -240,26 +240,49 @@ func rsMeteringProtoToMetrics(
 }
 
 func appendMetricUint32List(i int, ts uint64, values []uint32, metric *Metric) {
-	var value uint32
-	if len(values) > i {
-		value = values[i]
+	if len(values) <= i || values[i] == 0 {
+		// We do not write a zero value, this is to avoid the following situation:
+		//
+		// Write the following data first:
+		//     Timestamp: [1, 2, 3]
+		//       CPUTime: [9, 9, 9]
+		//     ExecCount: [9, 9, 0]
+		//
+		// Then write the following data:
+		//     Timestamp: [3, 4, 5]
+		//       CPUTime: [0, 9, 9]
+		//     ExecCount: [9, 9, 9]
+		//
+		// Finally we get:
+		//     Timestamp: [1, 2, 3, 4, 5]
+		//       CPUTime: [9, 9, 0, 9, 9]
+		//     ExecCount: [9, 9, 9, 9, 9]
+		//
+		// This may happen because the collect of StmtStats and CPUTime in TiDB
+		// are performed separately, it will fill in 0 when they complement each other.
+		return
 	}
 	metric.Timestamps = append(metric.Timestamps, ts)
-	metric.Values = append(metric.Values, uint64(value))
+	metric.Values = append(metric.Values, uint64(values[i]))
 }
 
 func appendMetricUint64List(i int, ts uint64, values []uint64, metric *Metric) {
-	var value uint64
-	if len(values) > i {
-		value = values[i]
+	if len(values) <= i || values[i] == 0 {
+		return
 	}
 	metric.Timestamps = append(metric.Timestamps, ts)
-	metric.Values = append(metric.Values, value)
+	metric.Values = append(metric.Values, values[i])
 }
 
 func appendMetricKvExecCount(i int, ts uint64, values []*tipb.TopSQLStmtKvExecCount, metrics map[string]*Metric, sqlDigest, planDigest string) {
+	if len(values) <= i {
+		return
+	}
 	kvExecCount := values[i]
 	for target, execCount := range kvExecCount.ExecCount {
+		if execCount == 0 {
+			continue
+		}
 		metric, ok := metrics[target]
 		if !ok {
 			metrics[target] = &Metric{
