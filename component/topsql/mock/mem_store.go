@@ -21,7 +21,7 @@ type MemStore struct {
 	Instances map[Component]struct{}
 
 	// instance -> sql digest -> plan digest -> records
-	TopSQLRecords map[string]map[string]map[string]*tipb.CPUTimeRecord
+	TopSQLRecords map[string]map[string]map[string]*tipb.TopSQLRecord
 
 	// instance -> resource tag -> records
 	ResourceMeteringRecords map[string]map[string]*rsmetering.ResourceUsageRecord
@@ -40,7 +40,7 @@ type MemStore struct {
 func NewMemStore() *MemStore {
 	return &MemStore{
 		Instances:               make(map[Component]struct{}),
-		TopSQLRecords:           make(map[string]map[string]map[string]*tipb.CPUTimeRecord),
+		TopSQLRecords:           make(map[string]map[string]map[string]*tipb.TopSQLRecord),
 		ResourceMeteringRecords: make(map[string]map[string]*rsmetering.ResourceUsageRecord),
 		SQLMetas: make(map[string]struct {
 			Meta *tipb.SQLMeta
@@ -91,25 +91,24 @@ func (m *MemStore) Instance(instance, instanceType string) error {
 	return nil
 }
 
-func (m *MemStore) TopSQLRecord(instance, _ string, record *tipb.CPUTimeRecord) error {
+func (m *MemStore) TopSQLRecord(instance, _ string, record *tipb.TopSQLRecord) error {
 	m.Lock()
 	defer m.Unlock()
 
 	if _, ok := m.TopSQLRecords[instance]; !ok {
-		m.TopSQLRecords[instance] = make(map[string]map[string]*tipb.CPUTimeRecord)
+		m.TopSQLRecords[instance] = make(map[string]map[string]*tipb.TopSQLRecord)
 	}
 	if _, ok := m.TopSQLRecords[instance][string(record.SqlDigest)]; !ok {
-		m.TopSQLRecords[instance][string(record.SqlDigest)] = make(map[string]*tipb.CPUTimeRecord)
+		m.TopSQLRecords[instance][string(record.SqlDigest)] = make(map[string]*tipb.TopSQLRecord)
 	}
 	if _, ok := m.TopSQLRecords[instance][string(record.SqlDigest)][string(record.PlanDigest)]; !ok {
-		m.TopSQLRecords[instance][string(record.SqlDigest)][string(record.PlanDigest)] = &tipb.CPUTimeRecord{
+		m.TopSQLRecords[instance][string(record.SqlDigest)][string(record.PlanDigest)] = &tipb.TopSQLRecord{
 			SqlDigest:  record.SqlDigest,
 			PlanDigest: record.PlanDigest,
 		}
 	}
 	r := m.TopSQLRecords[instance][string(record.SqlDigest)][string(record.PlanDigest)]
-	r.RecordListTimestampSec = append(r.RecordListTimestampSec, record.RecordListTimestampSec...)
-	r.RecordListCpuTimeMs = append(r.RecordListCpuTimeMs, record.RecordListCpuTimeMs...)
+	r.Items = append(r.Items, record.Items...)
 
 	return nil
 }

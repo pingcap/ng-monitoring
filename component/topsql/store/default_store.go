@@ -154,12 +154,63 @@ func topSQLProtoToMetrics(
 	}
 	mKvExecCount := map[string]*Metric{}
 
-	for i := range record.RecordListCpuTimeMs {
-		tsMillis := record.RecordListTimestampSec[i] * 1000
-		appendMetricUint32List(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
-		appendMetricUint64List(i, tsMillis, record.RecordListStmtExecCount, &mExecCount)
-		appendMetricUint64List(i, tsMillis, record.RecordListStmtDurationSumNs, &mDurationSum)
-		appendMetricKvExecCount(i, tsMillis, record.RecordListStmtKvExecCount, mKvExecCount, sqlDigest, planDigest)
+	for _, item := range record.Items {
+		tsMillis := item.TimestampSec * 1000
+
+		if item.CpuTimeMs > 0 {
+			// We do not write a zero value, this is to avoid the following situation:
+			//
+			// Write the following data first:
+			//     Timestamp: [1, 2, 3]
+			//       CPUTime: [9, 9, 9]
+			//     ExecCount: [9, 9, 0]
+			//
+			// Then write the following data:
+			//     Timestamp: [3, 4, 5]
+			//       CPUTime: [0, 9, 9]
+			//     ExecCount: [9, 9, 9]
+			//
+			// Finally we get:
+			//     Timestamp: [1, 2, 3, 4, 5]
+			//       CPUTime: [9, 9, 0, 9, 9]
+			//     ExecCount: [9, 9, 9, 9, 9]
+			//
+			// This may happen because the collect of StmtStats and CPUTime in TiDB
+			// are performed separately, it will fill in 0 when they complement each other.
+			mCpu.Timestamps = append(mCpu.Timestamps, tsMillis)
+			mCpu.Values = append(mCpu.Values, uint64(item.CpuTimeMs))
+		}
+
+		if item.StmtExecCount > 0 {
+			mExecCount.Timestamps = append(mExecCount.Timestamps, tsMillis)
+			mExecCount.Values = append(mExecCount.Values, item.StmtExecCount)
+		}
+
+		if item.StmtDurationSumNs > 0 {
+			mDurationSum.Timestamps = append(mDurationSum.Timestamps, tsMillis)
+			mDurationSum.Values = append(mDurationSum.Values, item.StmtDurationSumNs)
+		}
+
+		for target, execCount := range item.StmtKvExecCount {
+			if execCount == 0 {
+				continue
+			}
+			metric, ok := mKvExecCount[target]
+			if !ok {
+				mKvExecCount[target] = &Metric{
+					Metric: topSQLTags{
+						Name:         MetricNameSQLExecCount,
+						Instance:     target,
+						InstanceType: topology.ComponentTiKV,
+						SQLDigest:    sqlDigest,
+						PlanDigest:   planDigest,
+					},
+				}
+				metric = mKvExecCount[target]
+			}
+			metric.Timestamps = append(metric.Timestamps, tsMillis)
+			metric.Values = append(metric.Values, execCount)
+		}
 	}
 
 	ms = append(ms, mCpu, mExecCount, mDurationSum)
@@ -230,7 +281,7 @@ func rsMeteringProtoToMetrics(
 
 	for i := range record.RecordListTimestampSec {
 		tsMillis := record.RecordListTimestampSec[i] * 1000
-		appendMetricUint32List(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
+		appendMetricCPUTime(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
 		appendMetricRowIndex(i, tsMillis, record.RecordListReadKeys, &mReadRow, &mReadIndex, tag.Label)
 		appendMetricRowIndex(i, tsMillis, record.RecordListWriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
 	}
@@ -239,68 +290,17 @@ func rsMeteringProtoToMetrics(
 	return
 }
 
-func appendMetricUint32List(i int, ts uint64, values []uint32, metric *Metric) {
-	if len(values) <= i || values[i] == 0 {
-		// We do not write a zero value, this is to avoid the following situation:
-		//
-		// Write the following data first:
-		//     Timestamp: [1, 2, 3]
-		//       CPUTime: [9, 9, 9]
-		//     ExecCount: [9, 9, 0]
-		//
-		// Then write the following data:
-		//     Timestamp: [3, 4, 5]
-		//       CPUTime: [0, 9, 9]
-		//     ExecCount: [9, 9, 9]
-		//
-		// Finally we get:
-		//     Timestamp: [1, 2, 3, 4, 5]
-		//       CPUTime: [9, 9, 0, 9, 9]
-		//     ExecCount: [9, 9, 9, 9, 9]
-		//
-		// This may happen because the collect of StmtStats and CPUTime in TiDB
-		// are performed separately, it will fill in 0 when they complement each other.
-		return
+// appendMetricCPUTime only used in rsMeteringProtoToMetrics.
+func appendMetricCPUTime(i int, ts uint64, values []uint32, metric *Metric) {
+	var value uint32
+	if len(values) > i {
+		value = values[i]
 	}
 	metric.Timestamps = append(metric.Timestamps, ts)
-	metric.Values = append(metric.Values, uint64(values[i]))
+	metric.Values = append(metric.Values, uint64(value))
 }
 
-func appendMetricUint64List(i int, ts uint64, values []uint64, metric *Metric) {
-	if len(values) <= i || values[i] == 0 {
-		return
-	}
-	metric.Timestamps = append(metric.Timestamps, ts)
-	metric.Values = append(metric.Values, values[i])
-}
-
-func appendMetricKvExecCount(i int, ts uint64, values []*tipb.TopSQLStmtKvExecCount, metrics map[string]*Metric, sqlDigest, planDigest string) {
-	if len(values) <= i {
-		return
-	}
-	kvExecCount := values[i]
-	for target, execCount := range kvExecCount.ExecCount {
-		if execCount == 0 {
-			continue
-		}
-		metric, ok := metrics[target]
-		if !ok {
-			metrics[target] = &Metric{
-				Metric: topSQLTags{
-					Name:         MetricNameSQLExecCount,
-					Instance:     target,
-					InstanceType: topology.ComponentTiKV,
-					SQLDigest:    sqlDigest,
-					PlanDigest:   planDigest,
-				},
-			}
-			metric = metrics[target]
-		}
-		metric.Timestamps = append(metric.Timestamps, ts)
-		metric.Values = append(metric.Values, execCount)
-	}
-}
-
+// appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
 func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metric, label *tipb.ResourceGroupTagLabel) {
 	var rows, indexes uint32
 	if len(values) > i {
