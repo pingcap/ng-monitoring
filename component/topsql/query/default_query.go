@@ -3,6 +3,9 @@ package query
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/pingcap/log"
@@ -10,8 +13,6 @@ import (
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/wangjohn/quickselect"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 var (

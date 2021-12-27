@@ -3,7 +3,6 @@ package subscriber
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"sync"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/utils"
+	"go.uber.org/zap"
 )
 
 type Manager struct {
