@@ -18,7 +18,7 @@ type MemStore struct {
 	sync.Mutex
 
 	// instance -> value
-	Instances map[Component]struct{}
+	InstanceStore map[Component]struct{}
 
 	// instance -> sql digest -> plan digest -> records
 	TopSQLRecords map[string]map[string]map[string]*tipb.CPUTimeRecord
@@ -39,7 +39,7 @@ type MemStore struct {
 
 func NewMemStore() *MemStore {
 	return &MemStore{
-		Instances:               make(map[Component]struct{}),
+		InstanceStore:           make(map[Component]struct{}),
 		TopSQLRecords:           make(map[string]map[string]map[string]*tipb.CPUTimeRecord),
 		ResourceMeteringRecords: make(map[string]map[string]*rsmetering.ResourceUsageRecord),
 		SQLMetas: make(map[string]struct {
@@ -80,12 +80,14 @@ func (m *MemStore) Predict(pred func(*MemStore) bool, beginWaitTime time.Duratio
 
 var _ store.Store = &MemStore{}
 
-func (m *MemStore) Instance(instance, instanceType string) error {
+func (m *MemStore) Instances(items []store.InstanceItem) error {
 	m.Lock()
-	m.Instances[Component{
-		Name: instanceType,
-		Addr: instance,
-	}] = struct{}{}
+	for _, item := range items {
+		m.InstanceStore[Component{
+			Name: item.InstanceType,
+			Addr: item.Instance,
+		}] = struct{}{}
+	}
 	m.Unlock()
 
 	return nil

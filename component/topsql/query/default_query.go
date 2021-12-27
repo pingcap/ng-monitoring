@@ -3,17 +3,15 @@ package query
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"strconv"
-
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
-	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/wangjohn/quickselect"
 	"go.uber.org/zap"
+	"net/http"
+	"strconv"
 )
 
 var (
@@ -42,7 +40,7 @@ var _ Query = &DefaultQuery{}
 func (dq *DefaultQuery) TopSQL(name string, startSecs, endSecs, windowSecs, top int, instance string, fill *[]TopSQLItem) error {
 	metricResponse := metricRespP.Get()
 	defer metricRespP.Put(metricResponse)
-	if err := dq.fetchTimeseriesDB(name, startSecs, endSecs, windowSecs, instance, metricResponse); err != nil {
+	if err := dq.fetchRecordsFromTSDB(name, startSecs, endSecs, windowSecs, instance, metricResponse); err != nil {
 		return err
 	}
 
@@ -55,24 +53,8 @@ func (dq *DefaultQuery) TopSQL(name string, startSecs, endSecs, windowSecs, top 
 	return dq.fillText(name, sqlGroups, fill)
 }
 
-func (dq *DefaultQuery) AllInstances(fill *[]InstanceItem) error {
-	doc, err := dq.documentDB.Query("SELECT instance, instance_type FROM instance")
-	if err != nil {
-		return err
-	}
-	defer doc.Close()
-
-	return doc.Iterate(func(d types.Document) error {
-		item := InstanceItem{}
-
-		err := document.Scan(d, &item.Instance, &item.InstanceType)
-		if err != nil {
-			return err
-		}
-
-		*fill = append(*fill, item)
-		return nil
-	})
+func (dq *DefaultQuery) Instances(startSecs, endSecs int, fill *[]InstanceItem) error {
+	return dq.fetchInstanceFromTSDB(startSecs, endSecs, fill)
 }
 
 func (dq *DefaultQuery) Close() {}
@@ -89,7 +71,7 @@ type sqlGroup struct {
 	valueSum   uint32
 }
 
-func (dq *DefaultQuery) fetchTimeseriesDB(name string, startSecs int, endSecs int, windowSecs int, instance string, metricResponse *metricResp) error {
+func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs, endSecs, windowSecs int, instance string, metricResponse *recordsMetricResp) error {
 	if dq.vmselectHandler == nil {
 		return fmt.Errorf("empty query handler")
 	}
@@ -122,11 +104,51 @@ func (dq *DefaultQuery) fetchTimeseriesDB(name string, startSecs int, endSecs in
 	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
 		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
 	}
-
 	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
 }
 
-func topK(results []metricRespDataResult, top int, sqlGroups *[]sqlGroup) error {
+func (dq *DefaultQuery) fetchInstanceFromTSDB(startSecs, endSecs int, fill *[]InstanceItem) error {
+	if dq.vmselectHandler == nil {
+		return fmt.Errorf("empty query handler")
+	}
+
+	bufResp := bytesP.Get()
+	header := headerP.Get()
+
+	defer bytesP.Put(bufResp)
+	defer headerP.Put(header)
+	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
+	if err != nil {
+		return err
+	}
+	reqQuery := req.URL.Query()
+	reqQuery.Set("query", "last_over_time(instance)")
+	reqQuery.Set("start", strconv.Itoa(startSecs))
+	reqQuery.Set("end", strconv.Itoa(endSecs))
+	reqQuery.Set("step", strconv.Itoa(endSecs-startSecs))
+	req.URL.RawQuery = reqQuery.Encode()
+	req.Header.Set("Accept", "application/json")
+	respR := utils.NewRespWriter(bufResp, header)
+	dq.vmselectHandler(&respR, req)
+	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
+		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
+	}
+
+	res := instancesMetricResp{}
+	if err = json.Unmarshal(respR.Body.Bytes(), &res); err != nil {
+		return err
+	}
+	for _, result := range res.Data.Results {
+		*fill = append(*fill, InstanceItem{
+			Instance:     result.Metric.Instance,
+			InstanceType: result.Metric.InstanceType,
+		})
+	}
+
+	return nil
+}
+
+func topK(results []recordsMetricRespDataResult, top int, sqlGroups *[]sqlGroup) error {
 	groupBySQLDigest(results, sqlGroups)
 	if err := keepTopK(sqlGroups, top); err != nil {
 		return err
@@ -134,7 +156,7 @@ func topK(results []metricRespDataResult, top int, sqlGroups *[]sqlGroup) error 
 	return nil
 }
 
-func groupBySQLDigest(resp []metricRespDataResult, target *[]sqlGroup) {
+func groupBySQLDigest(resp []recordsMetricRespDataResult, target *[]sqlGroup) {
 	m := sqlDigestMapP.Get()
 	defer sqlDigestMapP.Put(m)
 

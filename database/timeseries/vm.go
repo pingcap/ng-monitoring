@@ -31,6 +31,7 @@ func Init(cfg *config.Config) {
 	initDataDir(path.Join(cfg.Storage.Path, "tsdb"))
 
 	_ = flag.Set("retentionPeriod", *retentionPeriod)
+	_ = flag.Set("search.maxStepForPointsAdjustment", "1s")
 
 	// Some components in VictoriaMetrics want parsed arguments, i.e. assert `flag.Parsed()`. Make them happy.
 	_ = flag.CommandLine.Parse(nil)
@@ -60,7 +61,6 @@ func Stop() {
 func initLogger(cfg *config.Config) error {
 	_ = flag.Set("loggerOutput", "stderr")
 	_ = flag.Set("loggerLevel", mapLogLevel(cfg.Log.Level))
-	_ = flag.Set("search.maxStepForPointsAdjustment", "1s")
 
 	var logDir string
 	if cfg.Log.Path != "" {

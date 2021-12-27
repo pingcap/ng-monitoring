@@ -2,8 +2,8 @@ package tests
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,13 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/protobuf/proto"
 	rua "github.com/pingcap/kvproto/pkg/resource_usage_agent"
@@ -27,6 +20,8 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
+	"github.com/pingcap/ng-monitoring/database"
+	"github.com/pingcap/ng-monitoring/database/document"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
 	"github.com/pingcap/tipb/go-tipb"
 	"github.com/stretchr/testify/suite"
@@ -35,8 +30,6 @@ import (
 func TestTopSQL(t *testing.T) {
 	suite.Run(t, &testTopSQLSuite{})
 }
-
-const testTsdbPath = "/tmp/ng-monitoring-test/tsdb"
 
 var testBaseTs = uint64(time.Now().Unix()) - 60*60*24
 
@@ -57,8 +50,7 @@ type metricsHttpResponse struct {
 
 type testTopSQLSuite struct {
 	suite.Suite
-	cfg        *config.Config
-	db         *genji.DB
+	dir        string
 	tikvAddr   string
 	tikvServer *MockTiKVServer
 	topCh      topology.Subscriber
@@ -68,16 +60,13 @@ type testTopSQLSuite struct {
 }
 
 func (s *testTopSQLSuite) SetupSuite() {
-	// init config
-	config.StoreGlobalConfig(&config.Config{
-		Address:           "",
-		AdvertiseAddress:  "",
-		PD:                config.PD{},
-		Log:               config.Log{},
-		Storage:           config.Storage{},
-		ContinueProfiling: config.ContinueProfilingConfig{},
-		Security:          config.Security{},
-	})
+	dir, err := ioutil.TempDir("", "topsql-test")
+	s.NoError(err)
+	s.dir = dir
+
+	cfg := config.GetDefaultConfig()
+	cfg.Storage.Path = dir
+	config.StoreGlobalConfig(&cfg)
 
 	// init local mock tikv server
 	s.tikvServer = NewMockTiKVServer()
@@ -93,31 +82,14 @@ func (s *testTopSQLSuite) SetupSuite() {
 	}()
 	time.Sleep(time.Second) // wait for grpc server ready (ugly code)
 
-	// init genji in memory
-	s.db, err = genji.Open(":memory:")
-	s.NoError(err)
-
-	// init tsdb logger
-	_ = flag.Set("loggerOutput", "stderr")
-	_ = flag.Set("loggerLevel", "WARN")
-	logger.Init()
-
-	// init vm
-	s.NoError(os.RemoveAll(testTsdbPath))
-	_ = flag.Set("storageDataPath", testTsdbPath)
-	_ = flag.Set("retentionPeriod", "1")
-	storage.SetMinScrapeIntervalForDeduplication(0)
-	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
-	vmselect.Init()
-	vminsert.Init()
+	database.Init(&cfg)
 
 	// init topsql
-	cfg := config.GetDefaultConfig()
-	s.cfg = &cfg
 	s.topCh = make(topology.Subscriber)
 	s.varCh = make(pdvariable.Subscriber)
 	s.cfgCh = make(config.Subscriber)
-	topsql.Init(s.cfg, s.cfgCh, s.db, timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
+	err = topsql.Init(&cfg, s.cfgCh, document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
+	s.NoError(err)
 	s.varCh <- &pdvariable.PDVariable{EnableTopSQL: true}
 	time.Sleep(100 * time.Millisecond)
 	s.topCh <- []topology.Component{{
@@ -159,10 +131,8 @@ func (s *testTopSQLSuite) SetupSuite() {
 func (s *testTopSQLSuite) TearDownSuite() {
 	s.tikvServer.Stop()
 	topsql.Stop()
-	vminsert.Stop()
-	vmselect.Stop()
-	vmstorage.Stop()
-	s.NoError(os.RemoveAll(testTsdbPath))
+	database.Stop()
+	s.NoError(os.RemoveAll(s.dir))
 }
 
 func (s *testTopSQLSuite) TestInstances() {

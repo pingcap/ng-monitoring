@@ -75,11 +75,6 @@ func (s *Scraper) scrapeTiDB() {
 	bo := newBackoffScrape(s.ctx, s.tlsConfig, addr, s.component)
 	defer bo.close()
 
-	if err := s.store.Instance(addr, topology.ComponentTiDB); err != nil {
-		log.Warn("failed to store instance", zap.Error(err))
-		return
-	}
-
 	for {
 		record := bo.scrapeTiDBRecord()
 		if record == nil {
@@ -115,11 +110,6 @@ func (s *Scraper) scrapeTiKV() {
 	addr := fmt.Sprintf("%s:%d", s.component.IP, s.component.Port)
 	bo := newBackoffScrape(s.ctx, s.tlsConfig, addr, s.component)
 	defer bo.close()
-
-	if err := s.store.Instance(addr, topology.ComponentTiKV); err != nil {
-		log.Warn("failed to store instance", zap.Error(err))
-		return
-	}
 
 	for {
 		record := bo.scrapeTiKVRecord()

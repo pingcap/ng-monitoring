@@ -42,7 +42,6 @@ func (ds *DefaultStore) initDocumentDB() error {
 	createTableStmts := []string{
 		"CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
 		"CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
-		"CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
 	}
 
 	for _, stmt := range createTableStmts {
@@ -56,14 +55,14 @@ func (ds *DefaultStore) initDocumentDB() error {
 
 var _ Store = &DefaultStore{}
 
-func (ds *DefaultStore) Instance(instance, instanceType string) error {
-	prepareStmt := "INSERT INTO instance(instance, instance_type) VALUES (?, ?) ON CONFLICT DO NOTHING"
-	prepare, err := ds.documentDB.Prepare(prepareStmt)
-	if err != nil {
-		return err
+func (ds *DefaultStore) Instances(items []InstanceItem) error {
+	for _, item := range items {
+		m := instanceItemToMetric(item)
+		if err := ds.writeTimeseriesDB(m); err != nil {
+			return err
+		}
 	}
-
-	return prepare.Exec(instance, instanceType)
+	return nil
 }
 
 func (ds *DefaultStore) TopSQLRecord(instance, instanceType string, record *tipb.CPUTimeRecord) error {
@@ -111,16 +110,33 @@ func (ds *DefaultStore) PlanMeta(meta *tipb.PlanMeta) error {
 
 func (ds *DefaultStore) Close() {}
 
+// transform InstanceItem to util.Metric
+func instanceItemToMetric(item InstanceItem) (m Metric) {
+	metric := instanceTags{
+		Name:         MetricNameInstance,
+		Instance:     item.Instance,
+		InstanceType: item.InstanceType,
+	}
+	m.Metric = metric
+
+	m.Timestamps = append(m.Timestamps, item.TimestampSecs*1000)
+	m.Values = append(m.Values, 1)
+	return
+}
+
 // transform tipb.CPUTimeRecord to util.Metric
 func topSQLProtoToMetric(
 	instance, instanceType string,
 	record *tipb.CPUTimeRecord,
 ) (m Metric) {
-	m.Metric.Name = MetricNameCPUTime
-	m.Metric.Instance = instance
-	m.Metric.InstanceType = instanceType
-	m.Metric.SQLDigest = hex.EncodeToString(record.SqlDigest)
-	m.Metric.PlanDigest = hex.EncodeToString(record.PlanDigest)
+	metric := recordTags{
+		Name:         MetricNameCPUTime,
+		Instance:     instance,
+		InstanceType: instanceType,
+		SQLDigest:    hex.EncodeToString(record.SqlDigest),
+		PlanDigest:   hex.EncodeToString(record.PlanDigest),
+	}
+	m.Metric = metric
 
 	for i := range record.RecordListCpuTimeMs {
 		tsMillis := record.RecordListTimestampSec[i] * 1000
@@ -147,7 +163,7 @@ func rsMeteringProtoToMetrics(
 	planDigest := hex.EncodeToString(tag.PlanDigest)
 
 	mCpu := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameCPUTime,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -156,7 +172,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mReadRow := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameReadRow,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -165,7 +181,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mReadIndex := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameReadIndex,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -174,7 +190,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mWriteRow := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameWriteRow,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -183,7 +199,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mWriteIndex := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameWriteIndex,
 			Instance:     instance,
 			InstanceType: instanceType,

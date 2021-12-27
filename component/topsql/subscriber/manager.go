@@ -2,7 +2,10 @@ package subscriber
 
 import (
 	"context"
+	"fmt"
+	"go.uber.org/zap"
 	"sync"
+	"time"
 
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
@@ -56,15 +59,22 @@ func NewManager(
 }
 
 func (m *Manager) Run() {
+	storeTopoInterval := time.NewTicker(30 * time.Second)
 	defer func() {
+		storeTopoInterval.Stop()
 		for _, v := range m.scrapers {
 			v.Close()
 		}
 		m.scrapers = nil
 	}()
 
-out:
 	for {
+		if m.enabled {
+			if err := m.storeTopology(); err != nil {
+				log.Warn("failed to store topology", zap.Error(err))
+			}
+		}
+
 		select {
 		case vars := <-m.varSubscriber:
 			if vars.EnableTopSQL && !m.enabled {
@@ -83,15 +93,16 @@ out:
 				log.Warn("got empty scrapers. Seems to be encountering network problems")
 				continue
 			}
-
 			m.components = coms
 			if m.enabled {
 				m.updateScrapers()
 			}
+		case <-storeTopoInterval.C:
+			continue
 		case cfg := <-m.cfgSubscriber:
 			m.config = cfg
 		case <-m.ctx.Done():
-			break out
+			return
 		}
 	}
 }
@@ -162,4 +173,30 @@ func (m *Manager) clearScrapers() {
 		scraper.Close()
 		delete(m.scrapers, component)
 	}
+}
+
+func (m *Manager) storeTopology() error {
+	if len(m.components) == 0 {
+		return nil
+	}
+
+	now := time.Now().Unix()
+	items := make([]store.InstanceItem, 0, len(m.components))
+	for _, com := range m.components {
+		switch com.Name {
+		case topology.ComponentTiDB:
+			items = append(items, store.InstanceItem{
+				Instance:      fmt.Sprintf("%s:%d", com.IP, com.StatusPort),
+				InstanceType:  topology.ComponentTiDB,
+				TimestampSecs: uint64(now),
+			})
+		case topology.ComponentTiKV:
+			items = append(items, store.InstanceItem{
+				Instance:      fmt.Sprintf("%s:%d", com.IP, com.Port),
+				InstanceType:  topology.ComponentTiKV,
+				TimestampSecs: uint64(now),
+			})
+		}
+	}
+	return m.store.Instances(items)
 }
