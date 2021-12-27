@@ -164,8 +164,8 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	planText := fmt.Sprintf("mock__normalized_plan_%d", meta)
 
 	pubsub.AccessTiDBStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
-		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_DataRecord{
-			DataRecord: &tipb.TopSQLRecord{
+		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
+			Record: &tipb.TopSQLRecord{
 				SqlDigest:  []byte(sqlDigest),
 				PlanDigest: []byte(planDigest),
 				Items:      []*tipb.TopSQLRecordItem{{TimestampSec: tsSec, CpuTimeMs: cpuTimeMs}},

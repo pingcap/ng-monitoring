@@ -292,8 +292,8 @@ func (s *testTopSQLSuite) TestCpuTime() {
 		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
 		[]uint64{321, 322, 323, 324, 325})
 	s.testCpuTime(s.tidbAddr, testBaseTs+211, testBaseTs+216,
-		[]uint64{testBaseTs + 212, testBaseTs + 213, testBaseTs + 214}, // 3 items, not 5
-		[]uint64{1, 2, 3})
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215}, // 3 items, not 5
+		[]uint64{0, 1, 2, 3, 0})
 }
 
 func (s *testTopSQLSuite) TestReadRow() {
@@ -349,8 +349,8 @@ func (s *testTopSQLSuite) TestSQLExecCount() {
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{131, 132, 133, 134, 135})
 	s.testSQLExecCount(s.tidbAddr, testBaseTs+211, testBaseTs+216,
-		[]uint64{testBaseTs + 212, testBaseTs + 213, testBaseTs + 214},
-		[]uint64{1, 2, 3})
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 1, 2, 3, 0})
 	s.testSQLExecCount("tikv-1", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{151, 152, 153, 154, 155})
@@ -358,11 +358,11 @@ func (s *testTopSQLSuite) TestSQLExecCount() {
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{251, 252, 253, 254, 255})
 	s.testSQLExecCount("tikv-1", testBaseTs+211, testBaseTs+216,
-		[]uint64{testBaseTs + 212, testBaseTs + 213, testBaseTs + 214},
-		[]uint64{1, 2, 3})
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 1, 2, 3, 0})
 	s.testSQLExecCount("tikv-2", testBaseTs+211, testBaseTs+216,
-		[]uint64{testBaseTs + 212, testBaseTs + 213, testBaseTs + 214},
-		[]uint64{1, 2, 3})
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 1, 2, 3, 0})
 }
 
 func (s *testTopSQLSuite) TestSQLDurationSum() {
@@ -370,8 +370,8 @@ func (s *testTopSQLSuite) TestSQLDurationSum() {
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{141, 142, 143, 144, 145})
 	s.testSQLDurationSum(s.tidbAddr, testBaseTs+211, testBaseTs+216,
-		[]uint64{testBaseTs + 212, testBaseTs + 213, testBaseTs + 214},
-		[]uint64{1, 2, 3})
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 1, 2, 3, 0})
 }
 
 func (s *testTopSQLSuite) testCpuTime(instance string, start, end uint64, ts []uint64, values []uint64) {

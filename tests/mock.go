@@ -69,8 +69,8 @@ func (s *MockTiDBServer) Subscribe(req *tipb.TopSQLSubRequest, stream tipb.TopSQ
 			if records != nil {
 				for _, record := range records {
 					if err := stream.Send(&tipb.TopSQLSubResponse{
-						RespOneof: &tipb.TopSQLSubResponse_DataRecord{
-							DataRecord: &record,
+						RespOneof: &tipb.TopSQLSubResponse_Record{
+							Record: &record,
 						},
 					}); err != nil {
 						panic(err)

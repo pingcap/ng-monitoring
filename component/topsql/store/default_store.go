@@ -157,44 +157,16 @@ func topSQLProtoToMetrics(
 	for _, item := range record.Items {
 		tsMillis := item.TimestampSec * 1000
 
-		if item.CpuTimeMs > 0 {
-			// We do not write a zero value, this is to avoid the following situation:
-			//
-			// Write the following data first:
-			//     Timestamp: [1, 2, 3]
-			//       CPUTime: [9, 9, 9]
-			//     ExecCount: [9, 9, 0]
-			//
-			// Then write the following data:
-			//     Timestamp: [3, 4, 5]
-			//       CPUTime: [0, 9, 9]
-			//     ExecCount: [9, 9, 9]
-			//
-			// Finally we get:
-			//     Timestamp: [1, 2, 3, 4, 5]
-			//       CPUTime: [9, 9, 0, 9, 9]
-			//     ExecCount: [9, 9, 9, 9, 9]
-			//
-			// This may happen because the collect of StmtStats and CPUTime in TiDB
-			// are performed separately, it will fill in 0 when they complement each other.
-			mCpu.Timestamps = append(mCpu.Timestamps, tsMillis)
-			mCpu.Values = append(mCpu.Values, uint64(item.CpuTimeMs))
-		}
+		mCpu.Timestamps = append(mCpu.Timestamps, tsMillis)
+		mCpu.Values = append(mCpu.Values, uint64(item.CpuTimeMs))
 
-		if item.StmtExecCount > 0 {
-			mExecCount.Timestamps = append(mExecCount.Timestamps, tsMillis)
-			mExecCount.Values = append(mExecCount.Values, item.StmtExecCount)
-		}
+		mExecCount.Timestamps = append(mExecCount.Timestamps, tsMillis)
+		mExecCount.Values = append(mExecCount.Values, item.StmtExecCount)
 
-		if item.StmtDurationSumNs > 0 {
-			mDurationSum.Timestamps = append(mDurationSum.Timestamps, tsMillis)
-			mDurationSum.Values = append(mDurationSum.Values, item.StmtDurationSumNs)
-		}
+		mDurationSum.Timestamps = append(mDurationSum.Timestamps, tsMillis)
+		mDurationSum.Values = append(mDurationSum.Values, item.StmtDurationSumNs)
 
 		for target, execCount := range item.StmtKvExecCount {
-			if execCount == 0 {
-				continue
-			}
 			metric, ok := mKvExecCount[target]
 			if !ok {
 				mKvExecCount[target] = &Metric{
