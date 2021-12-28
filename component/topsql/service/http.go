@@ -81,6 +81,15 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 		return
 	}
 
+	instanceType := c.Query("instance_type")
+	if len(instanceType) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "no instance_type",
+		})
+		return
+	}
+
 	start, end, err := parseStartEnd(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -124,7 +133,7 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 	items := topSQLItemsP.Get()
 	defer topSQLItemsP.Put(items)
 
-	err = s.query.TopSQL(name, start, end, int(windowSecs), int(top), instance, items)
+	err = s.query.TopSQL(name, start, end, int(windowSecs), int(top), instance, instanceType, items)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
