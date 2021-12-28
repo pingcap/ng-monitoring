@@ -295,9 +295,9 @@ func queryAndDownload(c *gin.Context) error {
 	var param *meta.BasicQueryParam
 	var err error
 	if v := c.Request.FormValue(beginTimeParamStr); len(v) > 0 {
-		param, err = buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr, dataFormatParamStr})
+		param, err = buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr})
 	} else {
-		param, err = buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr, dataFormatParamStr})
+		param, err = buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr})
 	}
 	if err != nil {
 		return err
@@ -315,17 +315,16 @@ func queryAndDownload(c *gin.Context) error {
 	fn := func(pt meta.ProfileTarget, ts int64, data []byte) error {
 		fileName := fmt.Sprintf("%v_%v_%v_%v", pt.Kind, pt.Component, pt.Address, ts)
 		fileName = strings.ReplaceAll(fileName, ":", "_")
-		if param.DataFormat == meta.ProfileDataFormatSVG {
-			svg, err := ConvertToSVG(data)
-			if err == nil {
-				data = svg
-				fileName += ".svg"
-			}
-		}
 		if pt.Kind == meta.ProfileKindGoroutine {
 			fileName += ".txt"
+		} else {
+			fileName += ".proto"
 		}
-		fw, err := zw.Create(fileName)
+		fw, err := zw.CreateHeader(&zip.FileHeader{
+			Name:     fileName,
+			Method:   zip.Deflate,
+			Modified: time.Now(),
+		})
 		if err != nil {
 			return err
 		}
@@ -337,12 +336,30 @@ func queryAndDownload(c *gin.Context) error {
 	if err != nil {
 		return err
 	}
+	fw, err := zw.CreateHeader(&zip.FileHeader{
+		Name:     "README.md",
+		Method:   zip.Deflate,
+		Modified: time.Now(),
+	})
+	if err != nil {
+		return err
+	}
+	_, err = fw.Write([]byte(downloadReadme))
+	if err != nil {
+		return err
+	}
 	err = zw.Close()
 	if err != nil {
 		log.Error("handle download request failed", zap.Error(err))
 	}
 	return nil
 }
+
+const downloadReadme = `
+To review the CPU profiling or heap profiling result interactively:
+
+$ go tool pprof --http=0.0.0.0:6060 profile_xxx.proto
+`
 
 var (
 	beginTimeParamStr   = "begin_time"

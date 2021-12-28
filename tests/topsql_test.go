@@ -283,172 +283,173 @@ func (s *testTopSQLSuite) TestInstances() {
 }
 
 func (s *testTopSQLSuite) TestCpuTime() {
-	s.testCpuTime(s.tikvAddr, testBaseTs+111, testBaseTs+116,
+	s.testCpuTime(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{121, 122, 123, 124, 125})
-	s.testCpuTime(s.tikvAddr, testBaseTs+211, testBaseTs+216,
+	s.testCpuTime(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{221, 222, 223, 224, 225})
-	s.testCpuTime(s.tikvAddr, testBaseTs+311, testBaseTs+316,
+	s.testCpuTime(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
 		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
 		[]uint64{321, 322, 323, 324, 325})
-	s.testCpuTime(s.tidbAddr, testBaseTs+211, testBaseTs+216,
+	s.testCpuTime(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215}, // 3 items, not 5
 		[]uint64{0, 1, 2, 3, 0})
 }
 
 func (s *testTopSQLSuite) TestReadRow() {
-	s.testReadRow(s.tikvAddr, testBaseTs+111, testBaseTs+116,
+	s.testReadRow(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{131, 132, 133, 134, 135}) // ResourceGroupTagLabelRow
-	s.testReadRow(s.tikvAddr, testBaseTs+211, testBaseTs+216,
+	s.testReadRow(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelIndex
-	s.testReadRow(s.tikvAddr, testBaseTs+311, testBaseTs+316,
+	s.testReadRow(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
 		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestReadIndex() {
-	s.testReadIndex(s.tikvAddr, testBaseTs+111, testBaseTs+116,
+	s.testReadIndex(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelRow
-	s.testReadIndex(s.tikvAddr, testBaseTs+211, testBaseTs+216,
+	s.testReadIndex(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{231, 232, 233, 234, 235}) // ResourceGroupTagLabelIndex
-	s.testReadIndex(s.tikvAddr, testBaseTs+311, testBaseTs+316,
+	s.testReadIndex(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
 		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestWriteRow() {
-	s.testWriteRow(s.tikvAddr, testBaseTs+111, testBaseTs+116,
+	s.testWriteRow(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{141, 142, 143, 144, 145}) // ResourceGroupTagLabelRow
-	s.testWriteRow(s.tikvAddr, testBaseTs+211, testBaseTs+216,
+	s.testWriteRow(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelIndex
-	s.testWriteRow(s.tikvAddr, testBaseTs+311, testBaseTs+316,
+	s.testWriteRow(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
 		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestWriteIndex() {
-	s.testWriteIndex(s.tikvAddr, testBaseTs+111, testBaseTs+116,
+	s.testWriteIndex(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelRow
-	s.testWriteIndex(s.tikvAddr, testBaseTs+211, testBaseTs+216,
+	s.testWriteIndex(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{241, 242, 243, 244, 245}) // ResourceGroupTagLabelIndex
-	s.testWriteIndex(s.tikvAddr, testBaseTs+311, testBaseTs+316,
+	s.testWriteIndex(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
 		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
 		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestSQLExecCount() {
-	s.testSQLExecCount(s.tidbAddr, testBaseTs+111, testBaseTs+116,
+	s.testSQLExecCount(s.tidbAddr, "tidb", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{131, 132, 133, 134, 135})
-	s.testSQLExecCount(s.tidbAddr, testBaseTs+211, testBaseTs+216,
+	s.testSQLExecCount(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{0, 1, 2, 3, 0})
-	s.testSQLExecCount("tikv-1", testBaseTs+111, testBaseTs+116,
+	s.testSQLExecCount("tikv-1", "tikv", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{151, 152, 153, 154, 155})
-	s.testSQLExecCount("tikv-2", testBaseTs+111, testBaseTs+116,
+	s.testSQLExecCount("tikv-2", "tikv", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{251, 252, 253, 254, 255})
-	s.testSQLExecCount("tikv-1", testBaseTs+211, testBaseTs+216,
+	s.testSQLExecCount("tikv-1", "tikv", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{0, 1, 2, 3, 0})
-	s.testSQLExecCount("tikv-2", testBaseTs+211, testBaseTs+216,
+	s.testSQLExecCount("tikv-2", "tikv", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{0, 1, 2, 3, 0})
 }
 
 func (s *testTopSQLSuite) TestSQLDurationSum() {
-	s.testSQLDurationSum(s.tidbAddr, testBaseTs+111, testBaseTs+116,
+	s.testSQLDurationSum(s.tidbAddr, "tidb", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{141, 142, 143, 144, 145})
-	s.testSQLDurationSum(s.tidbAddr, testBaseTs+211, testBaseTs+216,
+	s.testSQLDurationSum(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
 		[]uint64{10, 20, 30, 40, 50})
 }
 
 func (s *testTopSQLSuite) TestSQLDuration() {
-	s.testSQLDuration(s.tidbAddr, testBaseTs+111, testBaseTs+116, 1)
-	s.testSQLDuration(s.tidbAddr, testBaseTs+211, testBaseTs+216, 25)
+	s.testSQLDuration(s.tidbAddr, "tidb", testBaseTs+111, testBaseTs+116, 1)
+	s.testSQLDuration(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216, 25)
 }
 
-func (s *testTopSQLSuite) testCpuTime(instance string, start, end uint64, ts []uint64, values []uint64) {
-	r := s.doQuery(store.MetricNameCPUTime, instance, start, end)
+func (s *testTopSQLSuite) testCpuTime(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameCPUTime, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].CPUTimeMillis, values)
 }
 
-func (s *testTopSQLSuite) testReadRow(instance string, start, end uint64, ts []uint64, values []uint64) {
-	r := s.doQuery(store.MetricNameReadRow, instance, start, end)
+func (s *testTopSQLSuite) testReadRow(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameReadRow, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].ReadRows, values)
 }
 
-func (s *testTopSQLSuite) testReadIndex(instance string, start, end uint64, ts []uint64, values []uint64) {
-	r := s.doQuery(store.MetricNameReadIndex, instance, start, end)
+func (s *testTopSQLSuite) testReadIndex(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameReadIndex, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].ReadIndexes, values)
 }
 
-func (s *testTopSQLSuite) testWriteRow(instance string, start, end uint64, ts []uint64, values []uint64) {
-	r := s.doQuery(store.MetricNameWriteRow, instance, start, end)
+func (s *testTopSQLSuite) testWriteRow(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameWriteRow, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].WriteRows, values)
 }
 
-func (s *testTopSQLSuite) testWriteIndex(instance string, start, end uint64, ts []uint64, values []uint64) {
-	r := s.doQuery(store.MetricNameWriteIndex, instance, start, end)
+func (s *testTopSQLSuite) testWriteIndex(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameWriteIndex, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].WriteIndexes, values)
 }
 
-func (s *testTopSQLSuite) testSQLExecCount(instance string, start, end uint64, ts []uint64, values []uint64) {
-	r := s.doQuery(store.MetricNameSQLExecCount, instance, start, end)
+func (s *testTopSQLSuite) testSQLExecCount(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameSQLExecCount, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].SQLExecCount, values)
 }
 
-func (s *testTopSQLSuite) testSQLDurationSum(instance string, start, end uint64, ts []uint64, values []uint64) {
-	r := s.doQuery(store.MetricNameSQLDurationSum, instance, start, end)
+func (s *testTopSQLSuite) testSQLDurationSum(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameSQLDurationSum, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].SQLDurationSum, values)
 }
 
-func (s *testTopSQLSuite) testSQLDuration(instance string, start, end uint64, value uint64) {
-	r := s.doQuery(store.VirtualMetricNameSQLDuration, instance, start, end)
+func (s *testTopSQLSuite) testSQLDuration(instance, instanceType string, start, end uint64, value uint64) {
+	r := s.doQuery(store.VirtualMetricNameSQLDuration, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].SQLDuration, value)
 }
 
-func (s *testTopSQLSuite) doQuery(name, instance string, start, end uint64) []query.TopSQLItem {
+func (s *testTopSQLSuite) doQuery(name, instance, instanceType string, start, end uint64) []query.TopSQLItem {
 	w := NewMockResponseWriter()
 	req, err := http.NewRequest(http.MethodGet, "/v1/"+name, nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", instance)
+	urlQuery.Set("instance_type", instanceType)
 	urlQuery.Set("start", fmt.Sprintf("%d", start))
 	urlQuery.Set("end", fmt.Sprintf("%d", end))
 	urlQuery.Set("window", "1s")
