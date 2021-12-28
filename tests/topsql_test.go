@@ -195,32 +195,32 @@ func (s *testTopSQLSuite) SetupSuite() {
 		Items: []*tipb.TopSQLRecordItem{{
 			TimestampSec:      testBaseTs + 211,
 			CpuTimeMs:         0,
-			StmtExecCount:     9,
-			StmtDurationSumNs: 0,
+			StmtExecCount:     0,
+			StmtDurationSumNs: 10,
 			StmtKvExecCount:   map[string]uint64{"tikv-1": 0, "tikv-2": 0},
 		}, {
 			TimestampSec:      testBaseTs + 212,
 			CpuTimeMs:         1,
 			StmtExecCount:     1,
-			StmtDurationSumNs: 1,
+			StmtDurationSumNs: 20,
 			StmtKvExecCount:   map[string]uint64{"tikv-1": 1, "tikv-2": 1},
 		}, {
 			TimestampSec:      testBaseTs + 213,
 			CpuTimeMs:         2,
 			StmtExecCount:     2,
-			StmtDurationSumNs: 2,
+			StmtDurationSumNs: 30,
 			StmtKvExecCount:   map[string]uint64{"tikv-1": 2, "tikv-2": 2},
 		}, {
 			TimestampSec:      testBaseTs + 214,
 			CpuTimeMs:         3,
 			StmtExecCount:     3,
-			StmtDurationSumNs: 3,
+			StmtDurationSumNs: 40,
 			StmtKvExecCount:   map[string]uint64{"tikv-1": 3, "tikv-2": 3},
 		}, {
 			TimestampSec:      testBaseTs + 215,
 			CpuTimeMs:         0,
 			StmtExecCount:     0,
-			StmtDurationSumNs: 9,
+			StmtDurationSumNs: 50,
 			StmtKvExecCount:   map[string]uint64{"tikv-1": 0, "tikv-2": 0},
 		}},
 	}})
@@ -351,7 +351,7 @@ func (s *testTopSQLSuite) TestSQLExecCount() {
 		[]uint64{131, 132, 133, 134, 135})
 	s.testSQLExecCount(s.tidbAddr, testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
-		[]uint64{9, 1, 2, 3, 0})
+		[]uint64{0, 1, 2, 3, 0})
 	s.testSQLExecCount("tikv-1", testBaseTs+111, testBaseTs+116,
 		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
 		[]uint64{151, 152, 153, 154, 155})
@@ -372,16 +372,12 @@ func (s *testTopSQLSuite) TestSQLDurationSum() {
 		[]uint64{141, 142, 143, 144, 145})
 	s.testSQLDurationSum(s.tidbAddr, testBaseTs+211, testBaseTs+216,
 		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
-		[]uint64{0, 1, 2, 3, 9})
+		[]uint64{10, 20, 30, 40, 50})
 }
 
 func (s *testTopSQLSuite) TestSQLDuration() {
-	s.testSQLDuration(s.tidbAddr, testBaseTs+111, testBaseTs+116,
-		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
-		[]uint64{1, 1, 1, 1, 1})
-	s.testSQLDuration(s.tidbAddr, testBaseTs+211, testBaseTs+216,
-		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214},
-		[]uint64{0, 1, 1, 1})
+	s.testSQLDuration(s.tidbAddr, testBaseTs+111, testBaseTs+116, 1)
+	s.testSQLDuration(s.tidbAddr, testBaseTs+211, testBaseTs+216, 25)
 }
 
 func (s *testTopSQLSuite) testCpuTime(instance string, start, end uint64, ts []uint64, values []uint64) {
@@ -440,12 +436,11 @@ func (s *testTopSQLSuite) testSQLDurationSum(instance string, start, end uint64,
 	s.Equal(r[0].Plans[0].SQLDurationSum, values)
 }
 
-func (s *testTopSQLSuite) testSQLDuration(instance string, start, end uint64, ts []uint64, values []uint64) {
+func (s *testTopSQLSuite) testSQLDuration(instance string, start, end uint64, value uint64) {
 	r := s.doQuery(store.VirtualMetricNameSQLDuration, instance, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
-	s.Equal(r[0].Plans[0].SQLDuration, values)
+	s.Equal(r[0].Plans[0].SQLDuration, value)
 }
 
 func (s *testTopSQLSuite) doQuery(name, instance string, start, end uint64) []query.TopSQLItem {

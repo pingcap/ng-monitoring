@@ -100,14 +100,18 @@ func (dq *DefaultQuery) fetchTimeseriesDB(name string, startSecs int, endSecs in
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
 
-	query := fmt.Sprintf("sum_over_time(%s{instance=\"%s\"}[%d])", name, instance, windowSecs)
+	var query string
 	switch name {
 	case store.VirtualMetricNameSQLDuration:
-		query = fmt.Sprintf("round(sum_over_time(%s{instance=\"%s\"}[%d]) / sum_over_time(%s{instance=\"%s\"}[%d]))",
-			store.MetricNameSQLDurationSum, instance, windowSecs, store.MetricNameSQLExecCount, instance, windowSecs)
+		query = fmt.Sprintf("round(sum_over_time(%s{instance=\"%s\"}) / sum_over_time(%s{instance=\"%s\"}))",
+			store.MetricNameSQLDurationSum, instance, store.MetricNameSQLExecCount, instance)
+	default:
+		query = fmt.Sprintf("sum_over_time(%s{instance=\"%s\"}[%d])", name, instance, windowSecs)
 	}
-	start := strconv.Itoa(startSecs - startSecs%windowSecs)
-	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
+	startInt := startSecs - startSecs%windowSecs
+	endInt := endSecs - endSecs%windowSecs + windowSecs
+	start := strconv.Itoa(startInt)
+	end := strconv.Itoa(endInt)
 
 	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
 	if err != nil {
@@ -115,9 +119,16 @@ func (dq *DefaultQuery) fetchTimeseriesDB(name string, startSecs int, endSecs in
 	}
 	reqQuery := req.URL.Query()
 	reqQuery.Set("query", query)
-	reqQuery.Set("start", start)
-	reqQuery.Set("end", end)
-	reqQuery.Set("step", strconv.Itoa(windowSecs))
+	switch name {
+	case store.VirtualMetricNameSQLDuration:
+		reqQuery.Set("start", end)
+		reqQuery.Set("end", end)
+		reqQuery.Set("step", strconv.Itoa(endInt-startInt+1))
+	default:
+		reqQuery.Set("start", start)
+		reqQuery.Set("end", end)
+		reqQuery.Set("step", strconv.Itoa(windowSecs))
+	}
 	req.URL.RawQuery = reqQuery.Encode()
 	req.Header.Set("Accept", "application/json")
 
@@ -261,7 +272,12 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill *[]Top
 				case store.MetricNameSQLDurationSum:
 					planItem.SQLDurationSum = series.values
 				case store.VirtualMetricNameSQLDuration:
-					planItem.SQLDuration = series.values
+					if len(series.values) == 1 {
+						planItem.SQLDuration = series.values[0]
+					} else {
+						b, _ := json.Marshal(series)
+						log.Warn("unexpected sql duration values", zap.String("series", string(b)))
+					}
 				}
 				item.Plans = append(item.Plans, planItem)
 			}
