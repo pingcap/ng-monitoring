@@ -56,12 +56,11 @@ func (ds *DefaultStore) initDocumentDB() error {
 var _ Store = &DefaultStore{}
 
 func (ds *DefaultStore) Instances(items []InstanceItem) error {
-	for _, item := range items {
-		m := instanceItemToMetric(item)
-		if err := ds.writeTimeseriesDB(m); err != nil {
-			return err
-		}
+	m := instancesItemToMetric(items)
+	if err := ds.writeTimeseriesDB(m...); err != nil {
+		return err
 	}
+
 	return nil
 }
 
@@ -79,10 +78,8 @@ func (ds *DefaultStore) ResourceMeteringRecord(
 		return err
 	}
 	if ms != nil {
-		for _, m := range ms {
-			if err := ds.writeTimeseriesDB(m); err != nil {
-				return err
-			}
+		if err := ds.writeTimeseriesDB(ms...); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -110,17 +107,21 @@ func (ds *DefaultStore) PlanMeta(meta *tipb.PlanMeta) error {
 
 func (ds *DefaultStore) Close() {}
 
-// transform InstanceItem to util.Metric
-func instanceItemToMetric(item InstanceItem) (m Metric) {
-	metric := instanceTags{
-		Name:         MetricNameInstance,
-		Instance:     item.Instance,
-		InstanceType: item.InstanceType,
+// transform InstanceItem to Metric
+func instancesItemToMetric(items []InstanceItem) (res []Metric) {
+	for _, item := range items {
+		var m Metric
+		metric := instanceTags{
+			Name:         MetricNameInstance,
+			Instance:     item.Instance,
+			InstanceType: item.InstanceType,
+		}
+		m.Metric = metric
+		m.Timestamps = append(m.Timestamps, item.TimestampSecs*1000)
+		m.Values = append(m.Values, 1)
+		res = append(res, m)
 	}
-	m.Metric = metric
 
-	m.Timestamps = append(m.Timestamps, item.TimestampSecs*1000)
-	m.Values = append(m.Values, 1)
 	return
 }
 
@@ -247,7 +248,7 @@ func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metri
 	mIndex.Values = append(mIndex.Values, indexes)
 }
 
-func (ds *DefaultStore) writeTimeseriesDB(metric Metric) error {
+func (ds *DefaultStore) writeTimeseriesDB(metric ...Metric) error {
 	bufReq := bytesP.Get()
 	bufResp := bytesP.Get()
 	header := headerP.Get()
@@ -273,7 +274,13 @@ func (ds *DefaultStore) writeTimeseriesDB(metric Metric) error {
 	return nil
 }
 
-func encodeMetric(buf *bytes.Buffer, metric Metric) error {
-	encoder := json.NewEncoder(buf)
-	return encoder.Encode(metric)
+func encodeMetric(buf *bytes.Buffer, metrics []Metric) error {
+	for _, m := range metrics {
+		encoder := json.NewEncoder(buf)
+		if err := encoder.Encode(m); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
