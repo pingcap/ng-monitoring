@@ -101,6 +101,11 @@ func (dq *DefaultQuery) fetchTimeseriesDB(name string, startSecs int, endSecs in
 	defer headerP.Put(header)
 
 	query := fmt.Sprintf("sum_over_time(%s{instance=\"%s\"}[%d])", name, instance, windowSecs)
+	switch name {
+	case store.VirtualMetricNameSQLDuration:
+		query = fmt.Sprintf("round(sum_over_time(%s{instance=\"%s\"}[%d]) / sum_over_time(%s{instance=\"%s\"}[%d]))",
+			store.MetricNameSQLDurationSum, instance, windowSecs, store.MetricNameSQLExecCount, instance, windowSecs)
+	}
 	start := strconv.Itoa(startSecs - startSecs%windowSecs)
 	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
 
@@ -255,6 +260,8 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill *[]Top
 					planItem.SQLExecCount = series.values
 				case store.MetricNameSQLDurationSum:
 					planItem.SQLDurationSum = series.values
+				case store.VirtualMetricNameSQLDuration:
+					planItem.SQLDuration = series.values
 				}
 				item.Plans = append(item.Plans, planItem)
 			}
