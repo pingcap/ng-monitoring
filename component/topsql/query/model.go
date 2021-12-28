@@ -17,7 +17,6 @@ type PlanItem struct {
 	WriteIndexes   []uint64 `json:"write_indexes,omitempty"`
 	SQLExecCount   []uint64 `json:"sql_exec_count,omitempty"`
 	SQLDurationSum []uint64 `json:"sql_duration_sum,omitempty"`
-	SQLDuration    uint64   `json:"sql_duration,omitempty"`
 }
 
 type InstanceItem struct {

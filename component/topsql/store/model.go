@@ -10,14 +10,6 @@ const (
 	MetricNameSQLDurationSum = "sql_duration_sum"
 )
 
-const (
-	// VirtualMetricNameSQLDuration is obtained by dividing DurationSum by SQLExecCount.
-	//
-	// VirtualMetricXxx means that these metrics do not have corresponding data in tsdb,
-	// but are calculated by MetricXxx.
-	VirtualMetricNameSQLDuration = "sql_duration"
-)
-
 type Metric struct {
 	Metric     topSQLTags `json:"metric"`
 	Timestamps []uint64   `json:"timestamps"` // in millisecond

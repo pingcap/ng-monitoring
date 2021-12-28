@@ -375,11 +375,6 @@ func (s *testTopSQLSuite) TestSQLDurationSum() {
 		[]uint64{10, 20, 30, 40, 50})
 }
 
-func (s *testTopSQLSuite) TestSQLDuration() {
-	s.testSQLDuration(s.tidbAddr, "tidb", testBaseTs+111, testBaseTs+116, 1)
-	s.testSQLDuration(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216, 25)
-}
-
 func (s *testTopSQLSuite) testCpuTime(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
 	r := s.doQuery(store.MetricNameCPUTime, instance, instanceType, start, end)
 	s.Len(r, 1)
@@ -434,13 +429,6 @@ func (s *testTopSQLSuite) testSQLDurationSum(instance, instanceType string, star
 	s.Len(r[0].Plans, 1)
 	s.Equal(r[0].Plans[0].TimestampSecs, ts)
 	s.Equal(r[0].Plans[0].SQLDurationSum, values)
-}
-
-func (s *testTopSQLSuite) testSQLDuration(instance, instanceType string, start, end uint64, value uint64) {
-	r := s.doQuery(store.VirtualMetricNameSQLDuration, instance, instanceType, start, end)
-	s.Len(r, 1)
-	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].SQLDuration, value)
 }
 
 func (s *testTopSQLSuite) doQuery(name, instance, instanceType string, start, end uint64) []query.TopSQLItem {
