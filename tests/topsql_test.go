@@ -219,6 +219,7 @@ func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
+	urlQuery.Set("instance_type", "tikv")
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -252,6 +253,7 @@ func (s *testTopSQLSuite) testReadRow(baseTs int, baseValue int) {
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
+	urlQuery.Set("instance_type", "tikv")
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -289,6 +291,7 @@ func (s *testTopSQLSuite) testReadIndex(baseTs int, baseValue int) {
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
+	urlQuery.Set("instance_type", "tikv")
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -327,6 +330,7 @@ func (s *testTopSQLSuite) testWriteRow(baseTs int, baseValue int) {
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
+	urlQuery.Set("instance_type", "tikv")
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
@@ -364,6 +368,7 @@ func (s *testTopSQLSuite) testWriteIndex(baseTs int, baseValue int) {
 	s.NoError(err)
 	urlQuery := url.Values{}
 	urlQuery.Set("instance", s.tikvAddr)
+	urlQuery.Set("instance_type", "tikv")
 	urlQuery.Set("start", strconv.Itoa(baseTs))
 	urlQuery.Set("end", strconv.Itoa(baseTs+5))
 	urlQuery.Set("window", "1s")
