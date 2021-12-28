@@ -139,11 +139,7 @@ func (dq *DefaultQuery) fetchTimeseriesDB(name string, startSecs int, endSecs in
 		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
 	}
 
-	b := respR.Body.Bytes()
-	if name == store.VirtualMetricNameSQLDuration {
-		fmt.Println(">>>>>", string(b))
-	}
-	return json.Unmarshal(b, metricResponse)
+	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
 }
 
 func topK(results []metricRespDataResult, top int, sqlGroups *[]sqlGroup) {
