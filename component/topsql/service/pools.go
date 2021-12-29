@@ -59,21 +59,38 @@ func (rsp *ResourceCPUTimeSlicePool) Put(rs *[]*resource_usage_agent.CPUTimeReco
 	rsp.p.Put(rs)
 }
 
-type TopSQLItemsPool struct {
+type recordsPool struct {
 	p sync.Pool
 }
 
-func (tip *TopSQLItemsPool) Get() *[]query.TopSQLItem {
+func (tip *recordsPool) Get() *[]query.RecordItem {
 	tiv := tip.p.Get()
 	if tiv == nil {
-		return &[]query.TopSQLItem{}
+		return &[]query.RecordItem{}
 	}
-	return tiv.(*[]query.TopSQLItem)
+	return tiv.(*[]query.RecordItem)
 }
 
-func (tip *TopSQLItemsPool) Put(ti *[]query.TopSQLItem) {
+func (tip *recordsPool) Put(ti *[]query.RecordItem) {
 	*ti = (*ti)[:0]
 	tip.p.Put(ti)
+}
+
+type summaryPool struct {
+	p sync.Pool
+}
+
+func (sp *summaryPool) Get() *[]query.SummaryItem {
+	sv := sp.p.Get()
+	if sv == nil {
+		return &[]query.SummaryItem{}
+	}
+	return sv.(*[]query.SummaryItem)
+}
+
+func (sp *summaryPool) Put(s *[]query.SummaryItem) {
+	*s = (*s)[:0]
+	sp.p.Put(s)
 }
 
 type InstanceItemsPool struct {

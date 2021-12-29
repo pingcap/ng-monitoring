@@ -47,7 +47,7 @@ type instancesHttpResponse struct {
 
 type metricsHttpResponse struct {
 	baseHttpResponse
-	Data []query.TopSQLItem `json:"data"`
+	Data []query.RecordItem `json:"data"`
 }
 
 type testTopSQLSuite struct {
@@ -348,15 +348,15 @@ func (s *testTopSQLSuite) testCpuTime(instance, instanceType string, start, end 
 	r := s.doQuery(store.MetricNameCPUTime, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
-	s.Equal(r[0].Plans[0].CPUTimeMillis, values)
+	s.Equal(r[0].Plans[0].TimestampSec, ts)
+	s.Equal(r[0].Plans[0].CPUTimeMs, values)
 }
 
 func (s *testTopSQLSuite) testReadRow(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
 	r := s.doQuery(store.MetricNameReadRow, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].TimestampSec, ts)
 	s.Equal(r[0].Plans[0].ReadRows, values)
 }
 
@@ -364,7 +364,7 @@ func (s *testTopSQLSuite) testReadIndex(instance, instanceType string, start, en
 	r := s.doQuery(store.MetricNameReadIndex, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].TimestampSec, ts)
 	s.Equal(r[0].Plans[0].ReadIndexes, values)
 }
 
@@ -372,7 +372,7 @@ func (s *testTopSQLSuite) testWriteRow(instance, instanceType string, start, end
 	r := s.doQuery(store.MetricNameWriteRow, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].TimestampSec, ts)
 	s.Equal(r[0].Plans[0].WriteRows, values)
 }
 
@@ -380,7 +380,7 @@ func (s *testTopSQLSuite) testWriteIndex(instance, instanceType string, start, e
 	r := s.doQuery(store.MetricNameWriteIndex, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].TimestampSec, ts)
 	s.Equal(r[0].Plans[0].WriteIndexes, values)
 }
 
@@ -388,7 +388,7 @@ func (s *testTopSQLSuite) testSQLExecCount(instance, instanceType string, start,
 	r := s.doQuery(store.MetricNameSQLExecCount, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].TimestampSec, ts)
 	s.Equal(r[0].Plans[0].SQLExecCount, values)
 }
 
@@ -396,11 +396,11 @@ func (s *testTopSQLSuite) testSQLDurationSum(instance, instanceType string, star
 	r := s.doQuery(store.MetricNameSQLDurationSum, instance, instanceType, start, end)
 	s.Len(r, 1)
 	s.Len(r[0].Plans, 1)
-	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].TimestampSec, ts)
 	s.Equal(r[0].Plans[0].SQLDurationSum, values)
 }
 
-func (s *testTopSQLSuite) doQuery(name, instance, instanceType string, start, end uint64) []query.TopSQLItem {
+func (s *testTopSQLSuite) doQuery(name, instance, instanceType string, start, end uint64) []query.RecordItem {
 	w := NewMockResponseWriter()
 	req, err := http.NewRequest(http.MethodGet, "/v1/"+name, nil)
 	s.NoError(err)

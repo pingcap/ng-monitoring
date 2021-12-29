@@ -12,9 +12,9 @@ const (
 )
 
 type Metric struct {
-	Metric     interface{} `json:"metric"`
-	Timestamps []uint64    `json:"timestamps"` // in millisecond
-	Values     []uint64    `json:"values"`
+	Metric      interface{} `json:"metric"`
+	TimestampMs []uint64    `json:"timestamps"`
+	Values      []uint64    `json:"values"`
 }
 
 type InstanceItem struct {

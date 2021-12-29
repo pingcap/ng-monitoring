@@ -4,23 +4,23 @@ import (
 	"sync"
 )
 
-type metricRespPool struct {
+type recordsRespPool struct {
 	p sync.Pool
 }
 
-func (mrp *metricRespPool) Get() *recordsMetricResp {
-	mrv := mrp.p.Get()
-	if mrv == nil {
+func (rrp *recordsRespPool) Get() *recordsMetricResp {
+	rrv := rrp.p.Get()
+	if rrv == nil {
 		return &recordsMetricResp{}
 	}
-	return mrv.(*recordsMetricResp)
+	return rrv.(*recordsMetricResp)
 }
 
-func (mrp *metricRespPool) Put(mrv *recordsMetricResp) {
-	mrv.Status = ""
-	mrv.Data.ResultType = ""
-	mrv.Data.Results = mrv.Data.Results[:0]
-	mrp.p.Put(mrv)
+func (rrp *recordsRespPool) Put(rrv *recordsMetricResp) {
+	rrv.Status = ""
+	rrv.Data.ResultType = ""
+	rrv.Data.Results = rrv.Data.Results[:0]
+	rrp.p.Put(rrv)
 }
 
 type sqlGroupSlicePool struct {

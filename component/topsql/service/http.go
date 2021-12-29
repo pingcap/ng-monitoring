@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,7 +12,8 @@ import (
 )
 
 var (
-	topSQLItemsP   = TopSQLItemsPool{}
+	recordsP       = recordsPool{}
+	summaryP       = summaryPool{}
 	instanceItemsP = InstanceItemsPool{}
 
 	metricNames = []string{
@@ -38,6 +40,7 @@ func (s *Service) HTTPService(g *gin.RouterGroup) {
 	for _, name := range metricNames {
 		g.GET("/v1/"+name, s.metricHandler(name))
 	}
+	g.GET("/v1/summary", s.summaryHandler)
 }
 
 func (s *Service) instancesHandler(c *gin.Context) {
@@ -73,26 +76,8 @@ func (s *Service) metricHandler(name string) gin.HandlerFunc {
 	}
 }
 
-func (s *Service) queryMetric(c *gin.Context, name string) {
-	instance := c.Query("instance")
-	if len(instance) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status":  "error",
-			"message": "no instance",
-		})
-		return
-	}
-
-	instanceType := c.Query("instance_type")
-	if len(instanceType) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status":  "error",
-			"message": "no instance_type",
-		})
-		return
-	}
-
-	start, end, err := parseStartEnd(c)
+func (s *Service) summaryHandler(c *gin.Context) {
+	start, end, windowSecs, top, instance, instanceType, err := parseAllParams(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
@@ -101,41 +86,9 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 		return
 	}
 
-	var top int64
-	var windowSecs int64
-	defaultTop := "-1"
-	defaultWindow := "1m"
-	raw := c.DefaultQuery("top", "-1")
-	if len(raw) == 0 {
-		raw = defaultTop
-	}
-	top, err = strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
-		return
-	}
-
-	raw = c.DefaultQuery("window", "1m")
-	if len(raw) == 0 {
-		raw = defaultWindow
-	}
-	duration, err := time.ParseDuration(raw)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
-		return
-	}
-	windowSecs = int64(duration.Seconds())
-
-	items := topSQLItemsP.Get()
-	defer topSQLItemsP.Put(items)
-
-	err = s.query.TopSQL(name, start, end, int(windowSecs), int(top), instance, instanceType, items)
+	items := summaryP.Get()
+	defer summaryP.Put(items)
+	err = s.query.Summary(start, end, windowSecs, top, instance, instanceType, items)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
@@ -148,6 +101,78 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 		"status": "ok",
 		"data":   items,
 	})
+}
+
+func (s *Service) queryMetric(c *gin.Context, name string) {
+	start, end, windowSecs, top, instance, instanceType, err := parseAllParams(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	items := recordsP.Get()
+	defer recordsP.Put(items)
+	err = s.query.Records(name, start, end, windowSecs, top, instance, instanceType, items)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "ok",
+		"data":   items,
+	})
+}
+
+func parseAllParams(c *gin.Context) (start, end, windowSecs, top int, instance, instanceType string, err error) {
+	instance = c.Query("instance")
+	if len(instance) == 0 {
+		err = errors.New("no instance")
+		return
+	}
+
+	instanceType = c.Query("instance_type")
+	if len(instanceType) == 0 {
+		err = errors.New("no instance_type")
+		return
+	}
+
+	start, end, err = parseStartEnd(c)
+	if err != nil {
+		return
+	}
+
+	defaultTop := "-1"
+	defaultWindow := "1m"
+	raw := c.DefaultQuery("top", "-1")
+	if len(raw) == 0 {
+		raw = defaultTop
+	}
+	topInt64, err1 := strconv.ParseInt(raw, 10, 64)
+	if err1 != nil {
+		err = err1
+		return
+	}
+	top = int(topInt64)
+
+	raw = c.DefaultQuery("window", "1m")
+	if len(raw) == 0 {
+		raw = defaultWindow
+	}
+	duration, err1 := time.ParseDuration(raw)
+	if err1 != nil {
+		err = err1
+		return
+	}
+	windowSecs = int(duration.Seconds())
+
+	return
 }
 
 func parseStartEnd(c *gin.Context) (start, end int, err error) {

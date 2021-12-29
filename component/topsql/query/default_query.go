@@ -21,7 +21,7 @@ var (
 	bytesP  = utils.BytesBufferPool{}
 	headerP = utils.HeaderPool{}
 
-	metricRespP    = metricRespPool{}
+	recordsRespP   = recordsRespPool{}
 	sqlGroupSliceP = sqlGroupSlicePool{}
 	sqlDigestMapP  = sqlDigestMapPool{}
 )
@@ -40,18 +40,90 @@ func NewDefaultQuery(vmselectHandler http.HandlerFunc, documentDB *genji.DB) *De
 
 var _ Query = &DefaultQuery{}
 
-func (dq *DefaultQuery) TopSQL(name string, startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]TopSQLItem) error {
-	metricResponse := metricRespP.Get()
-	defer metricRespP.Put(metricResponse)
-	if err := dq.fetchRecordsFromTSDB(name, startSecs, endSecs, windowSecs, instance, instanceType, metricResponse); err != nil {
+func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]RecordItem) error {
+	// adjust start to make result align to end
+	startSecs = endSecs - (endSecs-startSecs)/windowSecs*windowSecs
+
+	recordsResponse := recordsRespP.Get()
+	defer recordsRespP.Put(recordsResponse)
+
+	if err := dq.fetchRecordsFromTSDB(name, startSecs, endSecs, windowSecs, instance, instanceType, recordsResponse); err != nil {
 		return err
 	}
 
 	sqlGroups := sqlGroupSliceP.Get()
 	defer sqlGroupSliceP.Put(sqlGroups)
-	topK(metricResponse.Data.Results, top, sqlGroups)
+	topK(recordsResponse.Data.Results, top, sqlGroups)
 
-	return dq.fillText(name, sqlGroups, fill)
+	return dq.fillText(name, sqlGroups, func(item RecordItem) {
+		*fill = append(*fill, item)
+	})
+}
+
+func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
+	// adjust start to make result align to end
+	startSecs = endSecs - (endSecs-startSecs)/windowSecs*windowSecs
+
+	recordsResponse := recordsRespP.Get()
+	defer recordsRespP.Put(recordsResponse)
+	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, startSecs, endSecs, windowSecs, instance, instanceType, recordsResponse); err != nil {
+		return err
+	}
+
+	sqlGroups := sqlGroupSliceP.Get()
+	defer sqlGroupSliceP.Put(sqlGroups)
+	topK(recordsResponse.Data.Results, top, sqlGroups)
+
+	if err := dq.fillText(store.MetricNameCPUTime, sqlGroups, func(item RecordItem) {
+		sumItem := SummaryItem{
+			SQLDigest: item.SQLDigest,
+			SQLText:   item.SQLText,
+			IsOther:   item.IsOther,
+		}
+
+		for _, p := range item.Plans {
+			sumItem.Plans = append(sumItem.Plans, SummaryPlanItem{
+				PlanDigest:   p.PlanDigest,
+				PlanText:     p.PlanText,
+				TimestampSec: p.TimestampSec,
+				CPUTimeMs:    p.CPUTimeMs,
+			})
+		}
+
+		*fill = append(*fill, sumItem)
+	}); err != nil {
+		return err
+	}
+
+	rangeSecs := float64(endSecs - startSecs)
+	for _, item := range *fill {
+		for i := range item.Plans {
+			planDigest := item.Plans[i].PlanDigest
+			sumDurationNs, err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationSum, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
+			if err != nil {
+				return err
+			}
+			sumExecCount, err := dq.fetchSumFromTSDB(store.MetricNameSQLExecCount, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
+			if err != nil {
+				return err
+			}
+			sumReadRows, err := dq.fetchSumFromTSDB(store.MetricNameReadRow, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
+			if err != nil {
+				return err
+			}
+			sumReadIndexes, err := dq.fetchSumFromTSDB(store.MetricNameReadIndex, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
+			if err != nil {
+				return err
+			}
+
+			item.Plans[i].DurationPerExecMs = sumDurationNs / 1000000.0 / sumExecCount
+			item.Plans[i].ExecCountPerSec = sumExecCount / rangeSecs
+			item.Plans[i].ScanRecordsPerSec = sumReadRows / rangeSecs
+			item.Plans[i].ScanIndexesPerSec = sumReadIndexes / rangeSecs
+		}
+	}
+
+	return nil
 }
 
 func (dq *DefaultQuery) Instances(startSecs, endSecs int, fill *[]InstanceItem) error {
@@ -83,18 +155,14 @@ func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
 
-	query := fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", name, instance, instanceType, windowSecs)
-	start := strconv.Itoa(startSecs - startSecs%windowSecs)
-	end := strconv.Itoa(endSecs - endSecs%windowSecs + windowSecs)
-
 	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
 	if err != nil {
 		return err
 	}
 	reqQuery := req.URL.Query()
-	reqQuery.Set("query", query)
-	reqQuery.Set("start", start)
-	reqQuery.Set("end", end)
+	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", name, instance, instanceType, windowSecs))
+	reqQuery.Set("start", strconv.Itoa(startSecs))
+	reqQuery.Set("end", strconv.Itoa(endSecs))
 	reqQuery.Set("step", strconv.Itoa(windowSecs))
 	req.URL.RawQuery = reqQuery.Encode()
 	req.Header.Set("Accept", "application/json")
@@ -147,6 +215,57 @@ func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]I
 	}
 
 	return nil
+}
+
+func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, instance, instanceType, sqlDigest, planDigest string) (float64, error) {
+	if dq.vmselectHandler == nil {
+		return 0, fmt.Errorf("empty query handler")
+	}
+
+	bufResp := bytesP.Get()
+	header := headerP.Get()
+
+	defer bytesP.Put(bufResp)
+	defer headerP.Put(header)
+
+	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
+	if err != nil {
+		return 0, err
+	}
+	reqQuery := req.URL.Query()
+	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\", sql_digest=\"%s\", plan_digest=\"%s\"})", name, instance, instanceType, sqlDigest, planDigest))
+	reqQuery.Set("start", strconv.Itoa(endSecs))
+	reqQuery.Set("end", strconv.Itoa(endSecs))
+	reqQuery.Set("step", strconv.Itoa(endSecs-startSecs+1))
+	req.URL.RawQuery = reqQuery.Encode()
+	req.Header.Set("Accept", "application/json")
+
+	respR := utils.NewRespWriter(bufResp, header)
+	dq.vmselectHandler(&respR, req)
+
+	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
+		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
+	}
+
+	recordsResponse := recordsRespP.Get()
+	defer recordsRespP.Put(recordsResponse)
+	if err = json.Unmarshal(respR.Body.Bytes(), recordsResponse); err != nil {
+		return 0, err
+	}
+
+	if len(recordsResponse.Data.Results) > 0 {
+		res := recordsResponse.Data.Results[0]
+		if len(res.Values) > 0 {
+			pair := res.Values[0]
+			if len(pair) >= 2 {
+				if v, ok := pair[1].(string); ok {
+					return strconv.ParseFloat(v, 64)
+				}
+			}
+		}
+	}
+
+	return 0, nil
 }
 
 func topK(results []recordsMetricRespDataResult, top int, sqlGroups *[]sqlGroup) {
@@ -283,7 +402,7 @@ func mergeOthers(originalOthers sqlGroup, queryOthers []sqlGroup) (res sqlGroup)
 	return
 }
 
-func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill *[]TopSQLItem) error {
+func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill func(RecordItem)) error {
 	return dq.documentDB.View(func(tx *genji.Tx) error {
 		for _, group := range *sqlGroups {
 			sqlDigest := group.sqlDigest
@@ -299,9 +418,10 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill *[]Top
 				}
 			}
 
-			item := TopSQLItem{
+			item := RecordItem{
 				SQLDigest: sqlDigest,
 				SQLText:   sqlText,
+				IsOther:   len(sqlDigest) == 0,
 			}
 
 			for _, series := range group.planSeries {
@@ -318,14 +438,14 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill *[]Top
 					}
 				}
 
-				planItem := PlanItem{
-					PlanDigest:    planDigest,
-					PlanText:      planText,
-					TimestampSecs: series.timestampSecs,
+				planItem := RecordPlanItem{
+					PlanDigest:   planDigest,
+					PlanText:     planText,
+					TimestampSec: series.timestampSecs,
 				}
 				switch name {
 				case store.MetricNameCPUTime:
-					planItem.CPUTimeMillis = series.values
+					planItem.CPUTimeMs = series.values
 				case store.MetricNameReadRow:
 					planItem.ReadRows = series.values
 				case store.MetricNameReadIndex:
@@ -342,7 +462,7 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill *[]Top
 				item.Plans = append(item.Plans, planItem)
 			}
 
-			*fill = append(*fill, item)
+			fill(item)
 		}
 
 		return nil

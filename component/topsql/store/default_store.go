@@ -109,7 +109,7 @@ func instancesItemToMetric(items []InstanceItem) (res []Metric) {
 			InstanceType: item.InstanceType,
 		}
 		m.Metric = metric
-		m.Timestamps = append(m.Timestamps, item.TimestampSec*1000)
+		m.TimestampMs = append(m.TimestampMs, item.TimestampSec*1000)
 		m.Values = append(m.Values, 1)
 		res = append(res, m)
 	}
@@ -157,13 +157,13 @@ func topSQLProtoToMetrics(
 	for _, item := range record.Items {
 		tsMillis := item.TimestampSec * 1000
 
-		mCpu.Timestamps = append(mCpu.Timestamps, tsMillis)
+		mCpu.TimestampMs = append(mCpu.TimestampMs, tsMillis)
 		mCpu.Values = append(mCpu.Values, uint64(item.CpuTimeMs))
 
-		mExecCount.Timestamps = append(mExecCount.Timestamps, tsMillis)
+		mExecCount.TimestampMs = append(mExecCount.TimestampMs, tsMillis)
 		mExecCount.Values = append(mExecCount.Values, item.StmtExecCount)
 
-		mDurationSum.Timestamps = append(mDurationSum.Timestamps, tsMillis)
+		mDurationSum.TimestampMs = append(mDurationSum.TimestampMs, tsMillis)
 		mDurationSum.Values = append(mDurationSum.Values, item.StmtDurationSumNs)
 
 		for target, execCount := range item.StmtKvExecCount {
@@ -180,7 +180,7 @@ func topSQLProtoToMetrics(
 				}
 				metric = mKvExecCount[target]
 			}
-			metric.Timestamps = append(metric.Timestamps, tsMillis)
+			metric.TimestampMs = append(metric.TimestampMs, tsMillis)
 			metric.Values = append(metric.Values, execCount)
 		}
 	}
@@ -268,7 +268,7 @@ func appendMetricCPUTime(i int, ts uint64, values []uint32, metric *Metric) {
 	if len(values) > i {
 		value = values[i]
 	}
-	metric.Timestamps = append(metric.Timestamps, ts)
+	metric.TimestampMs = append(metric.TimestampMs, ts)
 	metric.Values = append(metric.Values, uint64(value))
 }
 
@@ -284,9 +284,9 @@ func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metri
 			}
 		}
 	}
-	mRow.Timestamps = append(mRow.Timestamps, ts)
+	mRow.TimestampMs = append(mRow.TimestampMs, ts)
 	mRow.Values = append(mRow.Values, uint64(rows))
-	mIndex.Timestamps = append(mIndex.Timestamps, ts)
+	mIndex.TimestampMs = append(mIndex.TimestampMs, ts)
 	mIndex.Values = append(mIndex.Values, uint64(indexes))
 }
 
