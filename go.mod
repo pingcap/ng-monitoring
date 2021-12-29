@@ -16,7 +16,7 @@ require (
 	github.com/google/pprof v0.0.0-20211008130755-947d60d73cc0
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/pingcap/kvproto v0.0.0-20211026070721-8e3f74722d72
+	github.com/pingcap/kvproto v0.0.0-20211229082925-7a8280c36daf
 	github.com/pingcap/log v0.0.0-20210906054005-afc726e70354
 	github.com/pingcap/tidb-dashboard/util v0.0.0-20211014081729-82f8b809f5ae
 	github.com/pingcap/tipb v0.0.0-20211227115224-a06a85f9d2a5
@@ -41,5 +41,3 @@ require (
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
-
-replace github.com/pingcap/kvproto => github.com/mornyx/kvproto v0.0.0-20211229065943-ee2a5b4961ed
