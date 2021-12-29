@@ -15,6 +15,10 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	instancesP = instancesItemSlicePool{}
+)
+
 type Manager struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -180,23 +184,25 @@ func (m *Manager) storeTopology() error {
 		return nil
 	}
 
+	items := instancesP.Get()
+	defer instancesP.Put(items)
+
 	now := time.Now().Unix()
-	items := make([]store.InstanceItem, 0, len(m.components))
 	for _, com := range m.components {
 		switch com.Name {
 		case topology.ComponentTiDB:
-			items = append(items, store.InstanceItem{
+			*items = append(*items, store.InstanceItem{
 				Instance:     fmt.Sprintf("%s:%d", com.IP, com.StatusPort),
 				InstanceType: topology.ComponentTiDB,
 				TimestampSec: uint64(now),
 			})
 		case topology.ComponentTiKV:
-			items = append(items, store.InstanceItem{
+			*items = append(*items, store.InstanceItem{
 				Instance:     fmt.Sprintf("%s:%d", com.IP, com.Port),
 				InstanceType: topology.ComponentTiKV,
 				TimestampSec: uint64(now),
 			})
 		}
 	}
-	return m.store.Instances(items)
+	return m.store.Instances(*items)
 }
