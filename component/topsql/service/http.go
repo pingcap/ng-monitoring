@@ -20,6 +20,8 @@ var (
 		store.MetricNameReadIndex,
 		store.MetricNameWriteRow,
 		store.MetricNameWriteIndex,
+		store.MetricNameSQLExecCount,
+		store.MetricNameSQLDurationSum,
 	}
 )
 

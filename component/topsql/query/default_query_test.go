@@ -217,7 +217,7 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "",
 			timestampSecs: []uint64{1, 2, 3, 4, 5},
-			values:        []uint32{14, 79, 96, 48, 68},
+			values:        []uint64{14, 79, 96, 48, 68},
 		}},
 		valueSum: 305,
 	}, {
@@ -225,11 +225,11 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 4, 5},
-			values:        []uint32{25, 10, 21, 4, 1},
+			values:        []uint64{25, 10, 21, 4, 1},
 		}, {
 			planDigest:    "plan1",
 			timestampSecs: []uint64{1, 3, 4, 5},
-			values:        []uint32{8, 81, 68, 21},
+			values:        []uint64{8, 81, 68, 21},
 		}},
 		valueSum: 239,
 	}, {
@@ -237,7 +237,7 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 5},
-			values:        []uint32{65, 38, 75, 20},
+			values:        []uint64{65, 38, 75, 20},
 		}},
 		valueSum: 198,
 	}, {
@@ -245,7 +245,7 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 4},
-			values:        []uint32{84, 49, 78, 86},
+			values:        []uint64{84, 49, 78, 86},
 		}},
 		valueSum: 297,
 	}, {
@@ -253,7 +253,7 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 4, 5},
-			values:        []uint32{81, 2, 21, 93, 9},
+			values:        []uint64{81, 2, 21, 93, 9},
 		}},
 		valueSum: 206,
 	}})
@@ -282,18 +282,18 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "",
 			timestampSecs: []uint64{1, 2, 3, 4, 5},
-			values:        []uint32{79, 117, 171, 48, 88},
+			values:        []uint64{79, 117, 171, 48, 88},
 		}},
 	}, {
 		sqlDigest: "sql0",
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 4, 5},
-			values:        []uint32{25, 10, 21, 4, 1},
+			values:        []uint64{25, 10, 21, 4, 1},
 		}, {
 			planDigest:    "plan1",
 			timestampSecs: []uint64{1, 3, 4, 5},
-			values:        []uint32{8, 81, 68, 21},
+			values:        []uint64{8, 81, 68, 21},
 		}},
 		valueSum: 239,
 	}, {
@@ -301,7 +301,7 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 4},
-			values:        []uint32{84, 49, 78, 86},
+			values:        []uint64{84, 49, 78, 86},
 		}},
 		valueSum: 297,
 	}, {
@@ -309,7 +309,7 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 4, 5},
-			values:        []uint32{81, 2, 21, 93, 9},
+			values:        []uint64{81, 2, 21, 93, 9},
 		}},
 		valueSum: 206,
 	}})
@@ -330,14 +330,14 @@ func TestTopK(t *testing.T) {
 		planSeries: []planSeries{{
 			planDigest:    "",
 			timestampSecs: []uint64{1, 2, 3, 4, 5},
-			values:        []uint32{193, 129, 294, 213, 119},
+			values:        []uint64{193, 129, 294, 213, 119},
 		}},
 	}, {
 		sqlDigest: "sql2",
 		planSeries: []planSeries{{
 			planDigest:    "plan0",
 			timestampSecs: []uint64{1, 2, 3, 4},
-			values:        []uint32{84, 49, 78, 86},
+			values:        []uint64{84, 49, 78, 86},
 		}},
 		valueSum: 297,
 	}})
