@@ -24,26 +24,45 @@ type InstanceItem struct {
 	InstanceType string `json:"instance_type"`
 }
 
-type metricResp struct {
-	Status string         `json:"status"`
-	Data   metricRespData `json:"data"`
+type recordsMetricResp struct {
+	Status string                `json:"status"`
+	Data   recordsMetricRespData `json:"data"`
 }
 
-type metricRespData struct {
-	ResultType string                 `json:"resultType"`
-	Results    []metricRespDataResult `json:"result"`
+type recordsMetricRespData struct {
+	ResultType string                        `json:"resultType"`
+	Results    []recordsMetricRespDataResult `json:"result"`
 }
 
-type metricRespDataResult struct {
-	Metric metricRespDataResultMetric  `json:"metric"`
-	Values []metricRespDataResultValue `json:"values"`
+type recordsMetricRespDataResult struct {
+	Metric recordsMetricRespDataResultMetric  `json:"metric"`
+	Values []recordsMetricRespDataResultValue `json:"values"`
 }
 
-type metricRespDataResultMetric struct {
+type recordsMetricRespDataResultMetric struct {
 	Instance     string `json:"instance"`
 	InstanceType string `json:"instance_type"`
 	SQLDigest    string `json:"sql_digest"`
 	PlanDigest   string `json:"plan_digest"`
 }
 
-type metricRespDataResultValue = []interface{}
+type recordsMetricRespDataResultValue = []interface{}
+
+type instancesMetricResp struct {
+	Status string                  `json:"status"`
+	Data   instancesMetricRespData `json:"data"`
+}
+
+type instancesMetricRespData struct {
+	ResultType string                          `json:"resultType"`
+	Results    []instancesMetricRespDataResult `json:"result"`
+}
+
+type instancesMetricRespDataResult struct {
+	Metric instancesMetricRespDataResultMetric `json:"metric"`
+}
+
+type instancesMetricRespDataResultMetric struct {
+	Instance     string `json:"instance"`
+	InstanceType string `json:"instance_type"`
+}

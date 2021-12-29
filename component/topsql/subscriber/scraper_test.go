@@ -189,12 +189,6 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	})
 
 	require.True(t, store.Predict(func(store *mock.MemStore) bool {
-		if _, ok := store.Instances[mock.Component{
-			Name: "tidb",
-			Addr: addr,
-		}]; !ok {
-			return false
-		}
 		if _, ok := store.TopSQLRecords[addr]; !ok {
 			return false
 		}
@@ -245,12 +239,6 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	})
 
 	require.True(t, store.Predict(func(store *mock.MemStore) bool {
-		if _, ok := store.Instances[mock.Component{
-			Name: "tikv",
-			Addr: addr,
-		}]; !ok {
-			return false
-		}
 		if _, ok := store.ResourceMeteringRecords[addr]; !ok {
 			return false
 		}

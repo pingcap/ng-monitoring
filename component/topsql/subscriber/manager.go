@@ -2,7 +2,9 @@ package subscriber
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
@@ -10,6 +12,11 @@ import (
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/utils"
+	"go.uber.org/zap"
+)
+
+var (
+	instancesP = instancesItemSlicePool{}
 )
 
 type Manager struct {
@@ -56,15 +63,22 @@ func NewManager(
 }
 
 func (m *Manager) Run() {
+	storeTopoInterval := time.NewTicker(30 * time.Second)
 	defer func() {
+		storeTopoInterval.Stop()
 		for _, v := range m.scrapers {
 			v.Close()
 		}
 		m.scrapers = nil
 	}()
 
-out:
 	for {
+		if m.enabled {
+			if err := m.storeTopology(); err != nil {
+				log.Warn("failed to store topology", zap.Error(err))
+			}
+		}
+
 		select {
 		case vars := <-m.varSubscriber:
 			if vars.EnableTopSQL && !m.enabled {
@@ -83,15 +97,16 @@ out:
 				log.Warn("got empty scrapers. Seems to be encountering network problems")
 				continue
 			}
-
 			m.components = coms
 			if m.enabled {
 				m.updateScrapers()
 			}
+		case <-storeTopoInterval.C:
+			continue
 		case cfg := <-m.cfgSubscriber:
 			m.config = cfg
 		case <-m.ctx.Done():
-			break out
+			return
 		}
 	}
 }
@@ -162,4 +177,32 @@ func (m *Manager) clearScrapers() {
 		scraper.Close()
 		delete(m.scrapers, component)
 	}
+}
+
+func (m *Manager) storeTopology() error {
+	if len(m.components) == 0 {
+		return nil
+	}
+
+	items := instancesP.Get()
+	defer instancesP.Put(items)
+
+	now := time.Now().Unix()
+	for _, com := range m.components {
+		switch com.Name {
+		case topology.ComponentTiDB:
+			*items = append(*items, store.InstanceItem{
+				Instance:     fmt.Sprintf("%s:%d", com.IP, com.StatusPort),
+				InstanceType: topology.ComponentTiDB,
+				TimestampSec: uint64(now),
+			})
+		case topology.ComponentTiKV:
+			*items = append(*items, store.InstanceItem{
+				Instance:     fmt.Sprintf("%s:%d", com.IP, com.Port),
+				InstanceType: topology.ComponentTiKV,
+				TimestampSec: uint64(now),
+			})
+		}
+	}
+	return m.store.Instances(*items)
 }

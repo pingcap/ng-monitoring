@@ -107,14 +107,14 @@ func TestTopK(t *testing.T) {
 	//
 	// others:  ts  1,  2,  3,  4, 5
 	//          val 14, 79, 96, 48, 68
-	metrics := []metricRespDataResult{{
-		Metric: metricRespDataResultMetric{
+	metrics := []recordsMetricRespDataResult{{
+		Metric: recordsMetricRespDataResultMetric{
 			Instance:     "127.0.0.1:10080",
 			InstanceType: "tidb",
 			SQLDigest:    "sql0",
 			PlanDigest:   "plan0",
 		},
-		Values: []metricRespDataResultValue{
+		Values: []recordsMetricRespDataResultValue{
 			{1.0, "25"},
 			{2.0, "10"},
 			{3.0, "21"},
@@ -122,52 +122,52 @@ func TestTopK(t *testing.T) {
 			{5.0, "1"},
 		},
 	}, {
-		Metric: metricRespDataResultMetric{
+		Metric: recordsMetricRespDataResultMetric{
 			Instance:     "127.0.0.1:10080",
 			InstanceType: "tidb",
 			SQLDigest:    "sql0",
 			PlanDigest:   "plan1",
 		},
-		Values: []metricRespDataResultValue{
+		Values: []recordsMetricRespDataResultValue{
 			{1.0, "8"},
 			{3.0, "81"},
 			{4.0, "68"},
 			{5.0, "21"},
 		},
 	}, {
-		Metric: metricRespDataResultMetric{
+		Metric: recordsMetricRespDataResultMetric{
 			Instance:     "127.0.0.1:10080",
 			InstanceType: "tidb",
 			SQLDigest:    "sql1",
 			PlanDigest:   "plan0",
 		},
-		Values: []metricRespDataResultValue{
+		Values: []recordsMetricRespDataResultValue{
 			{1.0, "65"},
 			{2.0, "38"},
 			{3.0, "75"},
 			{5.0, "20"},
 		},
 	}, {
-		Metric: metricRespDataResultMetric{
+		Metric: recordsMetricRespDataResultMetric{
 			Instance:     "127.0.0.1:10080",
 			InstanceType: "tidb",
 			SQLDigest:    "sql2",
 			PlanDigest:   "plan0",
 		},
-		Values: []metricRespDataResultValue{
+		Values: []recordsMetricRespDataResultValue{
 			{1.0, "84"},
 			{2.0, "49"},
 			{3.0, "78"},
 			{4.0, "86"},
 		},
 	}, {
-		Metric: metricRespDataResultMetric{
+		Metric: recordsMetricRespDataResultMetric{
 			Instance:     "127.0.0.1:10080",
 			InstanceType: "tidb",
 			SQLDigest:    "sql3",
 			PlanDigest:   "plan0",
 		},
-		Values: []metricRespDataResultValue{
+		Values: []recordsMetricRespDataResultValue{
 			{1.0, "81"},
 			{2.0, "2"},
 			{3.0, "21"},
@@ -175,13 +175,13 @@ func TestTopK(t *testing.T) {
 			{5.0, "9"},
 		},
 	}, {
-		Metric: metricRespDataResultMetric{
+		Metric: recordsMetricRespDataResultMetric{
 			Instance:     "127.0.0.1:10080",
 			InstanceType: "tidb",
 			SQLDigest:    "",
 			PlanDigest:   "",
 		},
-		Values: []metricRespDataResultValue{
+		Values: []recordsMetricRespDataResultValue{
 			{1.0, "14"},
 			{2.0, "79"},
 			{3.0, "96"},

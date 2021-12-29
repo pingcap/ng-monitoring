@@ -44,7 +44,16 @@ func (s *Service) instancesHandler(c *gin.Context) {
 	instances := instanceItemsP.Get()
 	defer instanceItemsP.Put(instances)
 
-	if err := s.query.AllInstances(instances); err != nil {
+	start, end, err := parseStartEnd(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err = s.query.Instances(start, end, instances); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
 			"message": err.Error(),
@@ -83,47 +92,20 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 		return
 	}
 
-	var err error
-	now := time.Now().Unix()
+	start, end, err := parseStartEnd(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": err.Error(),
+		})
+		return
+	}
 
-	var startSecs float64
-	var endSecs float64
 	var top int64
 	var windowSecs int64
-
-	const weekSecs = 7 * 24 * 60 * 60
-	defaultStart := strconv.Itoa(int(now - 2*weekSecs))
-	defaultEnd := strconv.Itoa(int(now))
 	defaultTop := "-1"
 	defaultWindow := "1m"
-
-	raw := c.DefaultQuery("start", defaultStart)
-	if len(raw) == 0 {
-		raw = defaultStart
-	}
-	startSecs, err = strconv.ParseFloat(raw, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
-		return
-	}
-
-	raw = c.DefaultQuery("end", strconv.Itoa(int(now)))
-	if len(raw) == 0 {
-		raw = defaultEnd
-	}
-	endSecs, err = strconv.ParseFloat(raw, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status":  "error",
-			"message": err.Error(),
-		})
-		return
-	}
-
-	raw = c.DefaultQuery("top", "-1")
+	raw := c.DefaultQuery("top", "-1")
 	if len(raw) == 0 {
 		raw = defaultTop
 	}
@@ -153,7 +135,7 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 	items := topSQLItemsP.Get()
 	defer topSQLItemsP.Put(items)
 
-	err = s.query.TopSQL(name, int(startSecs), int(endSecs), int(windowSecs), int(top), instance, instanceType, items)
+	err = s.query.TopSQL(name, start, end, int(windowSecs), int(top), instance, instanceType, items)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":  "error",
@@ -166,4 +148,35 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 		"status": "ok",
 		"data":   items,
 	})
+}
+
+func parseStartEnd(c *gin.Context) (start, end int, err error) {
+	now := time.Now().Unix()
+
+	var startSecs float64
+	var endSecs float64
+
+	const weekSecs = 7 * 24 * 60 * 60
+	defaultStart := strconv.Itoa(int(now - 2*weekSecs))
+	defaultEnd := strconv.Itoa(int(now))
+
+	raw := c.DefaultQuery("start", defaultStart)
+	if len(raw) == 0 {
+		raw = defaultStart
+	}
+	startSecs, err = strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return
+	}
+
+	raw = c.DefaultQuery("end", strconv.Itoa(int(now)))
+	if len(raw) == 0 {
+		raw = defaultEnd
+	}
+	endSecs, err = strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return
+	}
+
+	return int(startSecs), int(endSecs), nil
 }

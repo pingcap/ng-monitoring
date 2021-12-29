@@ -8,15 +8,15 @@ type metricRespPool struct {
 	p sync.Pool
 }
 
-func (mrp *metricRespPool) Get() *metricResp {
+func (mrp *metricRespPool) Get() *recordsMetricResp {
 	mrv := mrp.p.Get()
 	if mrv == nil {
-		return &metricResp{}
+		return &recordsMetricResp{}
 	}
-	return mrv.(*metricResp)
+	return mrv.(*recordsMetricResp)
 }
 
-func (mrp *metricRespPool) Put(mrv *metricResp) {
+func (mrp *metricRespPool) Put(mrv *recordsMetricResp) {
 	mrv.Status = ""
 	mrv.Data.ResultType = ""
 	mrv.Data.Results = mrv.Data.Results[:0]

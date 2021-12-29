@@ -43,7 +43,6 @@ func (ds *DefaultStore) initDocumentDB() error {
 	createTableStmts := []string{
 		"CREATE TABLE IF NOT EXISTS sql_digest (digest VARCHAR(255) PRIMARY KEY)",
 		"CREATE TABLE IF NOT EXISTS plan_digest (digest VARCHAR(255) PRIMARY KEY)",
-		"CREATE TABLE IF NOT EXISTS instance (instance VARCHAR(255) PRIMARY KEY)",
 	}
 
 	for _, stmt := range createTableStmts {
@@ -57,24 +56,14 @@ func (ds *DefaultStore) initDocumentDB() error {
 
 var _ Store = &DefaultStore{}
 
-func (ds *DefaultStore) Instance(instance, instanceType string) error {
-	prepareStmt := "INSERT INTO instance(instance, instance_type) VALUES (?, ?) ON CONFLICT DO NOTHING"
-	prepare, err := ds.documentDB.Prepare(prepareStmt)
-	if err != nil {
-		return err
-	}
-
-	return prepare.Exec(instance, instanceType)
+func (ds *DefaultStore) Instances(items []InstanceItem) error {
+	ms := instancesItemToMetric(items)
+	return ds.writeTimeseriesDB(ms)
 }
 
 func (ds *DefaultStore) TopSQLRecord(instance, instanceType string, record *tipb.TopSQLRecord) error {
 	ms := topSQLProtoToMetrics(instance, instanceType, record)
-	for _, m := range ms {
-		if err := ds.writeTimeseriesDB(m); err != nil {
-			return err
-		}
-	}
-	return nil
+	return ds.writeTimeseriesDB(ms)
 }
 
 func (ds *DefaultStore) ResourceMeteringRecord(
@@ -85,14 +74,7 @@ func (ds *DefaultStore) ResourceMeteringRecord(
 	if err != nil {
 		return err
 	}
-	if ms != nil {
-		for _, m := range ms {
-			if err := ds.writeTimeseriesDB(m); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return ds.writeTimeseriesDB(ms)
 }
 
 func (ds *DefaultStore) SQLMeta(meta *tipb.SQLMeta) error {
@@ -117,7 +99,25 @@ func (ds *DefaultStore) PlanMeta(meta *tipb.PlanMeta) error {
 
 func (ds *DefaultStore) Close() {}
 
-// transform tipb.TopSQLRecord to metrics
+// transform InstanceItem to Metric
+func instancesItemToMetric(items []InstanceItem) (res []Metric) {
+	for _, item := range items {
+		var m Metric
+		metric := instanceTags{
+			Name:         MetricNameInstance,
+			Instance:     item.Instance,
+			InstanceType: item.InstanceType,
+		}
+		m.Metric = metric
+		m.Timestamps = append(m.Timestamps, item.TimestampSec*1000)
+		m.Values = append(m.Values, 1)
+		res = append(res, m)
+	}
+
+	return
+}
+
+// transform tipb.CPUTimeRecord to util.Metric
 func topSQLProtoToMetrics(
 	instance, instanceType string,
 	record *tipb.TopSQLRecord,
@@ -126,7 +126,7 @@ func topSQLProtoToMetrics(
 	planDigest := hex.EncodeToString(record.PlanDigest)
 
 	mCpu := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameCPUTime,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -135,7 +135,7 @@ func topSQLProtoToMetrics(
 		},
 	}
 	mExecCount := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameSQLExecCount,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -144,7 +144,7 @@ func topSQLProtoToMetrics(
 		},
 	}
 	mDurationSum := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameSQLDurationSum,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -170,7 +170,7 @@ func topSQLProtoToMetrics(
 			metric, ok := mKvExecCount[target]
 			if !ok {
 				mKvExecCount[target] = &Metric{
-					Metric: topSQLTags{
+					Metric: recordTags{
 						Name:         MetricNameSQLExecCount,
 						Instance:     target,
 						InstanceType: topology.ComponentTiKV,
@@ -206,7 +206,7 @@ func rsMeteringProtoToMetrics(
 	planDigest := hex.EncodeToString(tag.PlanDigest)
 
 	mCpu := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameCPUTime,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -215,7 +215,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mReadRow := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameReadRow,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -224,7 +224,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mReadIndex := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameReadIndex,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -233,7 +233,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mWriteRow := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameWriteRow,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -242,7 +242,7 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 	mWriteIndex := Metric{
-		Metric: topSQLTags{
+		Metric: recordTags{
 			Name:         MetricNameWriteIndex,
 			Instance:     instance,
 			InstanceType: instanceType,
@@ -290,7 +290,11 @@ func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metri
 	mIndex.Values = append(mIndex.Values, uint64(indexes))
 }
 
-func (ds *DefaultStore) writeTimeseriesDB(metric Metric) error {
+func (ds *DefaultStore) writeTimeseriesDB(metrics []Metric) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
 	bufReq := bytesP.Get()
 	bufResp := bytesP.Get()
 	header := headerP.Get()
@@ -299,7 +303,7 @@ func (ds *DefaultStore) writeTimeseriesDB(metric Metric) error {
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
 
-	if err := encodeMetric(bufReq, metric); err != nil {
+	if err := encodeMetric(bufReq, metrics); err != nil {
 		return err
 	}
 
@@ -316,7 +320,13 @@ func (ds *DefaultStore) writeTimeseriesDB(metric Metric) error {
 	return nil
 }
 
-func encodeMetric(buf *bytes.Buffer, metric Metric) error {
-	encoder := json.NewEncoder(buf)
-	return encoder.Encode(metric)
+func encodeMetric(buf *bytes.Buffer, metrics []Metric) error {
+	for _, m := range metrics {
+		encoder := json.NewEncoder(buf)
+		if err := encoder.Encode(m); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
