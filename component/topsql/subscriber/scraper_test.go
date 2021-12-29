@@ -230,11 +230,17 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 
 	pubsub.AccessTiKVStream(func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
 		return stream.Send(&rua.ResourceUsageRecord{
-			ResourceGroupTag:       []byte(tag),
-			RecordListTimestampSec: []uint64{tsSec},
-			RecordListCpuTimeMs:    []uint32{cpuMs},
-			RecordListReadKeys:     []uint32{rdKeys},
-			RecordListWriteKeys:    []uint32{wtKeys},
+			RecordOneof: &rua.ResourceUsageRecord_Record{
+				Record: &rua.GroupTagRecord{
+					ResourceGroupTag: []byte(tag),
+					Items: []*rua.GroupTagRecordItem{{
+						TimestampSec: tsSec,
+						CpuTimeMs:    cpuMs,
+						ReadKeys:     rdKeys,
+						WriteKeys:    wtKeys,
+					}},
+				},
+			},
 		})
 	})
 
@@ -248,12 +254,12 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 
 		record := store.ResourceMeteringRecords[addr][tag]
 		got := false
-		for i, v := range record.RecordListTimestampSec {
-			if v == tsSec {
+		for _, item := range record.GetRecord().GetItems() {
+			if item.TimestampSec == tsSec {
 				got = true
-				require.Equal(t, record.RecordListCpuTimeMs[i], cpuMs)
-				require.Equal(t, record.RecordListReadKeys[i], rdKeys)
-				require.Equal(t, record.RecordListWriteKeys[i], wtKeys)
+				require.Equal(t, item.CpuTimeMs, cpuMs)
+				require.Equal(t, item.ReadKeys, rdKeys)
+				require.Equal(t, item.WriteKeys, wtKeys)
 			}
 		}
 		require.True(t, got)

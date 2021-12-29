@@ -199,7 +199,7 @@ func rsMeteringProtoToMetrics(
 ) (ms []Metric, err error) {
 	tag := tipb.ResourceGroupTag{}
 	tag.Reset()
-	if err = tag.Unmarshal(record.ResourceGroupTag); err != nil {
+	if err = tag.Unmarshal(record.GetRecord().ResourceGroupTag); err != nil {
 		return
 	}
 	sqlDigest := hex.EncodeToString(tag.SqlDigest)
@@ -251,37 +251,28 @@ func rsMeteringProtoToMetrics(
 		},
 	}
 
-	for i := range record.RecordListTimestampSec {
-		tsMillis := record.RecordListTimestampSec[i] * 1000
-		appendMetricCPUTime(i, tsMillis, record.RecordListCpuTimeMs, &mCpu)
-		appendMetricRowIndex(i, tsMillis, record.RecordListReadKeys, &mReadRow, &mReadIndex, tag.Label)
-		appendMetricRowIndex(i, tsMillis, record.RecordListWriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
+	for _, item := range record.GetRecord().GetItems() {
+		tsMillis := item.TimestampSec * 1000
+
+		mCpu.Timestamps = append(mCpu.Timestamps, tsMillis)
+		mCpu.Values = append(mCpu.Values, uint64(item.CpuTimeMs))
+
+		appendMetricRowIndex(tsMillis, item.ReadKeys, &mReadRow, &mReadIndex, tag.Label)
+		appendMetricRowIndex(tsMillis, item.WriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
 	}
 
 	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex)
 	return
 }
 
-// appendMetricCPUTime only used in rsMeteringProtoToMetrics.
-func appendMetricCPUTime(i int, ts uint64, values []uint32, metric *Metric) {
-	var value uint32
-	if len(values) > i {
-		value = values[i]
-	}
-	metric.Timestamps = append(metric.Timestamps, ts)
-	metric.Values = append(metric.Values, uint64(value))
-}
-
 // appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
-func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metric, label *tipb.ResourceGroupTagLabel) {
+func appendMetricRowIndex(ts uint64, value uint32, mRow, mIndex *Metric, label *tipb.ResourceGroupTagLabel) {
 	var rows, indexes uint32
-	if len(values) > i {
-		if label != nil {
-			if *label == tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow {
-				rows = values[i]
-			} else if *label == tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex {
-				indexes = values[i]
-			}
+	if label != nil {
+		if *label == tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow {
+			rows = value
+		} else if *label == tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex {
+			indexes = value
 		}
 	}
 	mRow.Timestamps = append(mRow.Timestamps, ts)

@@ -122,16 +122,17 @@ func (m *MemStore) ResourceMeteringRecord(instance, _ string, record *rsmetering
 	if _, ok := m.ResourceMeteringRecords[instance]; !ok {
 		m.ResourceMeteringRecords[instance] = make(map[string]*rsmetering.ResourceUsageRecord)
 	}
-	if _, ok := m.ResourceMeteringRecords[instance][string(record.ResourceGroupTag)]; !ok {
-		m.ResourceMeteringRecords[instance][string(record.ResourceGroupTag)] = &rsmetering.ResourceUsageRecord{
-			ResourceGroupTag: record.ResourceGroupTag,
+	if _, ok := m.ResourceMeteringRecords[instance][string(record.GetRecord().ResourceGroupTag)]; !ok {
+		m.ResourceMeteringRecords[instance][string(record.GetRecord().ResourceGroupTag)] = &rsmetering.ResourceUsageRecord{
+			RecordOneof: &rsmetering.ResourceUsageRecord_Record{
+				Record: &rsmetering.GroupTagRecord{
+					ResourceGroupTag: record.GetRecord().ResourceGroupTag,
+				},
+			},
 		}
 	}
-	r := m.ResourceMeteringRecords[instance][string(record.ResourceGroupTag)]
-	r.RecordListTimestampSec = append(r.RecordListTimestampSec, record.RecordListTimestampSec...)
-	r.RecordListCpuTimeMs = append(r.RecordListCpuTimeMs, record.RecordListCpuTimeMs...)
-	r.RecordListReadKeys = append(r.RecordListReadKeys, record.RecordListReadKeys...)
-	r.RecordListWriteKeys = append(r.RecordListWriteKeys, record.RecordListWriteKeys...)
+	r := m.ResourceMeteringRecords[instance][string(record.GetRecord().ResourceGroupTag)]
+	r.GetRecord().Items = append(r.GetRecord().Items, record.GetRecord().GetItems()...)
 
 	return nil
 }
