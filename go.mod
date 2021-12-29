@@ -41,3 +41,5 @@ require (
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
+
+replace github.com/pingcap/kvproto => github.com/mornyx/kvproto v0.0.0-20211229065943-ee2a5b4961ed
