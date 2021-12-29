@@ -51,6 +51,10 @@ func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top
 		return err
 	}
 
+	if len(recordsResponse.Data.Results) == 0 {
+		return nil
+	}
+
 	sqlGroups := sqlGroupSliceP.Get()
 	defer sqlGroupSliceP.Put(sqlGroups)
 	topK(recordsResponse.Data.Results, top, sqlGroups)
@@ -62,12 +66,16 @@ func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top
 
 func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
 	// adjust start to make result align to end
-	startSecs = endSecs - (endSecs-startSecs)/windowSecs*windowSecs
+	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
 	recordsResponse := recordsRespP.Get()
 	defer recordsRespP.Put(recordsResponse)
-	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, startSecs, endSecs, windowSecs, instance, instanceType, recordsResponse); err != nil {
+	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, recordsResponse); err != nil {
 		return err
+	}
+
+	if len(recordsResponse.Data.Results) == 0 {
+		return nil
 	}
 
 	sqlGroups := sqlGroupSliceP.Get()
@@ -97,6 +105,9 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 
 	rangeSecs := float64(endSecs - startSecs)
 	for _, item := range *fill {
+		if item.IsOther {
+			continue
+		}
 		for i := range item.Plans {
 			planDigest := item.Plans[i].PlanDigest
 			sumDurationNs, err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationSum, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)

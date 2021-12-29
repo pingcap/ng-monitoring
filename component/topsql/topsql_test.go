@@ -262,11 +262,12 @@ func (s *testTopSQLSuite) TestSummary() {
 	}
 
 	vmstorage.Storage.DebugFlush()
+
+	// normal case
 	var res []query.SummaryItem
 	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
-
 	s.Equal(res, []query.SummaryItem{{
 		SQLDigest: hex.EncodeToString([]byte("sql-0")),
 		Plans: []query.SummaryPlanItem{{
@@ -304,6 +305,129 @@ func (s *testTopSQLSuite) TestSummary() {
 			CPUTimeMs:         []uint64{61, 87, 37, 55, 53},
 			ExecCountPerSec:   285.0 / 40,
 			DurationPerExecMs: 259.0 / 285.0,
+		}},
+	}})
+
+	// top 1
+	res = nil
+	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res)
+	s.NoError(err)
+	s.sortSummary(res)
+	s.Equal(res, []query.SummaryItem{{
+		IsOther: true,
+		Plans: []query.SummaryPlanItem{{
+			TimestampSec: []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			CPUTimeMs:    []uint64{209, 232, 80, 142, 115},
+		}},
+	}, {
+		SQLDigest: hex.EncodeToString([]byte("sql-0")),
+		Plans: []query.SummaryPlanItem{{
+			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			CPUTimeMs:         []uint64{85, 64, 43, 19, 31},
+			ExecCountPerSec:   278.0 / 40,
+			DurationPerExecMs: 215.0 / 278.0,
+		}, {
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			CPUTimeMs:         []uint64{67, 19, 54, 53, 71},
+			ExecCountPerSec:   304.0 / 40,
+			DurationPerExecMs: 335.0 / 304.0,
+		}},
+	}})
+
+	// no data
+	res = nil
+	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res)
+	s.NoError(err)
+	s.Equal(len(res), 0)
+
+	// one point
+	res = nil
+	err = s.dq.Summary(int(testBaseTs+39), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	s.NoError(err)
+	s.sortSummary(res)
+	s.Equal(res, []query.SummaryItem{{
+		SQLDigest: hex.EncodeToString([]byte("sql-0")),
+		Plans: []query.SummaryPlanItem{{
+			TimestampSec:      []uint64{testBaseTs + 40},
+			CPUTimeMs:         []uint64{31},
+			ExecCountPerSec:   21.0,
+			DurationPerExecMs: 56.0 / 21.0,
+		}, {
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs + 40},
+			CPUTimeMs:         []uint64{71},
+			ExecCountPerSec:   98.0,
+			DurationPerExecMs: 88.0 / 98.0,
+		}},
+	}, {
+		SQLDigest: hex.EncodeToString([]byte("sql-1")),
+		Plans: []query.SummaryPlanItem{{
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs + 40},
+			CPUTimeMs:         []uint64{35},
+			ExecCountPerSec:   75.0,
+			DurationPerExecMs: 16.0 / 75.0,
+		}, {
+			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
+			TimestampSec:      []uint64{testBaseTs + 40},
+			CPUTimeMs:         []uint64{27},
+			ExecCountPerSec:   31.0,
+			DurationPerExecMs: 33.0 / 31.0,
+		}},
+	}, {
+		SQLDigest: hex.EncodeToString([]byte("sql-2")),
+		Plans: []query.SummaryPlanItem{{
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs + 40},
+			CPUTimeMs:         []uint64{53},
+			ExecCountPerSec:   52.0,
+			DurationPerExecMs: 81.0 / 52.0,
+		}},
+	}})
+
+	// two points
+	res = nil
+	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res)
+	s.NoError(err)
+	s.sortSummary(res)
+	s.Equal(res, []query.SummaryItem{{
+		SQLDigest: hex.EncodeToString([]byte("sql-0")),
+		Plans: []query.SummaryPlanItem{{
+			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
+			CPUTimeMs:         []uint64{43, 19},
+			ExecCountPerSec:   125.0 / 13,
+			DurationPerExecMs: 79.0 / 125.0,
+		}, {
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
+			CPUTimeMs:         []uint64{54, 53},
+			ExecCountPerSec:   146.0 / 13,
+			DurationPerExecMs: 68.0 / 146.0,
+		}},
+	}, {
+		SQLDigest: hex.EncodeToString([]byte("sql-1")),
+		Plans: []query.SummaryPlanItem{{
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
+			CPUTimeMs:         []uint64{29, 22},
+			ExecCountPerSec:   94.0 / 13,
+			DurationPerExecMs: 126.0 / 94.0,
+		}, {
+			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
+			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
+			CPUTimeMs:         []uint64{14, 65},
+			ExecCountPerSec:   169.0 / 13,
+			DurationPerExecMs: 161.0 / 169.0,
+		}},
+	}, {
+		SQLDigest: hex.EncodeToString([]byte("sql-2")),
+		Plans: []query.SummaryPlanItem{{
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
+			CPUTimeMs:         []uint64{37, 55},
+			ExecCountPerSec:   81.0 / 13,
+			DurationPerExecMs: 82.0 / 81.0,
 		}},
 	}})
 }
