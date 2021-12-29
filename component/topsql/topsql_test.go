@@ -273,13 +273,13 @@ func (s *testTopSQLSuite) TestSummary() {
 		Plans: []query.SummaryPlanItem{{
 			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
 			CPUTimeMs:         []uint64{85, 64, 43, 19, 31},
-			ExecCountPerSec:   278.0 / 40,
+			ExecCountPerSec:   278.0 / 41,
 			DurationPerExecMs: 215.0 / 278.0,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
 			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
 			CPUTimeMs:         []uint64{67, 19, 54, 53, 71},
-			ExecCountPerSec:   304.0 / 40,
+			ExecCountPerSec:   304.0 / 41,
 			DurationPerExecMs: 335.0 / 304.0,
 		}},
 	}, {
@@ -288,13 +288,13 @@ func (s *testTopSQLSuite) TestSummary() {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
 			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
 			CPUTimeMs:         []uint64{97, 46, 29, 22, 35},
-			ExecCountPerSec:   323.0 / 40,
+			ExecCountPerSec:   323.0 / 41,
 			DurationPerExecMs: 291.0 / 323.0,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
 			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
 			CPUTimeMs:         []uint64{51, 99, 14, 65, 27},
-			ExecCountPerSec:   227.0 / 40,
+			ExecCountPerSec:   227.0 / 41,
 			DurationPerExecMs: 227.0 / 227.0,
 		}},
 	}, {
@@ -303,7 +303,7 @@ func (s *testTopSQLSuite) TestSummary() {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
 			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
 			CPUTimeMs:         []uint64{61, 87, 37, 55, 53},
-			ExecCountPerSec:   285.0 / 40,
+			ExecCountPerSec:   285.0 / 41,
 			DurationPerExecMs: 259.0 / 285.0,
 		}},
 	}})
@@ -324,13 +324,13 @@ func (s *testTopSQLSuite) TestSummary() {
 		Plans: []query.SummaryPlanItem{{
 			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
 			CPUTimeMs:         []uint64{85, 64, 43, 19, 31},
-			ExecCountPerSec:   278.0 / 40,
+			ExecCountPerSec:   278.0 / 41,
 			DurationPerExecMs: 215.0 / 278.0,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
 			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
 			CPUTimeMs:         []uint64{67, 19, 54, 53, 71},
-			ExecCountPerSec:   304.0 / 40,
+			ExecCountPerSec:   304.0 / 41,
 			DurationPerExecMs: 335.0 / 304.0,
 		}},
 	}})
@@ -343,7 +343,7 @@ func (s *testTopSQLSuite) TestSummary() {
 
 	// one point
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+39), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	s.Equal(res, []query.SummaryItem{{
@@ -396,13 +396,13 @@ func (s *testTopSQLSuite) TestSummary() {
 		Plans: []query.SummaryPlanItem{{
 			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
 			CPUTimeMs:         []uint64{43, 19},
-			ExecCountPerSec:   125.0 / 13,
+			ExecCountPerSec:   125.0 / 14,
 			DurationPerExecMs: 79.0 / 125.0,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
 			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
 			CPUTimeMs:         []uint64{54, 53},
-			ExecCountPerSec:   146.0 / 13,
+			ExecCountPerSec:   146.0 / 14,
 			DurationPerExecMs: 68.0 / 146.0,
 		}},
 	}, {
@@ -411,13 +411,13 @@ func (s *testTopSQLSuite) TestSummary() {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
 			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
 			CPUTimeMs:         []uint64{29, 22},
-			ExecCountPerSec:   94.0 / 13,
+			ExecCountPerSec:   94.0 / 14,
 			DurationPerExecMs: 126.0 / 94.0,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
 			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
 			CPUTimeMs:         []uint64{14, 65},
-			ExecCountPerSec:   169.0 / 13,
+			ExecCountPerSec:   169.0 / 14,
 			DurationPerExecMs: 161.0 / 169.0,
 		}},
 	}, {
@@ -426,7 +426,7 @@ func (s *testTopSQLSuite) TestSummary() {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
 			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
 			CPUTimeMs:         []uint64{37, 55},
-			ExecCountPerSec:   81.0 / 13,
+			ExecCountPerSec:   81.0 / 14,
 			DurationPerExecMs: 82.0 / 81.0,
 		}},
 	}})

@@ -41,6 +41,10 @@ func NewDefaultQuery(vmselectHandler http.HandlerFunc, documentDB *genji.DB) *De
 var _ Query = &DefaultQuery{}
 
 func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]RecordItem) error {
+	if startSecs > endSecs {
+		return nil
+	}
+
 	// adjust start to make result align to end
 	startSecs = endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
@@ -65,6 +69,10 @@ func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top
 }
 
 func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
+	if startSecs > endSecs {
+		return nil
+	}
+
 	// adjust start to make result align to end
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
@@ -103,7 +111,8 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		return err
 	}
 
-	rangeSecs := float64(endSecs - startSecs)
+	// rangeSecs never to be 0 because startSecs <= endSecs
+	rangeSecs := float64(endSecs - startSecs + 1)
 	for _, item := range *fill {
 		if item.IsOther {
 			continue
@@ -127,7 +136,11 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 				return err
 			}
 
-			item.Plans[i].DurationPerExecMs = sumDurationNs / 1000000.0 / sumExecCount
+			if sumExecCount == 0.0 {
+				item.Plans[i].DurationPerExecMs = 0
+			} else {
+				item.Plans[i].DurationPerExecMs = sumDurationNs / 1000000.0 / sumExecCount
+			}
 			item.Plans[i].ExecCountPerSec = sumExecCount / rangeSecs
 			item.Plans[i].ScanRecordsPerSec = sumReadRows / rangeSecs
 			item.Plans[i].ScanIndexesPerSec = sumReadIndexes / rangeSecs
@@ -245,6 +258,20 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 	}
 	reqQuery := req.URL.Query()
 	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\", sql_digest=\"%s\", plan_digest=\"%s\"})", name, instance, instanceType, sqlDigest, planDigest))
+
+	// Data:
+	// t1  t2  t3  t4  t5  t6  t7  t8  t9
+	// v1  v2  v3  v4  v5  v6  v7  v8  v9
+	//
+	// Given startSecs = t3, endSecs = t6, to calculate v3 + v4 + v5 + v6
+	//
+	// The exec model for vm is lookbehind. So we can set start = endSecs, end = endSecs, step = endSecs-startSecs+1,
+	// to get the point that sum up from v3 to v6.
+	//
+	// t1  t2  t3  t4  t5  t6  t7  t8  t9
+	// v1  v2  v3  v4  v5  v6  v7  v8  v9
+	//         ^            ^
+	//         | -- step -- |
 	reqQuery.Set("start", strconv.Itoa(endSecs))
 	reqQuery.Set("end", strconv.Itoa(endSecs))
 	reqQuery.Set("step", strconv.Itoa(endSecs-startSecs+1))
