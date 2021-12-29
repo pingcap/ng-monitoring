@@ -81,8 +81,8 @@ func (s *Scraper) scrapeTiDB() {
 			return
 		}
 
-		if cpu := record.GetRecord(); cpu != nil {
-			err := s.store.TopSQLRecord(addr, topology.ComponentTiDB, cpu)
+		if r := record.GetRecord(); r != nil {
+			err := s.store.TopSQLRecord(addr, topology.ComponentTiDB, r)
 			if err != nil {
 				log.Warn("failed to store top SQL records", zap.Error(err))
 			}

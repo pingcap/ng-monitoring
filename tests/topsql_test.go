@@ -18,6 +18,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
+	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/database"
@@ -31,7 +32,8 @@ func TestTopSQL(t *testing.T) {
 	suite.Run(t, &testTopSQLSuite{})
 }
 
-var testBaseTs = uint64(time.Now().Unix()) - 60*60*24
+var now = uint64(time.Now().Unix())
+var testBaseTs = now - (now % 10000)
 
 type baseHttpResponse struct {
 	Status  string `json:"status"`
@@ -51,7 +53,9 @@ type metricsHttpResponse struct {
 type testTopSQLSuite struct {
 	suite.Suite
 	dir        string
+	tidbAddr   string
 	tikvAddr   string
+	tidbServer *MockTiDBServer
 	tikvServer *MockTiKVServer
 	topCh      topology.Subscriber
 	varCh      pdvariable.Subscriber
@@ -68,14 +72,26 @@ func (s *testTopSQLSuite) SetupSuite() {
 	cfg.Storage.Path = dir
 	config.StoreGlobalConfig(&cfg)
 
+	// init local mock tidb server
+	s.tidbServer = NewMockTiDBServer()
+	tidbAddr, err := s.tidbServer.Listen()
+	s.tidbAddr = tidbAddr
+	arr := strings.Split(tidbAddr, ":")
+	tidbTestIp := arr[0]
+	tidbTestPort, err := strconv.Atoi(arr[1])
+	s.NoError(err)
+	go func() {
+		s.NoError(s.tidbServer.Serve())
+	}()
+
 	// init local mock tikv server
 	s.tikvServer = NewMockTiKVServer()
-	addr, err := s.tikvServer.Listen()
+	tikvAddr, err := s.tikvServer.Listen()
 	s.NoError(err)
-	s.tikvAddr = addr
-	arr := strings.Split(addr, ":")
-	testIp := arr[0]
-	testPort, err := strconv.Atoi(arr[1])
+	s.tikvAddr = tikvAddr
+	arr = strings.Split(tikvAddr, ":")
+	tikvTestIp := arr[0]
+	tikvTestPort, err := strconv.Atoi(arr[1])
 	s.NoError(err)
 	go func() {
 		s.NoError(s.tikvServer.Serve())
@@ -93,10 +109,15 @@ func (s *testTopSQLSuite) SetupSuite() {
 	s.varCh <- &pdvariable.PDVariable{EnableTopSQL: true}
 	time.Sleep(100 * time.Millisecond)
 	s.topCh <- []topology.Component{{
+		Name:       topology.ComponentTiDB,
+		IP:         tidbTestIp,
+		Port:       uint(tidbTestPort),
+		StatusPort: uint(tidbTestPort),
+	}, {
 		Name:       topology.ComponentTiKV,
-		IP:         testIp,
-		Port:       uint(testPort),
-		StatusPort: 0,
+		IP:         tikvTestIp,
+		Port:       uint(tikvTestPort),
+		StatusPort: uint(tikvTestPort),
 	}}
 	time.Sleep(100 * time.Millisecond)
 
@@ -105,6 +126,75 @@ func (s *testTopSQLSuite) SetupSuite() {
 	s.ng = ng
 
 	// init data
+	s.tidbServer.PushRecords([]tipb.TopSQLRecord{{
+		SqlDigest:  []byte("sql-1"),
+		PlanDigest: []byte("plan-1"),
+		Items: []*tipb.TopSQLRecordItem{{
+			TimestampSec:      testBaseTs + 111,
+			CpuTimeMs:         121,
+			StmtExecCount:     131,
+			StmtDurationSumNs: 141,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 151, "tikv-2": 251},
+		}, {
+			TimestampSec:      testBaseTs + 112,
+			CpuTimeMs:         122,
+			StmtExecCount:     132,
+			StmtDurationSumNs: 142,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 152, "tikv-2": 252},
+		}, {
+			TimestampSec:      testBaseTs + 113,
+			CpuTimeMs:         123,
+			StmtExecCount:     133,
+			StmtDurationSumNs: 143,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 153, "tikv-2": 253},
+		}, {
+			TimestampSec:      testBaseTs + 114,
+			CpuTimeMs:         124,
+			StmtExecCount:     134,
+			StmtDurationSumNs: 144,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 154, "tikv-2": 254},
+		}, {
+			TimestampSec:      testBaseTs + 115,
+			CpuTimeMs:         125,
+			StmtExecCount:     135,
+			StmtDurationSumNs: 145,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 155, "tikv-2": 255},
+		}},
+	}, {
+		SqlDigest:  []byte("sql-1"),
+		PlanDigest: []byte("plan-1"),
+		Items: []*tipb.TopSQLRecordItem{{
+			TimestampSec:      testBaseTs + 211,
+			CpuTimeMs:         0,
+			StmtExecCount:     0,
+			StmtDurationSumNs: 10,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 0, "tikv-2": 0},
+		}, {
+			TimestampSec:      testBaseTs + 212,
+			CpuTimeMs:         1,
+			StmtExecCount:     1,
+			StmtDurationSumNs: 20,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 1, "tikv-2": 1},
+		}, {
+			TimestampSec:      testBaseTs + 213,
+			CpuTimeMs:         2,
+			StmtExecCount:     2,
+			StmtDurationSumNs: 30,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 2, "tikv-2": 2},
+		}, {
+			TimestampSec:      testBaseTs + 214,
+			CpuTimeMs:         3,
+			StmtExecCount:     3,
+			StmtDurationSumNs: 40,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 3, "tikv-2": 3},
+		}, {
+			TimestampSec:      testBaseTs + 215,
+			CpuTimeMs:         0,
+			StmtExecCount:     0,
+			StmtDurationSumNs: 50,
+			StmtKvExecCount:   map[string]uint64{"tikv-1": 0, "tikv-2": 0},
+		}},
+	}})
 	s.tikvServer.PushRecords([]*rua.ResourceUsageRecord{{
 		ResourceGroupTag:       s.encodeTag([]byte("sql-1"), []byte("plan-1"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow),
 		RecordListTimestampSec: []uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
@@ -148,50 +238,177 @@ func (s *testTopSQLSuite) TestInstances() {
 	if resp.Status != "ok" {
 		s.FailNow(fmt.Sprintf("status: %s, message: %s, body: %v\n", resp.Status, resp.Message, string(w.Body)))
 	}
-	s.Len(resp.Data, 1)
-	s.Equal(topology.ComponentTiKV, resp.Data[0].InstanceType)
-	s.Equal(s.tikvAddr, resp.Data[0].Instance)
+	s.Len(resp.Data, 2)
+	for _, item := range resp.Data {
+		switch item.InstanceType {
+		case topology.ComponentTiDB:
+			s.Equal(s.tidbAddr, item.Instance)
+		case topology.ComponentTiKV:
+			s.Equal(s.tikvAddr, item.Instance)
+		default:
+			panic("unknown component type: " + item.InstanceType)
+		}
+	}
 }
 
 func (s *testTopSQLSuite) TestCpuTime() {
-	s.testCpuTime(int(testBaseTs+111), 121)
-	s.testCpuTime(int(testBaseTs+211), 221)
-	s.testCpuTime(int(testBaseTs+311), 321)
+	s.testCpuTime(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{121, 122, 123, 124, 125})
+	s.testCpuTime(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{221, 222, 223, 224, 225})
+	s.testCpuTime(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
+		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
+		[]uint64{321, 322, 323, 324, 325})
+	s.testCpuTime(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215}, // 3 items, not 5
+		[]uint64{0, 1, 2, 3, 0})
 }
 
 func (s *testTopSQLSuite) TestReadRow() {
-	s.testReadRow(int(testBaseTs+111), 131) // ResourceGroupTagLabelRow
-	s.testReadRow(int(testBaseTs+211), 0)   // ResourceGroupTagLabelIndex
-	s.testReadRow(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
+	s.testReadRow(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{131, 132, 133, 134, 135}) // ResourceGroupTagLabelRow
+	s.testReadRow(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelIndex
+	s.testReadRow(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
+		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestReadIndex() {
-	s.testReadIndex(int(testBaseTs+111), 0)   // ResourceGroupTagLabelRow
-	s.testReadIndex(int(testBaseTs+211), 231) // ResourceGroupTagLabelIndex
-	s.testReadIndex(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
+	s.testReadIndex(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelRow
+	s.testReadIndex(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{231, 232, 233, 234, 235}) // ResourceGroupTagLabelIndex
+	s.testReadIndex(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
+		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestWriteRow() {
-	s.testWriteRow(int(testBaseTs+111), 141) // ResourceGroupTagLabelRow
-	s.testWriteRow(int(testBaseTs+211), 0)   // ResourceGroupTagLabelIndex
-	s.testWriteRow(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
+	s.testWriteRow(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{141, 142, 143, 144, 145}) // ResourceGroupTagLabelRow
+	s.testWriteRow(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelIndex
+	s.testWriteRow(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
+		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
 func (s *testTopSQLSuite) TestWriteIndex() {
-	s.testWriteIndex(int(testBaseTs+111), 0)   // ResourceGroupTagLabelRow
-	s.testWriteIndex(int(testBaseTs+211), 241) // ResourceGroupTagLabelIndex
-	s.testWriteIndex(int(testBaseTs+311), 0)   // ResourceGroupTagLabelUnknown
+	s.testWriteIndex(s.tikvAddr, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelRow
+	s.testWriteIndex(s.tikvAddr, "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{241, 242, 243, 244, 245}) // ResourceGroupTagLabelIndex
+	s.testWriteIndex(s.tikvAddr, "tikv", testBaseTs+311, testBaseTs+316,
+		[]uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
+		[]uint64{0, 0, 0, 0, 0}) // ResourceGroupTagLabelUnknown
 }
 
-func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
+func (s *testTopSQLSuite) TestSQLExecCount() {
+	s.testSQLExecCount(s.tidbAddr, "tidb", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{131, 132, 133, 134, 135})
+	s.testSQLExecCount(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 1, 2, 3, 0})
+	s.testSQLExecCount("tikv-1", "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{151, 152, 153, 154, 155})
+	s.testSQLExecCount("tikv-2", "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{251, 252, 253, 254, 255})
+	s.testSQLExecCount("tikv-1", "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 1, 2, 3, 0})
+	s.testSQLExecCount("tikv-2", "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 1, 2, 3, 0})
+}
+
+func (s *testTopSQLSuite) TestSQLDurationSum() {
+	s.testSQLDurationSum(s.tidbAddr, "tidb", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{141, 142, 143, 144, 145})
+	s.testSQLDurationSum(s.tidbAddr, "tidb", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{10, 20, 30, 40, 50})
+}
+
+func (s *testTopSQLSuite) testCpuTime(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameCPUTime, instance, instanceType, start, end)
+	s.Len(r, 1)
+	s.Len(r[0].Plans, 1)
+	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].CPUTimeMillis, values)
+}
+
+func (s *testTopSQLSuite) testReadRow(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameReadRow, instance, instanceType, start, end)
+	s.Len(r, 1)
+	s.Len(r[0].Plans, 1)
+	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].ReadRows, values)
+}
+
+func (s *testTopSQLSuite) testReadIndex(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameReadIndex, instance, instanceType, start, end)
+	s.Len(r, 1)
+	s.Len(r[0].Plans, 1)
+	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].ReadIndexes, values)
+}
+
+func (s *testTopSQLSuite) testWriteRow(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameWriteRow, instance, instanceType, start, end)
+	s.Len(r, 1)
+	s.Len(r[0].Plans, 1)
+	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].WriteRows, values)
+}
+
+func (s *testTopSQLSuite) testWriteIndex(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameWriteIndex, instance, instanceType, start, end)
+	s.Len(r, 1)
+	s.Len(r[0].Plans, 1)
+	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].WriteIndexes, values)
+}
+
+func (s *testTopSQLSuite) testSQLExecCount(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameSQLExecCount, instance, instanceType, start, end)
+	s.Len(r, 1)
+	s.Len(r[0].Plans, 1)
+	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].SQLExecCount, values)
+}
+
+func (s *testTopSQLSuite) testSQLDurationSum(instance, instanceType string, start, end uint64, ts []uint64, values []uint64) {
+	r := s.doQuery(store.MetricNameSQLDurationSum, instance, instanceType, start, end)
+	s.Len(r, 1)
+	s.Len(r[0].Plans, 1)
+	s.Equal(r[0].Plans[0].TimestampSecs, ts)
+	s.Equal(r[0].Plans[0].SQLDurationSum, values)
+}
+
+func (s *testTopSQLSuite) doQuery(name, instance, instanceType string, start, end uint64) []query.TopSQLItem {
 	w := NewMockResponseWriter()
-	req, err := http.NewRequest(http.MethodGet, "/v1/cpu_time", nil)
+	req, err := http.NewRequest(http.MethodGet, "/v1/"+name, nil)
 	s.NoError(err)
 	urlQuery := url.Values{}
-	urlQuery.Set("instance", s.tikvAddr)
-	urlQuery.Set("instance_type", "tikv")
-	urlQuery.Set("start", strconv.Itoa(baseTs))
-	urlQuery.Set("end", strconv.Itoa(baseTs+5))
+	urlQuery.Set("instance", instance)
+	urlQuery.Set("instance_type", instanceType)
+	urlQuery.Set("start", fmt.Sprintf("%d", start))
+	urlQuery.Set("end", fmt.Sprintf("%d", end))
 	urlQuery.Set("window", "1s")
 	req.URL.RawQuery = urlQuery.Encode()
 	s.ng.ServeHTTP(w, req)
@@ -203,171 +420,7 @@ func (s *testTopSQLSuite) testCpuTime(baseTs int, baseValue int) {
 	if resp.Status != "ok" {
 		s.FailNow(fmt.Sprintf("status: %s, message: %s, body: %v\n", resp.Status, resp.Message, string(w.Body)))
 	}
-	s.Len(resp.Data, 1)
-	s.Len(resp.Data[0].Plans, 1)
-	s.Len(resp.Data[0].Plans[0].TimestampSecs, 5)
-	s.Len(resp.Data[0].Plans[0].CPUTimeMillis, 5)
-	s.Empty(resp.Data[0].Plans[0].ReadRows)
-	s.Empty(resp.Data[0].Plans[0].ReadIndexes)
-	s.Empty(resp.Data[0].Plans[0].WriteRows)
-	s.Empty(resp.Data[0].Plans[0].WriteIndexes)
-	for n := 0; n < 5; n++ {
-		s.Equal(uint64(baseTs+n), resp.Data[0].Plans[0].TimestampSecs[n])
-		s.Equal(uint32(baseValue+n), resp.Data[0].Plans[0].CPUTimeMillis[n])
-	}
-}
-
-func (s *testTopSQLSuite) testReadRow(baseTs int, baseValue int) {
-	w := NewMockResponseWriter()
-	req, err := http.NewRequest(http.MethodGet, "/v1/read_row", nil)
-	s.NoError(err)
-	urlQuery := url.Values{}
-	urlQuery.Set("instance", s.tikvAddr)
-	urlQuery.Set("instance_type", "tikv")
-	urlQuery.Set("start", strconv.Itoa(baseTs))
-	urlQuery.Set("end", strconv.Itoa(baseTs+5))
-	urlQuery.Set("window", "1s")
-	req.URL.RawQuery = urlQuery.Encode()
-	s.ng.ServeHTTP(w, req)
-	if w.StatusCode != http.StatusOK {
-		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
-	}
-	resp := metricsHttpResponse{}
-	s.NoError(json.Unmarshal(w.Body, &resp))
-	if resp.Status != "ok" {
-		s.FailNow(fmt.Sprintf("status: %s, message: %s, body: %v\n", resp.Status, resp.Message, string(w.Body)))
-	}
-	s.Len(resp.Data, 1)
-	s.Len(resp.Data[0].Plans, 1)
-	s.Len(resp.Data[0].Plans[0].TimestampSecs, 5)
-	s.Len(resp.Data[0].Plans[0].ReadRows, 5)
-	s.Empty(resp.Data[0].Plans[0].CPUTimeMillis)
-	s.Empty(resp.Data[0].Plans[0].ReadIndexes)
-	s.Empty(resp.Data[0].Plans[0].WriteRows)
-	s.Empty(resp.Data[0].Plans[0].WriteIndexes)
-	for n := 0; n < 5; n++ {
-		s.Equal(uint64(baseTs+n), resp.Data[0].Plans[0].TimestampSecs[n])
-		if baseValue == 0 {
-			s.Equal(uint32(0), resp.Data[0].Plans[0].ReadRows[n])
-		} else {
-			s.Equal(uint32(baseValue+n), resp.Data[0].Plans[0].ReadRows[n])
-		}
-	}
-}
-
-func (s *testTopSQLSuite) testReadIndex(baseTs int, baseValue int) {
-	w := NewMockResponseWriter()
-	req, err := http.NewRequest(http.MethodGet, "/v1/read_index", nil)
-	s.NoError(err)
-	urlQuery := url.Values{}
-	urlQuery.Set("instance", s.tikvAddr)
-	urlQuery.Set("instance_type", "tikv")
-	urlQuery.Set("start", strconv.Itoa(baseTs))
-	urlQuery.Set("end", strconv.Itoa(baseTs+5))
-	urlQuery.Set("window", "1s")
-	req.URL.RawQuery = urlQuery.Encode()
-	s.ng.ServeHTTP(w, req)
-	if w.StatusCode != http.StatusOK {
-		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
-	}
-	resp := metricsHttpResponse{}
-	s.NoError(json.Unmarshal(w.Body, &resp))
-	if resp.Status != "ok" {
-		s.FailNow(fmt.Sprintf("status: %s, message: %s, body: %v\n", resp.Status, resp.Message, string(w.Body)))
-	}
-	s.Len(resp.Data, 1)
-	s.Len(resp.Data[0].Plans, 1)
-	s.Len(resp.Data[0].Plans[0].TimestampSecs, 5)
-	s.Len(resp.Data[0].Plans[0].ReadIndexes, 5)
-	s.Empty(resp.Data[0].Plans[0].CPUTimeMillis)
-	s.Empty(resp.Data[0].Plans[0].ReadRows)
-	s.Empty(resp.Data[0].Plans[0].WriteRows)
-	s.Empty(resp.Data[0].Plans[0].WriteIndexes)
-	for n := 0; n < 5; n++ {
-		s.Equal(uint64(baseTs+n), resp.Data[0].Plans[0].TimestampSecs[n])
-		if baseValue == 0 {
-			s.Equal(uint32(0), resp.Data[0].Plans[0].ReadIndexes[n])
-		} else {
-			s.Equal(uint32(baseValue+n), resp.Data[0].Plans[0].ReadIndexes[n])
-		}
-	}
-}
-
-func (s *testTopSQLSuite) testWriteRow(baseTs int, baseValue int) {
-	var err error
-	w := NewMockResponseWriter()
-	req, err := http.NewRequest(http.MethodGet, "/v1/write_row", nil)
-	s.NoError(err)
-	urlQuery := url.Values{}
-	urlQuery.Set("instance", s.tikvAddr)
-	urlQuery.Set("instance_type", "tikv")
-	urlQuery.Set("start", strconv.Itoa(baseTs))
-	urlQuery.Set("end", strconv.Itoa(baseTs+5))
-	urlQuery.Set("window", "1s")
-	req.URL.RawQuery = urlQuery.Encode()
-	s.ng.ServeHTTP(w, req)
-	if w.StatusCode != http.StatusOK {
-		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
-	}
-	resp := metricsHttpResponse{}
-	s.NoError(json.Unmarshal(w.Body, &resp))
-	if resp.Status != "ok" {
-		s.FailNow(fmt.Sprintf("status: %s, message: %s, body: %v\n", resp.Status, resp.Message, string(w.Body)))
-	}
-	s.Len(resp.Data, 1)
-	s.Len(resp.Data[0].Plans, 1)
-	s.Len(resp.Data[0].Plans[0].TimestampSecs, 5)
-	s.Len(resp.Data[0].Plans[0].WriteRows, 5)
-	s.Empty(resp.Data[0].Plans[0].CPUTimeMillis)
-	s.Empty(resp.Data[0].Plans[0].ReadRows)
-	s.Empty(resp.Data[0].Plans[0].ReadIndexes)
-	s.Empty(resp.Data[0].Plans[0].WriteIndexes)
-	for n := 0; n < 5; n++ {
-		s.Equal(uint64(baseTs+n), resp.Data[0].Plans[0].TimestampSecs[n])
-		if baseValue == 0 {
-			s.Equal(uint32(0), resp.Data[0].Plans[0].WriteRows[n])
-		} else {
-			s.Equal(uint32(baseValue+n), resp.Data[0].Plans[0].WriteRows[n])
-		}
-	}
-}
-
-func (s *testTopSQLSuite) testWriteIndex(baseTs int, baseValue int) {
-	w := NewMockResponseWriter()
-	req, err := http.NewRequest(http.MethodGet, "/v1/write_index", nil)
-	s.NoError(err)
-	urlQuery := url.Values{}
-	urlQuery.Set("instance", s.tikvAddr)
-	urlQuery.Set("instance_type", "tikv")
-	urlQuery.Set("start", strconv.Itoa(baseTs))
-	urlQuery.Set("end", strconv.Itoa(baseTs+5))
-	urlQuery.Set("window", "1s")
-	req.URL.RawQuery = urlQuery.Encode()
-	s.ng.ServeHTTP(w, req)
-	if w.StatusCode != http.StatusOK {
-		s.FailNow(fmt.Sprintf("http: %d, body: %s\n", w.StatusCode, string(w.Body)))
-	}
-	resp := metricsHttpResponse{}
-	s.NoError(json.Unmarshal(w.Body, &resp))
-	if resp.Status != "ok" {
-		s.FailNow(fmt.Sprintf("status: %s, message: %s, body: %v\n", resp.Status, resp.Message, string(w.Body)))
-	}
-	s.Len(resp.Data, 1)
-	s.Len(resp.Data[0].Plans, 1)
-	s.Len(resp.Data[0].Plans[0].TimestampSecs, 5)
-	s.Len(resp.Data[0].Plans[0].WriteIndexes, 5)
-	s.Empty(resp.Data[0].Plans[0].CPUTimeMillis)
-	s.Empty(resp.Data[0].Plans[0].ReadRows)
-	s.Empty(resp.Data[0].Plans[0].ReadIndexes)
-	s.Empty(resp.Data[0].Plans[0].WriteRows)
-	for n := 0; n < 5; n++ {
-		s.Equal(uint64(baseTs+n), resp.Data[0].Plans[0].TimestampSecs[n])
-		if baseValue == 0 {
-			s.Equal(uint32(0), resp.Data[0].Plans[0].WriteIndexes[n])
-		} else {
-			s.Equal(uint32(baseValue+n), resp.Data[0].Plans[0].WriteIndexes[n])
-		}
-	}
+	return resp.Data
 }
 
 func (s *testTopSQLSuite) encodeTag(sql, plan []byte, label tipb.ResourceGroupTagLabel) []byte {

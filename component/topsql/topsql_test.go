@@ -31,29 +31,29 @@ func TestInstancesBasic(t *testing.T) {
 
 	now := time.Now().Unix()
 	err = ds.Instances([]store.InstanceItem{{
-		Instance:      "127.0.0.1:10080",
-		InstanceType:  "tidb",
-		TimestampSecs: uint64(now - 30),
+		Instance:     "127.0.0.1:10080",
+		InstanceType: "tidb",
+		TimestampSec: uint64(now - 30),
 	}, {
-		Instance:      "127.0.0.1:10080",
-		InstanceType:  "tidb",
-		TimestampSecs: uint64(now - 30), // same ts
+		Instance:     "127.0.0.1:10080",
+		InstanceType: "tidb",
+		TimestampSec: uint64(now - 30), // same ts
 	}, {
-		Instance:      "127.0.0.1:10080",
-		InstanceType:  "tidb",
-		TimestampSecs: uint64(now),
+		Instance:     "127.0.0.1:10080",
+		InstanceType: "tidb",
+		TimestampSec: uint64(now),
 	}, {
-		Instance:      "127.0.0.1:10080",
-		InstanceType:  "tidb",
-		TimestampSecs: uint64(now - 20), // not in order
+		Instance:     "127.0.0.1:10080",
+		InstanceType: "tidb",
+		TimestampSec: uint64(now - 20), // not in order
 	}, {
-		Instance:      "127.0.0.1:10081",
-		InstanceType:  "tidb",
-		TimestampSecs: uint64(now - 40),
+		Instance:     "127.0.0.1:10081",
+		InstanceType: "tidb",
+		TimestampSec: uint64(now - 40),
 	}, {
-		Instance:      "127.0.0.1:20160",
-		InstanceType:  "tikv",
-		TimestampSecs: uint64(now),
+		Instance:     "127.0.0.1:20160",
+		InstanceType: "tikv",
+		TimestampSec: uint64(now),
 	}})
 	require.NoError(t, err)
 

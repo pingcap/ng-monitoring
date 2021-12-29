@@ -1,24 +1,26 @@
 package store
 
 const (
-	MetricNameInstance   = "instance"
-	MetricNameCPUTime    = "cpu_time"
-	MetricNameReadRow    = "read_row"
-	MetricNameReadIndex  = "read_index"
-	MetricNameWriteRow   = "write_row"
-	MetricNameWriteIndex = "write_index"
+	MetricNameInstance       = "instance"
+	MetricNameCPUTime        = "cpu_time"
+	MetricNameReadRow        = "read_row"
+	MetricNameReadIndex      = "read_index"
+	MetricNameWriteRow       = "write_row"
+	MetricNameWriteIndex     = "write_index"
+	MetricNameSQLExecCount   = "sql_exec_count"
+	MetricNameSQLDurationSum = "sql_duration_sum"
 )
 
 type Metric struct {
 	Metric     interface{} `json:"metric"`
 	Timestamps []uint64    `json:"timestamps"` // in millisecond
-	Values     []uint32    `json:"values"`
+	Values     []uint64    `json:"values"`
 }
 
 type InstanceItem struct {
-	Instance      string `json:"instance"`
-	InstanceType  string `json:"instance_type"`
-	TimestampSecs uint64 `json:"timestamp"`
+	Instance     string `json:"instance"`
+	InstanceType string `json:"instance_type"`
+	TimestampSec uint64 `json:"timestamp"`
 }
 
 type recordTags struct {

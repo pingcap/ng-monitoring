@@ -7,7 +7,7 @@ import (
 
 type Store interface {
 	Instances(items []InstanceItem) error
-	TopSQLRecord(instance, instanceType string, record *tipb.CPUTimeRecord) error
+	TopSQLRecord(instance, instanceType string, record *tipb.TopSQLRecord) error
 	ResourceMeteringRecord(instance, instanceType string, record *rsmetering.ResourceUsageRecord) error
 	SQLMeta(meta *tipb.SQLMeta) error
 	PlanMeta(meta *tipb.PlanMeta) error

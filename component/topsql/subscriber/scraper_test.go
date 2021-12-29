@@ -165,11 +165,10 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 
 	pubsub.AccessTiDBStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
 		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
-			Record: &tipb.CPUTimeRecord{
-				SqlDigest:              []byte(sqlDigest),
-				PlanDigest:             []byte(planDigest),
-				RecordListTimestampSec: []uint64{tsSec},
-				RecordListCpuTimeMs:    []uint32{cpuTimeMs},
+			Record: &tipb.TopSQLRecord{
+				SqlDigest:  []byte(sqlDigest),
+				PlanDigest: []byte(planDigest),
+				Items:      []*tipb.TopSQLRecordItem{{TimestampSec: tsSec, CpuTimeMs: cpuTimeMs}},
 			},
 		}}))
 
@@ -210,10 +209,10 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 		require.Equal(t, store.PlanMetas[planDigest].Meta.NormalizedPlan, planText)
 		record := store.TopSQLRecords[addr][sqlDigest][planDigest]
 		got := false
-		for i, v := range record.RecordListTimestampSec {
-			if v == tsSec {
+		for _, i := range record.Items {
+			if i.TimestampSec == tsSec {
 				got = true
-				require.Equal(t, record.RecordListCpuTimeMs[i], cpuTimeMs)
+				require.Equal(t, cpuTimeMs, i.CpuTimeMs)
 			}
 		}
 		require.True(t, got)

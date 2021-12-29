@@ -186,15 +186,15 @@ func (m *Manager) storeTopology() error {
 		switch com.Name {
 		case topology.ComponentTiDB:
 			items = append(items, store.InstanceItem{
-				Instance:      fmt.Sprintf("%s:%d", com.IP, com.StatusPort),
-				InstanceType:  topology.ComponentTiDB,
-				TimestampSecs: uint64(now),
+				Instance:     fmt.Sprintf("%s:%d", com.IP, com.StatusPort),
+				InstanceType: topology.ComponentTiDB,
+				TimestampSec: uint64(now),
 			})
 		case topology.ComponentTiKV:
 			items = append(items, store.InstanceItem{
-				Instance:      fmt.Sprintf("%s:%d", com.IP, com.Port),
-				InstanceType:  topology.ComponentTiKV,
-				TimestampSecs: uint64(now),
+				Instance:     fmt.Sprintf("%s:%d", com.IP, com.Port),
+				InstanceType: topology.ComponentTiKV,
+				TimestampSec: uint64(now),
 			})
 		}
 	}
