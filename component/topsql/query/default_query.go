@@ -55,7 +55,7 @@ func (dq *DefaultQuery) TopSQL(name string, startSecs, endSecs, windowSecs, top 
 }
 
 func (dq *DefaultQuery) Instances(startSecs, endSecs int, fill *[]InstanceItem) error {
-	return dq.fetchInstanceFromTSDB(startSecs, endSecs, fill)
+	return dq.fetchInstancesFromTSDB(startSecs, endSecs, fill)
 }
 
 func (dq *DefaultQuery) Close() {}
@@ -108,7 +108,7 @@ func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs
 	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
 }
 
-func (dq *DefaultQuery) fetchInstanceFromTSDB(startSecs, endSecs int, fill *[]InstanceItem) error {
+func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]InstanceItem) error {
 	if dq.vmselectHandler == nil {
 		return fmt.Errorf("empty query handler")
 	}

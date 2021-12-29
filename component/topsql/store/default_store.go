@@ -57,22 +57,13 @@ func (ds *DefaultStore) initDocumentDB() error {
 var _ Store = &DefaultStore{}
 
 func (ds *DefaultStore) Instances(items []InstanceItem) error {
-	m := instancesItemToMetric(items)
-	if err := ds.writeTimeseriesDB(m...); err != nil {
-		return err
-	}
-
-	return nil
+	ms := instancesItemToMetric(items)
+	return ds.writeTimeseriesDB(ms)
 }
 
 func (ds *DefaultStore) TopSQLRecord(instance, instanceType string, record *tipb.TopSQLRecord) error {
 	ms := topSQLProtoToMetrics(instance, instanceType, record)
-	for _, m := range ms {
-		if err := ds.writeTimeseriesDB(m); err != nil {
-			return err
-		}
-	}
-	return nil
+	return ds.writeTimeseriesDB(ms)
 }
 
 func (ds *DefaultStore) ResourceMeteringRecord(
@@ -83,12 +74,7 @@ func (ds *DefaultStore) ResourceMeteringRecord(
 	if err != nil {
 		return err
 	}
-	if ms != nil {
-		if err := ds.writeTimeseriesDB(ms...); err != nil {
-			return err
-		}
-	}
-	return nil
+	return ds.writeTimeseriesDB(ms)
 }
 
 func (ds *DefaultStore) SQLMeta(meta *tipb.SQLMeta) error {
@@ -304,7 +290,11 @@ func appendMetricRowIndex(i int, ts uint64, values []uint32, mRow, mIndex *Metri
 	mIndex.Values = append(mIndex.Values, uint64(indexes))
 }
 
-func (ds *DefaultStore) writeTimeseriesDB(metric ...Metric) error {
+func (ds *DefaultStore) writeTimeseriesDB(metrics []Metric) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
 	bufReq := bytesP.Get()
 	bufResp := bytesP.Get()
 	header := headerP.Get()
@@ -313,7 +303,7 @@ func (ds *DefaultStore) writeTimeseriesDB(metric ...Metric) error {
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
 
-	if err := encodeMetric(bufReq, metric); err != nil {
+	if err := encodeMetric(bufReq, metrics); err != nil {
 		return err
 	}
 
