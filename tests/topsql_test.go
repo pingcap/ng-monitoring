@@ -196,24 +196,102 @@ func (s *testTopSQLSuite) SetupSuite() {
 		}},
 	}})
 	s.tikvServer.PushRecords([]*rua.ResourceUsageRecord{{
-		ResourceGroupTag:       s.encodeTag([]byte("sql-1"), []byte("plan-1"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow),
-		RecordListTimestampSec: []uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
-		RecordListCpuTimeMs:    []uint32{121, 122, 123, 124, 125},
-		RecordListReadKeys:     []uint32{131, 132, 133, 134, 135},
-		RecordListWriteKeys:    []uint32{141, 142, 143, 144, 145},
+		RecordOneof: &rua.ResourceUsageRecord_Record{
+			Record: &rua.GroupTagRecord{
+				ResourceGroupTag: s.encodeTag([]byte("sql-1"), []byte("plan-1"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow),
+				Items: []*rua.GroupTagRecordItem{{
+					TimestampSec: testBaseTs + 111,
+					CpuTimeMs:    121,
+					ReadKeys:     131,
+					WriteKeys:    141,
+				}, {
+					TimestampSec: testBaseTs + 112,
+					CpuTimeMs:    122,
+					ReadKeys:     132,
+					WriteKeys:    142,
+				}, {
+					TimestampSec: testBaseTs + 113,
+					CpuTimeMs:    123,
+					ReadKeys:     133,
+					WriteKeys:    143,
+				}, {
+					TimestampSec: testBaseTs + 114,
+					CpuTimeMs:    124,
+					ReadKeys:     134,
+					WriteKeys:    144,
+				}, {
+					TimestampSec: testBaseTs + 115,
+					CpuTimeMs:    125,
+					ReadKeys:     135,
+					WriteKeys:    145,
+				}},
+			},
+		},
 	}, {
-		ResourceGroupTag:       s.encodeTag([]byte("sql-2"), []byte("plan-2"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex),
-		RecordListTimestampSec: []uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
-		RecordListCpuTimeMs:    []uint32{221, 222, 223, 224, 225},
-		RecordListReadKeys:     []uint32{231, 232, 233, 234, 235},
-		RecordListWriteKeys:    []uint32{241, 242, 243, 244, 245},
+		RecordOneof: &rua.ResourceUsageRecord_Record{
+			Record: &rua.GroupTagRecord{
+				ResourceGroupTag: s.encodeTag([]byte("sql-2"), []byte("plan-2"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex),
+				Items: []*rua.GroupTagRecordItem{{
+					TimestampSec: testBaseTs + 211,
+					CpuTimeMs:    221,
+					ReadKeys:     231,
+					WriteKeys:    241,
+				}, {
+					TimestampSec: testBaseTs + 212,
+					CpuTimeMs:    222,
+					ReadKeys:     232,
+					WriteKeys:    242,
+				}, {
+					TimestampSec: testBaseTs + 213,
+					CpuTimeMs:    223,
+					ReadKeys:     233,
+					WriteKeys:    243,
+				}, {
+					TimestampSec: testBaseTs + 214,
+					CpuTimeMs:    224,
+					ReadKeys:     234,
+					WriteKeys:    244,
+				}, {
+					TimestampSec: testBaseTs + 215,
+					CpuTimeMs:    225,
+					ReadKeys:     235,
+					WriteKeys:    245,
+				}},
+			},
+		},
 	}, {
-		// Unknown label will not be counted in the read_row/read_index/write_row/write_index.
-		ResourceGroupTag:       s.encodeTag([]byte("sql-3"), []byte("plan-3"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelUnknown),
-		RecordListTimestampSec: []uint64{testBaseTs + 311, testBaseTs + 312, testBaseTs + 313, testBaseTs + 314, testBaseTs + 315},
-		RecordListCpuTimeMs:    []uint32{321, 322, 323, 324, 325},
-		RecordListReadKeys:     []uint32{331, 332, 333, 334, 335},
-		RecordListWriteKeys:    []uint32{341, 342, 343, 344, 345},
+		RecordOneof: &rua.ResourceUsageRecord_Record{
+			Record: &rua.GroupTagRecord{
+				// Unknown label will not be counted in the read_row/read_index/write_row/write_index.
+				ResourceGroupTag: s.encodeTag([]byte("sql-3"), []byte("plan-3"), tipb.ResourceGroupTagLabel_ResourceGroupTagLabelUnknown),
+				Items: []*rua.GroupTagRecordItem{{
+					TimestampSec: testBaseTs + 311,
+					CpuTimeMs:    321,
+					ReadKeys:     331,
+					WriteKeys:    341,
+				}, {
+					TimestampSec: testBaseTs + 312,
+					CpuTimeMs:    322,
+					ReadKeys:     332,
+					WriteKeys:    342,
+				}, {
+					TimestampSec: testBaseTs + 313,
+					CpuTimeMs:    323,
+					ReadKeys:     333,
+					WriteKeys:    343,
+				}, {
+					TimestampSec: testBaseTs + 314,
+					CpuTimeMs:    324,
+					ReadKeys:     334,
+					WriteKeys:    344,
+				}, {
+					TimestampSec: testBaseTs + 315,
+					CpuTimeMs:    325,
+					ReadKeys:     335,
+					WriteKeys:    345,
+				}},
+			},
+		},
 	}})
 	time.Sleep(3 * time.Second)
 }

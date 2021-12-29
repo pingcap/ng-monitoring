@@ -860,8 +860,8 @@ github.com/pierrec/lz4 v2.0.5+incompatible/go.mod h1:pdkljMzZIN41W+lC3N2tnIh5sFi
 github.com/pingcap/errors v0.11.0/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
 github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4=
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
-github.com/pingcap/kvproto v0.0.0-20211026070721-8e3f74722d72 h1:bZqaZSk/8rj0MRsY7NowadhL8WCBzSxsQgBvlebgOSY=
-github.com/pingcap/kvproto v0.0.0-20211026070721-8e3f74722d72/go.mod h1:IOdRDPLyda8GX2hE/jO7gqaCV/PNFh8BZQCQZXfIOqI=
+github.com/pingcap/kvproto v0.0.0-20211229082925-7a8280c36daf h1:GZ9It5l204D8wqaS4DCW5sDysiqfTOAd9LBorY5qGHI=
+github.com/pingcap/kvproto v0.0.0-20211229082925-7a8280c36daf/go.mod h1:IOdRDPLyda8GX2hE/jO7gqaCV/PNFh8BZQCQZXfIOqI=
 github.com/pingcap/log v0.0.0-20210906054005-afc726e70354 h1:SvWCbCPh1YeHd9yQLksvJYAgft6wLTY1aNG81tpyscQ=
 github.com/pingcap/log v0.0.0-20210906054005-afc726e70354/go.mod h1:DWQW5jICDR7UJh4HtxXSM20Churx4CQL0fwL/SoOSA4=
 github.com/pingcap/tidb-dashboard/util v0.0.0-20211014081729-82f8b809f5ae h1:TY7b68YbZp8XkbgP/CLn3qILV4OpgnGSMcjLV5XGLDE=

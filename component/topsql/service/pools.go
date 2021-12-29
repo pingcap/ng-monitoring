@@ -46,15 +46,15 @@ type ResourceCPUTimeSlicePool struct {
 	p sync.Pool
 }
 
-func (rsp *ResourceCPUTimeSlicePool) Get() *[]*resource_usage_agent.CPUTimeRecord {
+func (rsp *ResourceCPUTimeSlicePool) Get() *[]*resource_usage_agent.ResourceUsageRecord {
 	rs := rsp.p.Get()
 	if rs == nil {
-		return &[]*resource_usage_agent.CPUTimeRecord{}
+		return &[]*resource_usage_agent.ResourceUsageRecord{}
 	}
-	return rs.(*[]*resource_usage_agent.CPUTimeRecord)
+	return rs.(*[]*resource_usage_agent.ResourceUsageRecord)
 }
 
-func (rsp *ResourceCPUTimeSlicePool) Put(rs *[]*resource_usage_agent.CPUTimeRecord) {
+func (rsp *ResourceCPUTimeSlicePool) Put(rs *[]*resource_usage_agent.ResourceUsageRecord) {
 	*rs = (*rs)[:0]
 	rsp.p.Put(rs)
 }
