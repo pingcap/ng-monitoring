@@ -316,8 +316,10 @@ func (s *testTopSQLSuite) TestSummary() {
 	s.Equal(res, []query.SummaryItem{{
 		IsOther: true,
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec: []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:    []uint64{209, 232, 80, 142, 115},
+			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			CPUTimeMs:         []uint64{209, 232, 80, 142, 115},
+			ExecCountPerSec:   835.0 / 41,
+			DurationPerExecMs: 777.0 / 835.0,
 		}},
 	}, {
 		SQLDigest: hex.EncodeToString([]byte("sql-0")),

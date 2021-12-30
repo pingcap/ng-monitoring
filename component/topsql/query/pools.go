@@ -58,3 +58,22 @@ func (smp *sqlDigestMapPool) Put(smv map[string]sqlGroup) {
 	}
 	smp.p.Put(smv)
 }
+
+type sumMapPool struct {
+	p sync.Pool
+}
+
+func (smp *sumMapPool) Get() map[RecordKey]float64 {
+	smv := smp.p.Get()
+	if smv == nil {
+		return make(map[RecordKey]float64)
+	}
+	return smv.(map[RecordKey]float64)
+}
+
+func (smp *sumMapPool) Put(smv map[RecordKey]float64) {
+	for key := range smv {
+		delete(smv, key)
+	}
+	smp.p.Put(smv)
+}
