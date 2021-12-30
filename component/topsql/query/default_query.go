@@ -142,6 +142,11 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 	var othersItem *SummaryPlanItem
 	for _, item := range *fill {
 		if item.IsOther {
+			// don't know how it can happen, but we'd better be pessimists
+			if len(item.Plans) == 0 {
+				item.Plans = append(item.Plans, SummaryPlanItem{})
+			}
+
 			othersItem = &item.Plans[0]
 			continue
 		}
