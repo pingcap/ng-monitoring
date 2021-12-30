@@ -4,25 +4,6 @@ import (
 	"sync"
 )
 
-type recordsRespPool struct {
-	p sync.Pool
-}
-
-func (rrp *recordsRespPool) Get() *recordsMetricResp {
-	rrv := rrp.p.Get()
-	if rrv == nil {
-		return &recordsMetricResp{}
-	}
-	return rrv.(*recordsMetricResp)
-}
-
-func (rrp *recordsRespPool) Put(rrv *recordsMetricResp) {
-	rrv.Status = ""
-	rrv.Data.ResultType = ""
-	rrv.Data.Results = rrv.Data.Results[:0]
-	rrp.p.Put(rrv)
-}
-
 type sqlGroupSlicePool struct {
 	p sync.Pool
 }
