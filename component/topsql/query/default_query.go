@@ -24,6 +24,7 @@ var (
 	recordsRespP   = recordsRespPool{}
 	sqlGroupSliceP = sqlGroupSlicePool{}
 	sqlDigestMapP  = sqlDigestMapPool{}
+	sumMapP        = sumMapPool{}
 )
 
 type DefaultQuery struct {
@@ -113,38 +114,88 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 
 	// rangeSecs never to be 0 because startSecs <= endSecs
 	rangeSecs := float64(endSecs - startSecs + 1)
+
+	sumDurationMap := sumMapP.Get()
+	defer sumMapP.Put(sumDurationMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationSum, startSecs, endSecs, instance, instanceType, sumDurationMap); err != nil {
+		return err
+	}
+
+	sumExecMap := sumMapP.Get()
+	defer sumMapP.Put(sumExecMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameSQLExecCount, startSecs, endSecs, instance, instanceType, sumExecMap); err != nil {
+		return err
+	}
+
+	sumReadRowMap := sumMapP.Get()
+	defer sumMapP.Put(sumReadRowMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameReadRow, startSecs, endSecs, instance, instanceType, sumReadRowMap); err != nil {
+		return err
+	}
+
+	sumReadIndexMap := sumMapP.Get()
+	defer sumMapP.Put(sumReadIndexMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameReadIndex, startSecs, endSecs, instance, instanceType, sumReadIndexMap); err != nil {
+		return err
+	}
+
+	var othersItem *SummaryPlanItem
 	for _, item := range *fill {
 		if item.IsOther {
-			continue
-		}
-		for i := range item.Plans {
-			planDigest := item.Plans[i].PlanDigest
-			sumDurationNs, err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationSum, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
-			if err != nil {
-				return err
-			}
-			sumExecCount, err := dq.fetchSumFromTSDB(store.MetricNameSQLExecCount, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
-			if err != nil {
-				return err
-			}
-			sumReadRows, err := dq.fetchSumFromTSDB(store.MetricNameReadRow, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
-			if err != nil {
-				return err
-			}
-			sumReadIndexes, err := dq.fetchSumFromTSDB(store.MetricNameReadIndex, startSecs, endSecs, instance, instanceType, item.SQLDigest, planDigest)
-			if err != nil {
-				return err
+			// don't know how it can happen, but we'd better be pessimists
+			if len(item.Plans) == 0 {
+				item.Plans = append(item.Plans, SummaryPlanItem{})
 			}
 
-			if sumExecCount == 0.0 {
+			othersItem = &item.Plans[0]
+			continue
+		}
+		for i, p := range item.Plans {
+			durationNs := sumDurationMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
+			delete(sumDurationMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
+			execCount := sumExecMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
+			delete(sumExecMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
+			readRow := sumReadRowMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
+			delete(sumReadRowMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
+			readIndex := sumReadIndexMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
+			delete(sumReadIndexMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
+
+			if execCount == 0.0 {
 				item.Plans[i].DurationPerExecMs = 0
 			} else {
-				item.Plans[i].DurationPerExecMs = sumDurationNs / 1000000.0 / sumExecCount
+				item.Plans[i].DurationPerExecMs = durationNs / 1000000.0 / execCount
 			}
-			item.Plans[i].ExecCountPerSec = sumExecCount / rangeSecs
-			item.Plans[i].ScanRecordsPerSec = sumReadRows / rangeSecs
-			item.Plans[i].ScanIndexesPerSec = sumReadIndexes / rangeSecs
+			item.Plans[i].ExecCountPerSec = execCount / rangeSecs
+			item.Plans[i].ScanRecordsPerSec = readRow / rangeSecs
+			item.Plans[i].ScanIndexesPerSec = readIndex / rangeSecs
 		}
+	}
+
+	if othersItem != nil {
+		othersDurationNs := 0.0
+		othersExecCount := 0.0
+		othersReadRow := 0.0
+		othersReadIndex := 0.0
+		for _, s := range sumDurationMap {
+			othersDurationNs += s
+		}
+		for _, s := range sumExecMap {
+			othersExecCount += s
+		}
+		for _, s := range sumReadRowMap {
+			othersReadRow += s
+		}
+		for _, s := range sumReadRowMap {
+			othersReadIndex += s
+		}
+		if othersExecCount == 0.0 {
+			othersItem.DurationPerExecMs = 0
+		} else {
+			othersItem.DurationPerExecMs = othersDurationNs / 1000000.0 / othersExecCount
+		}
+		othersItem.ExecCountPerSec = othersExecCount / rangeSecs
+		othersItem.ScanRecordsPerSec = othersReadRow / rangeSecs
+		othersItem.ScanIndexesPerSec = othersReadIndex / rangeSecs
 	}
 
 	return nil
@@ -241,9 +292,9 @@ func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]I
 	return nil
 }
 
-func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, instance, instanceType, sqlDigest, planDigest string) (float64, error) {
+func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, instance, instanceType string, fill map[RecordKey]float64) error {
 	if dq.vmselectHandler == nil {
-		return 0, fmt.Errorf("empty query handler")
+		return fmt.Errorf("empty query handler")
 	}
 
 	bufResp := bytesP.Get()
@@ -254,10 +305,10 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 
 	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	reqQuery := req.URL.Query()
-	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\", sql_digest=\"%s\", plan_digest=\"%s\"})", name, instance, instanceType, sqlDigest, planDigest))
+	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"})", name, instance, instanceType))
 
 	// Data:
 	// t1  t2  t3  t4  t5  t6  t7  t8  t9
@@ -288,22 +339,36 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 	recordsResponse := recordsRespP.Get()
 	defer recordsRespP.Put(recordsResponse)
 	if err = json.Unmarshal(respR.Body.Bytes(), recordsResponse); err != nil {
-		return 0, err
+		return err
 	}
 
-	if len(recordsResponse.Data.Results) > 0 {
-		res := recordsResponse.Data.Results[0]
-		if len(res.Values) > 0 {
-			pair := res.Values[0]
-			if len(pair) >= 2 {
-				if v, ok := pair[1].(string); ok {
-					return strconv.ParseFloat(v, 64)
-				}
-			}
+	for _, result := range recordsResponse.Data.Results {
+		if len(result.Values) == 0 {
+			continue
 		}
+
+		pair := result.Values[0]
+		if len(pair) < 2 {
+			continue
+		}
+
+		v, ok := pair[1].(string)
+		if !ok {
+			continue
+		}
+
+		sum, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			continue
+		}
+
+		fill[RecordKey{
+			SQLDigest:  result.Metric.SQLDigest,
+			PlanDigest: result.Metric.PlanDigest,
+		}] = sum
 	}
 
-	return 0, nil
+	return nil
 }
 
 func topK(results []recordsMetricRespDataResult, top int, sqlGroups *[]sqlGroup) {

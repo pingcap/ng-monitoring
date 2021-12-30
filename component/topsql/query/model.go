@@ -1,5 +1,10 @@
 package query
 
+type RecordKey struct {
+	SQLDigest  string
+	PlanDigest string
+}
+
 type RecordItem struct {
 	SQLDigest string           `json:"sql_digest"`
 	SQLText   string           `json:"sql_text"`
