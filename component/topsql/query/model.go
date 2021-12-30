@@ -1,22 +1,41 @@
 package query
 
-type TopSQLItem struct {
-	SQLDigest string     `json:"sql_digest"`
-	SQLText   string     `json:"sql_text"`
-	Plans     []PlanItem `json:"plans"`
+type RecordItem struct {
+	SQLDigest string           `json:"sql_digest"`
+	SQLText   string           `json:"sql_text"`
+	IsOther   bool             `json:"is_other"`
+	Plans     []RecordPlanItem `json:"plans"`
 }
 
-type PlanItem struct {
+type RecordPlanItem struct {
 	PlanDigest     string   `json:"plan_digest"`
 	PlanText       string   `json:"plan_text"`
-	TimestampSecs  []uint64 `json:"timestamp_secs"`
-	CPUTimeMillis  []uint64 `json:"cpu_time_millis,omitempty"`
+	TimestampSec   []uint64 `json:"timestamp_sec"`
+	CPUTimeMs      []uint64 `json:"cpu_time_ms,omitempty"`
 	ReadRows       []uint64 `json:"read_rows,omitempty"`
 	ReadIndexes    []uint64 `json:"read_indexes,omitempty"`
 	WriteRows      []uint64 `json:"write_rows,omitempty"`
 	WriteIndexes   []uint64 `json:"write_indexes,omitempty"`
 	SQLExecCount   []uint64 `json:"sql_exec_count,omitempty"`
 	SQLDurationSum []uint64 `json:"sql_duration_sum,omitempty"`
+}
+
+type SummaryItem struct {
+	SQLDigest string            `json:"sql_digest"`
+	SQLText   string            `json:"sql_text"`
+	IsOther   bool              `json:"is_other"`
+	Plans     []SummaryPlanItem `json:"plans"`
+}
+
+type SummaryPlanItem struct {
+	PlanDigest        string   `json:"plan_digest"`
+	PlanText          string   `json:"plan_text"`
+	TimestampSec      []uint64 `json:"timestamp_sec"`
+	CPUTimeMs         []uint64 `json:"cpu_time_ms,omitempty"`
+	ExecCountPerSec   float64  `json:"exec_count_per_sec"`
+	DurationPerExecMs float64  `json:"duration_per_exec_ms"`
+	ScanRecordsPerSec float64  `json:"scan_records_per_sec"`
+	ScanIndexesPerSec float64  `json:"scan_indexes_per_sec"`
 }
 
 type InstanceItem struct {
