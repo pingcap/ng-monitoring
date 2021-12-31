@@ -3,6 +3,7 @@ package query
 import (
 	"container/heap"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -21,7 +22,6 @@ var (
 	bytesP  = utils.BytesBufferPool{}
 	headerP = utils.HeaderPool{}
 
-	recordsRespP   = recordsRespPool{}
 	sqlGroupSliceP = sqlGroupSlicePool{}
 	sqlDigestMapP  = sqlDigestMapPool{}
 	sumMapP        = sumMapPool{}
@@ -49,10 +49,8 @@ func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top
 	// adjust start to make result align to end
 	startSecs = endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
-	recordsResponse := recordsRespP.Get()
-	defer recordsRespP.Put(recordsResponse)
-
-	if err := dq.fetchRecordsFromTSDB(name, startSecs, endSecs, windowSecs, instance, instanceType, recordsResponse); err != nil {
+	var recordsResponse recordsMetricResp
+	if err := dq.fetchRecordsFromTSDB(name, startSecs, endSecs, windowSecs, instance, instanceType, &recordsResponse); err != nil {
 		return err
 	}
 
@@ -77,9 +75,8 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 	// adjust start to make result align to end
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
-	recordsResponse := recordsRespP.Get()
-	defer recordsRespP.Put(recordsResponse)
-	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, recordsResponse); err != nil {
+	var recordsResponse recordsMetricResp
+	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, &recordsResponse); err != nil {
 		return err
 	}
 
@@ -246,7 +243,9 @@ func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs
 	dq.vmselectHandler(&respR, req)
 
 	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
-		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
+		errStr := respR.Body.String()
+		log.Warn("failed to fetch timeseries db", zap.String("error", errStr))
+		return errors.New(errStr)
 	}
 	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
 }
@@ -275,7 +274,9 @@ func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]I
 	respR := utils.NewRespWriter(bufResp, header)
 	dq.vmselectHandler(&respR, req)
 	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
-		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
+		errStr := respR.Body.String()
+		log.Warn("failed to fetch timeseries db", zap.String("error", errStr))
+		return errors.New(errStr)
 	}
 
 	res := instancesMetricResp{}
@@ -333,12 +334,13 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 	dq.vmselectHandler(&respR, req)
 
 	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
-		log.Warn("failed to fetch timeseries db", zap.String("error", respR.Body.String()))
+		errStr := respR.Body.String()
+		log.Warn("failed to fetch timeseries db", zap.String("error", errStr))
+		return errors.New(errStr)
 	}
 
-	recordsResponse := recordsRespP.Get()
-	defer recordsRespP.Put(recordsResponse)
-	if err = json.Unmarshal(respR.Body.Bytes(), recordsResponse); err != nil {
+	var recordsResponse recordsMetricResp
+	if err = json.Unmarshal(respR.Body.Bytes(), &recordsResponse); err != nil {
 		return err
 	}
 
