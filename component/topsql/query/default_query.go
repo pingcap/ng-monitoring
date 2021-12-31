@@ -182,7 +182,7 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		for _, s := range sumReadRowMap {
 			othersReadRow += s
 		}
-		for _, s := range sumReadRowMap {
+		for _, s := range sumReadIndexMap {
 			othersReadIndex += s
 		}
 		if othersExecCount == 0.0 {
