@@ -102,6 +102,10 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 				TimestampSec: p.TimestampSec,
 				CPUTimeMs:    p.CPUTimeMs,
 			})
+
+			for _, cpu := range p.CPUTimeMs {
+				sumItem.CPUTimeMs += cpu
+			}
 		}
 
 		*fill = append(*fill, sumItem)
@@ -136,17 +140,22 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		return err
 	}
 
-	var othersItem *SummaryPlanItem
-	for _, item := range *fill {
+	var othersItem *SummaryItem
+	for i, item := range *fill {
 		if item.IsOther {
 			// don't know how it can happen, but we'd better be pessimists
 			if len(item.Plans) == 0 {
 				item.Plans = append(item.Plans, SummaryPlanItem{})
 			}
 
-			othersItem = &item.Plans[0]
+			othersItem = &(*fill)[i]
 			continue
 		}
+
+		overallDurationNs := 0.0
+		overallExecCount := 0.0
+		overallReadRows := 0.0
+		overallReadIndexes := 0.0
 		for i, p := range item.Plans {
 			durationNs := sumDurationMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
 			delete(sumDurationMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
@@ -165,10 +174,26 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 			item.Plans[i].ExecCountPerSec = execCount / rangeSecs
 			item.Plans[i].ScanRecordsPerSec = readRow / rangeSecs
 			item.Plans[i].ScanIndexesPerSec = readIndex / rangeSecs
+
+			overallDurationNs += durationNs
+			overallExecCount += execCount
+			overallReadRows += readRow
+			overallReadIndexes += readIndex
 		}
+
+		if overallExecCount == 0.0 {
+			(*fill)[i].DurationPerExecMs = 0
+		} else {
+			(*fill)[i].DurationPerExecMs = overallDurationNs / 1000000.0 / overallExecCount
+		}
+		(*fill)[i].ExecCountPerSec = overallExecCount / rangeSecs
+		(*fill)[i].ScanRecordsPerSec = overallReadRows / rangeSecs
+		(*fill)[i].ScanIndexesPerSec = overallReadIndexes / rangeSecs
 	}
 
 	if othersItem != nil {
+		planItem := &(*othersItem).Plans[0]
+
 		othersDurationNs := 0.0
 		othersExecCount := 0.0
 		othersReadRow := 0.0
@@ -185,14 +210,23 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		for _, s := range sumReadIndexMap {
 			othersReadIndex += s
 		}
+
 		if othersExecCount == 0.0 {
 			othersItem.DurationPerExecMs = 0
+			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
 		} else {
 			othersItem.DurationPerExecMs = othersDurationNs / 1000000.0 / othersExecCount
+			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
 		}
+
 		othersItem.ExecCountPerSec = othersExecCount / rangeSecs
+		planItem.ExecCountPerSec = othersItem.ExecCountPerSec
+
 		othersItem.ScanRecordsPerSec = othersReadRow / rangeSecs
+		planItem.ScanRecordsPerSec = othersItem.ScanRecordsPerSec
+
 		othersItem.ScanIndexesPerSec = othersReadIndex / rangeSecs
+		planItem.ScanIndexesPerSec = othersItem.ScanIndexesPerSec
 	}
 
 	return nil
