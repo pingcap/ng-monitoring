@@ -41,3 +41,6 @@ require (
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
+
+// TODO: remove
+replace github.com/pingcap/tipb => github.com/mornyx/tipb v0.0.0-20220106061749-a03a429882ac

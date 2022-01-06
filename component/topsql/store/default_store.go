@@ -152,6 +152,15 @@ func topSQLProtoToMetrics(
 			PlanDigest:   planDigest,
 		},
 	}
+	mDurationCount := Metric{
+		Metric: recordTags{
+			Name:         MetricNameSQLDurationCount,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
 	mKvExecCount := map[string]*Metric{}
 
 	for _, item := range record.Items {
@@ -165,6 +174,9 @@ func topSQLProtoToMetrics(
 
 		mDurationSum.TimestampMs = append(mDurationSum.TimestampMs, tsMillis)
 		mDurationSum.Values = append(mDurationSum.Values, item.StmtDurationSumNs)
+
+		mDurationCount.TimestampMs = append(mDurationCount.TimestampMs, tsMillis)
+		mDurationCount.Values = append(mDurationCount.Values, item.StmtDurationCount)
 
 		for target, execCount := range item.StmtKvExecCount {
 			metric, ok := mKvExecCount[target]
@@ -185,7 +197,7 @@ func topSQLProtoToMetrics(
 		}
 	}
 
-	ms = append(ms, mCpu, mExecCount, mDurationSum)
+	ms = append(ms, mCpu, mExecCount, mDurationSum, mDurationCount)
 	for _, m := range mKvExecCount {
 		ms = append(ms, *m)
 	}

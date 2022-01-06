@@ -13,16 +13,17 @@ type RecordItem struct {
 }
 
 type RecordPlanItem struct {
-	PlanDigest     string   `json:"plan_digest"`
-	PlanText       string   `json:"plan_text"`
-	TimestampSec   []uint64 `json:"timestamp_sec"`
-	CPUTimeMs      []uint64 `json:"cpu_time_ms,omitempty"`
-	ReadRows       []uint64 `json:"read_rows,omitempty"`
-	ReadIndexes    []uint64 `json:"read_indexes,omitempty"`
-	WriteRows      []uint64 `json:"write_rows,omitempty"`
-	WriteIndexes   []uint64 `json:"write_indexes,omitempty"`
-	SQLExecCount   []uint64 `json:"sql_exec_count,omitempty"`
-	SQLDurationSum []uint64 `json:"sql_duration_sum,omitempty"`
+	PlanDigest       string   `json:"plan_digest"`
+	PlanText         string   `json:"plan_text"`
+	TimestampSec     []uint64 `json:"timestamp_sec"`
+	CPUTimeMs        []uint64 `json:"cpu_time_ms,omitempty"`
+	ReadRows         []uint64 `json:"read_rows,omitempty"`
+	ReadIndexes      []uint64 `json:"read_indexes,omitempty"`
+	WriteRows        []uint64 `json:"write_rows,omitempty"`
+	WriteIndexes     []uint64 `json:"write_indexes,omitempty"`
+	SQLExecCount     []uint64 `json:"sql_exec_count,omitempty"`
+	SQLDurationSum   []uint64 `json:"sql_duration_sum,omitempty"`
+	SQLDurationCount []uint64 `json:"sql_duration_count,omitempty"`
 }
 
 type SummaryItem struct {
