@@ -173,13 +173,14 @@ type testData struct {
 }
 
 type testPlan struct {
-	planDigest string
-	ts         []uint64
-	cpu        []uint64
-	exec       []uint64
-	duration   []uint64
-	rows       []uint64
-	indexes    []uint64
+	planDigest    string
+	ts            []uint64
+	cpu           []uint64
+	exec          []uint64
+	duration      []uint64
+	durationCount []uint64
+	rows          []uint64
+	indexes       []uint64
 }
 
 func (s *testTopSQLSuite) TestTiDBSummary() {
@@ -212,40 +213,45 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 	data := []testData{{
 		sqlDigest: "sql-0",
 		plans: []testPlan{{
-			planDigest: "plan-0",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{67, 19, 54, 53, 71},
-			exec:       []uint64{49, 11, 74, 72, 98},
-			duration:   []uint64{97, 82, 24, 44, 88},
+			planDigest:    "plan-0",
+			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			cpu:           []uint64{67, 19, 54, 53, 71},
+			exec:          []uint64{49, 11, 74, 72, 98},
+			duration:      []uint64{97, 82, 24, 44, 88},
+			durationCount: []uint64{49, 11, 74, 72, 98},
 		}, {
-			ts:       []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:      []uint64{85, 64, 43, 19, 31},
-			exec:     []uint64{40, 92, 38, 87, 21},
-			duration: []uint64{11, 69, 58, 21, 56},
+			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			cpu:           []uint64{85, 64, 43, 19, 31},
+			exec:          []uint64{40, 92, 38, 87, 21},
+			duration:      []uint64{11, 69, 58, 21, 56},
+			durationCount: []uint64{40, 92, 38, 87, 21},
 		}},
 	}, {
 		sqlDigest: "sql-1",
 		plans: []testPlan{{
-			planDigest: "plan-0",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{97, 46, 29, 22, 35},
-			exec:       []uint64{68, 86, 24, 70, 75},
-			duration:   []uint64{90, 59, 46, 80, 16},
+			planDigest:    "plan-0",
+			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			cpu:           []uint64{97, 46, 29, 22, 35},
+			exec:          []uint64{68, 86, 24, 70, 75},
+			duration:      []uint64{90, 59, 46, 80, 16},
+			durationCount: []uint64{68, 86, 24, 70, 75},
 		}, {
-			planDigest: "plan-1",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{51, 99, 14, 65, 27},
-			exec:       []uint64{16, 11, 96, 73, 31},
-			duration:   []uint64{22, 11, 77, 84, 33},
+			planDigest:    "plan-1",
+			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			cpu:           []uint64{51, 99, 14, 65, 27},
+			exec:          []uint64{16, 11, 96, 73, 31},
+			duration:      []uint64{22, 11, 77, 84, 33},
+			durationCount: []uint64{16, 11, 96, 73, 31},
 		}},
 	}, {
 		sqlDigest: "sql-2",
 		plans: []testPlan{{
-			planDigest: "plan-0",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{61, 87, 37, 55, 53},
-			exec:       []uint64{54, 98, 46, 35, 52},
-			duration:   []uint64{50, 46, 19, 63, 81},
+			planDigest:    "plan-0",
+			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+			cpu:           []uint64{61, 87, 37, 55, 53},
+			exec:          []uint64{54, 98, 46, 35, 52},
+			duration:      []uint64{50, 46, 19, 63, 81},
+			durationCount: []uint64{54, 98, 46, 35, 52},
 		}},
 	}}
 
@@ -259,7 +265,8 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 						TimestampSec:      plan.ts[i],
 						CpuTimeMs:         uint32(plan.cpu[i]),
 						StmtExecCount:     plan.exec[i],
-						StmtDurationSumNs: plan.duration[i] * 1000000}}}))
+						StmtDurationSumNs: plan.duration[i] * 1000000,
+						StmtDurationCount: plan.durationCount[i]}}}))
 			}
 		}
 	}

@@ -122,6 +122,12 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		return err
 	}
 
+	sumDurationCountMap := sumMapP.Get()
+	defer sumMapP.Put(sumDurationCountMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationCount, startSecs, endSecs, instance, instanceType, sumDurationCountMap); err != nil {
+		return err
+	}
+
 	sumExecMap := sumMapP.Get()
 	defer sumMapP.Put(sumExecMap)
 	if err := dq.fetchSumFromTSDB(store.MetricNameSQLExecCount, startSecs, endSecs, instance, instanceType, sumExecMap); err != nil {
@@ -153,12 +159,15 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		}
 
 		overallDurationNs := 0.0
+		overallDurationCount := 0.0
 		overallExecCount := 0.0
 		overallReadRows := 0.0
 		overallReadIndexes := 0.0
 		for i, p := range item.Plans {
 			durationNs := sumDurationMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
 			delete(sumDurationMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
+			durationCount := sumDurationCountMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
+			delete(sumDurationCountMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
 			execCount := sumExecMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
 			delete(sumExecMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
 			readRow := sumReadRowMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
@@ -166,25 +175,26 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 			readIndex := sumReadIndexMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
 			delete(sumReadIndexMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
 
-			if execCount == 0.0 {
+			if durationCount == 0.0 {
 				item.Plans[i].DurationPerExecMs = 0
 			} else {
-				item.Plans[i].DurationPerExecMs = durationNs / 1000000.0 / execCount
+				item.Plans[i].DurationPerExecMs = durationNs / 1000000.0 / durationCount
 			}
 			item.Plans[i].ExecCountPerSec = execCount / rangeSecs
 			item.Plans[i].ScanRecordsPerSec = readRow / rangeSecs
 			item.Plans[i].ScanIndexesPerSec = readIndex / rangeSecs
 
 			overallDurationNs += durationNs
+			overallDurationCount += durationCount
 			overallExecCount += execCount
 			overallReadRows += readRow
 			overallReadIndexes += readIndex
 		}
 
-		if overallExecCount == 0.0 {
+		if overallDurationCount == 0.0 {
 			(*fill)[i].DurationPerExecMs = 0
 		} else {
-			(*fill)[i].DurationPerExecMs = overallDurationNs / 1000000.0 / overallExecCount
+			(*fill)[i].DurationPerExecMs = overallDurationNs / 1000000.0 / overallDurationCount
 		}
 		(*fill)[i].ExecCountPerSec = overallExecCount / rangeSecs
 		(*fill)[i].ScanRecordsPerSec = overallReadRows / rangeSecs
@@ -195,11 +205,15 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		planItem := &(*othersItem).Plans[0]
 
 		othersDurationNs := 0.0
+		othersDurationCount := 0.0
 		othersExecCount := 0.0
 		othersReadRow := 0.0
 		othersReadIndex := 0.0
 		for _, s := range sumDurationMap {
 			othersDurationNs += s
+		}
+		for _, s := range sumDurationCountMap {
+			othersDurationCount += s
 		}
 		for _, s := range sumExecMap {
 			othersExecCount += s
@@ -211,11 +225,11 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 			othersReadIndex += s
 		}
 
-		if othersExecCount == 0.0 {
+		if othersDurationCount == 0.0 {
 			othersItem.DurationPerExecMs = 0
 			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
 		} else {
-			othersItem.DurationPerExecMs = othersDurationNs / 1000000.0 / othersExecCount
+			othersItem.DurationPerExecMs = othersDurationNs / 1000000.0 / othersDurationCount
 			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
 		}
 
@@ -597,6 +611,8 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill func(R
 					planItem.SQLExecCount = series.values
 				case store.MetricNameSQLDurationSum:
 					planItem.SQLDurationSum = series.values
+				case store.MetricNameSQLDurationCount:
+					planItem.SQLDurationCount = series.values
 				}
 				item.Plans = append(item.Plans, planItem)
 			}

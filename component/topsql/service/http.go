@@ -24,6 +24,7 @@ var (
 		store.MetricNameWriteIndex,
 		store.MetricNameSQLExecCount,
 		store.MetricNameSQLDurationSum,
+		store.MetricNameSQLDurationCount,
 	}
 )
 
