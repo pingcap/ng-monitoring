@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/genjidb/genji"
+	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -280,4 +281,57 @@ func TestConfigPersist(t *testing.T) {
 	curCfg := GetGlobalConfig()
 	require.Equal(t, true, curCfg.ContinueProfiling.Enable)
 	require.Equal(t, 100, curCfg.ContinueProfiling.IntervalSeconds)
+}
+
+func TestConfigInvalidAddress(t *testing.T) {
+	cases := []struct {
+		address          string
+		advertiseAddress string
+		err              string
+	}{
+		{"", "", "unexpected empty address"},
+		{"0.0.0.0:0", "", "address 0.0.0.0:0 is invalid, err: port cannot be set to 0"},
+		{"0.0.0.0:abc", "", "address 0.0.0.0:abc is invalid, err: strconv.Atoi: parsing \"abc\": invalid syntax"},
+		{"0.0.0.0", "", "address 0.0.0.0 is invalid, err: address 0.0.0.0: missing port in address"},
+		{"0.0.0.0:12020", "abc", "advertise-address abc is invalid, err: address abc: missing port in address"},
+		{"0.0.0.0:12020", "0.0.0.0", "advertise-address 0.0.0.0 is invalid, err: address 0.0.0.0: missing port in address"},
+		{"0.0.0.0:12020", "0.0.0.0:0", "advertise-address 0.0.0.0:0 is invalid, err: port cannot be set to 0"},
+		{"0.0.0.0:12020", "0.0.0.0:abc", "advertise-address 0.0.0.0:abc is invalid, err: strconv.Atoi: parsing \"abc\": invalid syntax"},
+		{"0.0.0.0:12020", "0.0.0.0:abc", "advertise-address 0.0.0.0:abc is invalid, err: strconv.Atoi: parsing \"abc\": invalid syntax"},
+	}
+	for _, c := range cases {
+		cfg := defaultConfig
+		cfg.Address = c.address
+		cfg.AdvertiseAddress = c.advertiseAddress
+		cfg.setDefaultAdvertiseAddress()
+		err := cfg.valid()
+		require.NotNil(t, err)
+		require.Equal(t, c.err, err.Error())
+	}
+}
+
+func TestConfigValidAddress(t *testing.T) {
+	ip := utils.GetLocalIP()
+	cases := []struct {
+		address                  string
+		advertiseAddress         string
+		expectedAdvertiseAddress string
+	}{
+		{"127.0.0.1:12020", "", "127.0.0.1:12020"},
+		{"0.0.0.0:12020", "", ip + ":12020"},
+		{ip + ":12020", "", ip + ":12020"},
+		{"0.0.0.0:12020", "ngm-pod:12020", "ngm-pod:12020"},
+	}
+	for _, c := range cases {
+		cfg := defaultConfig
+		cfg.PD.Endpoints = []string{"127.0.0.1:2379"}
+
+		cfg.Address = c.address
+		cfg.AdvertiseAddress = c.advertiseAddress
+		cfg.setDefaultAdvertiseAddress()
+		err := cfg.valid()
+		require.NoError(t, err)
+		require.Equal(t, c.expectedAdvertiseAddress, cfg.AdvertiseAddress)
+		require.Equal(t, c.address, cfg.Address)
+	}
 }

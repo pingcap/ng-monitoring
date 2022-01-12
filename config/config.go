@@ -5,8 +5,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	stdlog "log"
+	"net"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +17,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng-monitoring/utils"
 	commonconfig "github.com/prometheus/common/config"
 	"go.etcd.io/etcd/pkg/transport"
 	"go.uber.org/zap"
@@ -118,9 +121,7 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 
 	override(&config)
 
-	if config.AdvertiseAddress == "" {
-		config.AdvertiseAddress = config.Address
-	}
+	config.setDefaultAdvertiseAddress()
 
 	if err := config.valid(); err != nil {
 		return nil, err
@@ -134,8 +135,26 @@ func (c *Config) Load(fileName string) error {
 	return err
 }
 
+func (c *Config) setDefaultAdvertiseAddress() {
+	if len(c.AdvertiseAddress) == 0 && strings.HasPrefix(c.Address, "0.0.0.0") {
+		ip := utils.GetLocalIP()
+		c.AdvertiseAddress = strings.Replace(c.Address, "0.0.0.0", ip, 1)
+	}
+	if len(c.AdvertiseAddress) == 0 {
+		c.AdvertiseAddress = c.Address
+	}
+}
+
 func (c *Config) valid() error {
 	var err error
+
+	if err = validateAddress(c.Address, "address"); err != nil {
+		return err
+	}
+
+	if err = validateAddress(c.AdvertiseAddress, "advertise-address"); err != nil {
+		return err
+	}
 
 	if len(c.Address) == 0 {
 		return fmt.Errorf("unexpected empty address")
@@ -153,6 +172,23 @@ func (c *Config) valid() error {
 		return err
 	}
 
+	return nil
+}
+
+func validateAddress(address, name string) error {
+	if len(address) == 0 {
+		return fmt.Errorf("unexpected empty %v", name)
+	}
+	_, port, err := net.SplitHostPort(address)
+	if err == nil && port == "0" {
+		err = fmt.Errorf("port cannot be set to 0")
+	}
+	if err == nil {
+		_, err = strconv.Atoi(port)
+	}
+	if err != nil {
+		return fmt.Errorf("%v %v is invalid, err: %v", name, address, err)
+	}
 	return nil
 }
 

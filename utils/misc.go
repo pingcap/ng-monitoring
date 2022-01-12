@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"net"
+
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
 )
@@ -22,4 +24,18 @@ func GoWithRecovery(exec func(), recoverFn func(r interface{})) {
 		}
 	}()
 	exec()
+}
+
+// GetLocalIP will return a local IP(non-loopback, non 0.0.0.0), if there is one
+func GetLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err == nil {
+		for _, address := range addrs {
+			ipnet, ok := address.(*net.IPNet)
+			if ok && ipnet.IP.IsGlobalUnicast() {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	stdlog "log"
 	"os"
+	"strings"
 
 	"github.com/pingcap/ng-monitoring/component/conprof"
 	"github.com/pingcap/ng-monitoring/component/domain"
@@ -112,7 +113,7 @@ func overrideConfig(config *config.Config) {
 	pflag.Visit(func(f *pflag.Flag) {
 		switch f.Name {
 		case nmAddr:
-			config.Address = *listenAddr
+			config.Address = strings.TrimSpace(*listenAddr)
 		case nmPdEndpoints:
 			config.PD.Endpoints = *pdEndpoints
 		case nmLogPath:
@@ -120,7 +121,7 @@ func overrideConfig(config *config.Config) {
 		case nmStoragePath:
 			config.Storage.Path = *storagePath
 		case nmAdvertiseAddress:
-			config.AdvertiseAddress = *advertiseAddress
+			config.AdvertiseAddress = strings.TrimSpace(*advertiseAddress)
 		}
 	})
 }
