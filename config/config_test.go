@@ -316,21 +316,21 @@ func TestConfigValidAddress(t *testing.T) {
 	cases := []struct {
 		address                  string
 		advertiseAddress         string
+		expectedAddress          string
 		expectedAdvertiseAddress string
 	}{
-		{"127.0.0.1:12020", "", "127.0.0.1:12020"},
-		{"0.0.0.0:12020", "", ip + ":12020"},
-		{ip + ":12020", "", ip + ":12020"},
-		{"0.0.0.0:12020", "ngm-pod:12020", "ngm-pod:12020"},
+		{" 127.0.0.1:12020", "", "127.0.0.1:12020", "127.0.0.1:12020"},
+		{" 0.0.0.0:12020 ", "", "0.0.0.0:12020", ip + ":12020"},
+		{ip + ":12020 ", "", ip + ":12020", ip + ":12020"},
+		{" 0.0.0.0:12020 ", "ngm-pod:12020", "0.0.0.0:12020", "ngm-pod:12020"},
 	}
 	for _, c := range cases {
-		cfg := defaultConfig
-		cfg.Address = c.address
-		cfg.AdvertiseAddress = c.advertiseAddress
-		cfg.setDefaultAdvertiseAddress()
-		err := cfg.valid()
+		cfg, err := InitConfig("", func(cfg *Config) {
+			cfg.Address = c.address
+			cfg.AdvertiseAddress = c.advertiseAddress
+		})
 		require.NoError(t, err)
 		require.Equal(t, c.expectedAdvertiseAddress, cfg.AdvertiseAddress)
-		require.Equal(t, c.address, cfg.Address)
+		require.Equal(t, c.expectedAddress, cfg.Address)
 	}
 }

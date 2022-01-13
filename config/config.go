@@ -121,6 +121,7 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 
 	override(&config)
 
+	config.trimFiledSpace()
 	config.setDefaultAdvertiseAddress()
 
 	if err := config.valid(); err != nil {
@@ -128,6 +129,14 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 	}
 	StoreGlobalConfig(&config)
 	return &config, nil
+}
+
+func (c *Config) trimFiledSpace() {
+	c.Address = strings.TrimSpace(c.Address)
+	c.AdvertiseAddress = strings.TrimSpace(c.AdvertiseAddress)
+	for i, addr := range c.PD.Endpoints {
+		c.PD.Endpoints[i] = strings.TrimSpace(addr)
+	}
 }
 
 func (c *Config) Load(fileName string) error {
@@ -180,11 +189,12 @@ func validateAddress(address, name string) error {
 		return fmt.Errorf("unexpected empty %v", name)
 	}
 	_, port, err := net.SplitHostPort(address)
-	if err == nil && port == "0" {
-		err = fmt.Errorf("port cannot be set to 0")
-	}
 	if err == nil {
-		_, err = strconv.Atoi(port)
+		var p int
+		p, err = strconv.Atoi(port)
+		if err == nil && p == 0 {
+			err = fmt.Errorf("port cannot be set to 0")
+		}
 	}
 	if err != nil {
 		return fmt.Errorf("%v %v is invalid, err: %v", name, address, err)
