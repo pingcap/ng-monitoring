@@ -94,7 +94,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 						zap.Error(err))
 				}
 			}
-		} else {
+		} else if scrapeErr != context.Canceled {
 			log.Error("scrape failed",
 				zap.String("component", target.Component),
 				zap.String("address", target.Address),
