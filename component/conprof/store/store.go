@@ -33,10 +33,9 @@ type ProfileStorage struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	sync.Mutex
-	db           *genji.DB
-	metaCache    map[meta.ProfileTarget]*meta.TargetInfo
-	idAllocator  int64
-	aliveTargets []meta.ProfileTarget
+	db          *genji.DB
+	metaCache   map[meta.ProfileTarget]*meta.TargetInfo
+	idAllocator int64
 }
 
 func NewProfileStorage(db *genji.DB) (*ProfileStorage, error) {
@@ -61,6 +60,9 @@ func (s *ProfileStorage) init() error {
 		return err
 	}
 	allTargets, allInfos, err := s.loadAllTargetsFromTable()
+	if err != nil {
+		return err
+	}
 	for i, target := range allTargets {
 		info := allInfos[i]
 		s.metaCache[target] = &info
@@ -229,7 +231,7 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 	wg.Wait()
 	close(resultCh)
 
-	var result []meta.ProfileList
+	result := make([]meta.ProfileList, 0, len(resultCh))
 	for qr := range resultCh {
 		if qr.err != nil {
 			return nil, qr.err

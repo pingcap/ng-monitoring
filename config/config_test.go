@@ -277,6 +277,7 @@ func TestConfigPersist(t *testing.T) {
 	err = LoadConfigFromStorage(func() *genji.DB {
 		return db
 	})
+	require.NoError(t, err)
 	curCfg := GetGlobalConfig()
 	require.Equal(t, true, curCfg.ContinueProfiling.Enable)
 	require.Equal(t, 100, curCfg.ContinueProfiling.IntervalSeconds)

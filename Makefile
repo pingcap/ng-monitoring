@@ -29,3 +29,9 @@ test:
 	@echo "Running test"
 	@export log_level=info; export TZ='Asia/Shanghai'; \
 	$(GOTEST) -cover $(PACKAGES_TESTS) -coverprofile=coverage.txt
+
+lint: tools/bin/golangci-lint
+	GO111MODULE=on tools/bin/golangci-lint run -v $$($(PACKAGE_DIRECTORIES)) --config .golangci.yml
+
+tools/bin/golangci-lint:
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ./tools/bin v1.41.1

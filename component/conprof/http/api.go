@@ -61,7 +61,7 @@ func handleSingleProfileView(c *gin.Context) {
 		return
 	}
 	c.Writer.WriteHeader(http.StatusOK)
-	c.Writer.Write(result)
+	_, _ = c.Writer.Write(result)
 }
 
 func handleDownload(c *gin.Context) {

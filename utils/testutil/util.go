@@ -55,22 +55,26 @@ func (s *MockProfileServer) Start(t *testing.T) {
 	router := http.NewServeMux()
 	router.HandleFunc("/debug/pprof/profile", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("profile"))
+		_, err := writer.Write([]byte("profile"))
+		require.NoError(t, err)
 	})
 
 	router.HandleFunc("/debug/pprof/mutex", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("mutex"))
+		_, err := writer.Write([]byte("mutex"))
+		require.NoError(t, err)
 	})
 
 	router.HandleFunc("/debug/pprof/goroutine", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("goroutine"))
+		_, err := writer.Write([]byte("goroutine"))
+		require.NoError(t, err)
 	})
 
 	router.HandleFunc("/debug/pprof/heap", func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusOK)
-		writer.Write([]byte("heap"))
+		_, err := writer.Write([]byte("heap"))
+		require.NoError(t, err)
 	})
 
 	httpServer := &http.Server{
@@ -274,13 +278,13 @@ func SetupCert() (serverTLSConf *tls.Config, clientTLSConf *tls.Config, err erro
 		return nil, nil, err
 	}
 
-	serverTLSConf = &tls.Config{
+	serverTLSConf = &tls.Config{ // nolint:gosec
 		Certificates: []tls.Certificate{serverCert},
 	}
 
 	certpool := x509.NewCertPool()
 	certpool.AppendCertsFromPEM(caPEM.Bytes())
-	clientTLSConf = &tls.Config{
+	clientTLSConf = &tls.Config{ // nolint:gosec
 		RootCAs: certpool,
 	}
 

@@ -23,9 +23,6 @@ type MockPubSub struct {
 	listener net.Listener
 	server   *grpc.Server
 
-	tidbService tidbService
-	tikvService tikvService
-
 	tidbAccessor chan tidbStreamAccessor
 	tikvAccessor chan tikvStreamAccessor
 }
