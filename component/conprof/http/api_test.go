@@ -42,6 +42,7 @@ func (ts *testSuite) setup(t *testing.T) {
 
 func (ts *testSuite) close(t *testing.T) {
 	err := ts.db.Close()
+	require.NoError(t, err)
 	err = os.RemoveAll(ts.tmpDir)
 	require.NoError(t, err)
 }
@@ -92,6 +93,8 @@ func testAPIGroupProfiles(t *testing.T, httpAddr string) int64 {
 	require.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
+	err = resp.Body.Close()
+	require.NoError(t, err)
 
 	var groupProfiles []GroupProfiles
 	err = json.Unmarshal(body, &groupProfiles)
@@ -109,6 +112,8 @@ func testAPIGroupProfileDetail(t *testing.T, httpAddr string, ts int64, componen
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = resp.Body.Close()
 	require.NoError(t, err)
 
 	var groupProfileDetail GroupProfileDetail
@@ -139,6 +144,8 @@ func testAPISingleProfileView(t *testing.T, httpAddr string, ts int64, component
 		body, err := ioutil.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, "profile", string(body))
+		err = resp.Body.Close()
+		require.NoError(t, err)
 	}
 }
 
@@ -155,6 +162,9 @@ func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topol
 		require.Equal(t, 200, resp.StatusCode)
 		body, err := ioutil.ReadAll(resp.Body)
 		require.NoError(t, err)
+		err = resp.Body.Close()
+		require.NoError(t, err)
+
 		zr, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 		require.NoError(t, err)
 
@@ -204,6 +214,8 @@ func testAPIComponent(t *testing.T, httpAddr string, components []topology.Compo
 	require.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
+	err = resp.Body.Close()
+	require.NoError(t, err)
 
 	var comps []topology.Component
 	err = json.Unmarshal(body, &comps)
@@ -226,6 +238,8 @@ func testAPIEstimateSize(t *testing.T, httpAddr string, components []topology.Co
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
 	body, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = resp.Body.Close()
 	require.NoError(t, err)
 
 	var estimateSize EstimateSize
@@ -274,6 +288,8 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		body, err := ioutil.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, ca.body, string(body), ca.api)
+		err = resp.Body.Close()
+		require.NoError(t, err)
 	}
 }
 

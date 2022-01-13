@@ -86,7 +86,7 @@ func (cm *ClientMaintainer) Close() {
 	select {
 	case <-cm.initialized:
 		etcdCli := cm.etcdCli.Load()
-		etcdCli.(*clientv3.Client).Close()
+		_ = etcdCli.(*clientv3.Client).Close()
 	default:
 		return
 	}

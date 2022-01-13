@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/goccy/go-graphviz"
+	graphviz "github.com/goccy/go-graphviz"
 	"github.com/google/pprof/driver"
 	"github.com/google/pprof/profile"
 )

@@ -38,6 +38,7 @@ func (ts *testSuite) setup(t *testing.T) {
 
 func (ts *testSuite) close(t *testing.T) {
 	err := ts.db.Close()
+	require.NoError(t, err)
 	err = os.RemoveAll(ts.tmpDir)
 	require.NoError(t, err)
 }
@@ -51,6 +52,8 @@ func TestHTTPService(t *testing.T) {
 	require.NoError(t, err)
 	data, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
+	err = resp.Body.Close()
+	require.NoError(t, err)
 	cfg := Config{}
 	require.Equal(t, len(data) > 10, true)
 	err = json.Unmarshal(data, &cfg)
@@ -63,6 +66,8 @@ func TestHTTPService(t *testing.T) {
 	require.Equal(t, true, globalCfg.ContinueProfiling.Enable)
 	require.Equal(t, 6, globalCfg.ContinueProfiling.ProfileSeconds)
 	require.Equal(t, 11, globalCfg.ContinueProfiling.IntervalSeconds)
+	err = res.Body.Close()
+	require.NoError(t, err)
 
 	// test for post invalid config
 	res, err = http.Post("http://"+addr+"/config", "application/json", bytes.NewReader([]byte(`{"continuous_profiling": {"enable": true,"profile_seconds":1000,"interval_seconds":11}}`)))
@@ -71,6 +76,8 @@ func TestHTTPService(t *testing.T) {
 	body, err := ioutil.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Equal(t, `{"message":"new config is invalid: {\"data_retention_seconds\":259200,\"enable\":true,\"interval_seconds\":11,\"profile_seconds\":1000,\"timeout_seconds\":120}","status":"error"}`, string(body))
+	err = res.Body.Close()
+	require.NoError(t, err)
 
 	// test empty body config
 	res, err = http.Post("http://"+addr+"/config", "application/json", bytes.NewReader([]byte(``)))
@@ -79,6 +86,8 @@ func TestHTTPService(t *testing.T) {
 	body, err = ioutil.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Equal(t, `{"message":"EOF","status":"error"}`, string(body))
+	err = res.Body.Close()
+	require.NoError(t, err)
 
 	// test unknown config
 	res, err = http.Post("http://"+addr+"/config", "application/json", bytes.NewReader([]byte(`{"unknown_module": {"enable": true}}`)))
@@ -87,6 +96,8 @@ func TestHTTPService(t *testing.T) {
 	body, err = ioutil.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.Equal(t, `{"message":"config unknown_module not support modify or unknow","status":"error"}`, string(body))
+	err = res.Body.Close()
+	require.NoError(t, err)
 
 	globalCfg = GetGlobalConfig()
 	require.Equal(t, true, globalCfg.ContinueProfiling.Enable)

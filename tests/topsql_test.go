@@ -75,6 +75,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 	// init local mock tidb server
 	s.tidbServer = NewMockTiDBServer()
 	tidbAddr, err := s.tidbServer.Listen()
+	s.NoError(err)
 	s.tidbAddr = tidbAddr
 	arr := strings.Split(tidbAddr, ":")
 	tidbTestIp := arr[0]

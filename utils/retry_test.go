@@ -2,10 +2,11 @@ package utils_test
 
 import (
 	"context"
-	"github.com/pingcap/ng-monitoring/utils"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/pingcap/ng-monitoring/utils"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWithRetry(t *testing.T) {
@@ -47,10 +48,7 @@ func TestWithRetryDoneMidway(t *testing.T) {
 		require.Equal(t, u, executed)
 		executed += 1
 
-		if u == 3 {
-			return true
-		}
-		return false
+		return u == 3
 	})
 	require.Equal(t, executed, uint(4))
 }
@@ -98,10 +96,7 @@ func TestWithRetryBackoffDoneMidway(t *testing.T) {
 		require.Equal(t, u, executed)
 		executed += 1
 
-		if u == 3 {
-			return true
-		}
-		return false
+		return u == 3
 	})
 	require.Equal(t, executed, uint(4))
 }
