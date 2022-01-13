@@ -44,7 +44,7 @@ type Config struct {
 var defaultConfig = Config{
 	Address: "0.0.0.0:12020",
 	PD: PD{
-		Endpoints: nil,
+		Endpoints: []string{"127.0.0.1:2379"},
 	},
 	Log: Log{
 		Path:  "", // default output is stdout

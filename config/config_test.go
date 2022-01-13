@@ -19,7 +19,8 @@ import (
 
 func TestConfig(t *testing.T) {
 	config := GetDefaultConfig()
-	config.PD.Endpoints = append(config.PD.Endpoints, "10.0.1.8:2379")
+	config.setDefaultAdvertiseAddress()
+	config.PD.Endpoints = []string{"10.0.1.8:2379"}
 	require.NoError(t, config.valid())
 	require.Equal(t, config.PD, PD{Endpoints: []string{"10.0.1.8:2379"}})
 	require.Equal(t, config.Address, "0.0.0.0:12020")
@@ -324,8 +325,6 @@ func TestConfigValidAddress(t *testing.T) {
 	}
 	for _, c := range cases {
 		cfg := defaultConfig
-		cfg.PD.Endpoints = []string{"127.0.0.1:2379"}
-
 		cfg.Address = c.address
 		cfg.AdvertiseAddress = c.advertiseAddress
 		cfg.setDefaultAdvertiseAddress()
