@@ -356,7 +356,7 @@ func queryAndDownload(c *gin.Context) error {
 }
 
 const downloadReadme = `
-To review the profile data which file name suffix is `.proto` interactively:
+To review the profile data whose file name suffix is '.proto' interactively:
 
 $ go tool pprof --http=127.0.0.1:6060 profile_xxx.proto
 `
