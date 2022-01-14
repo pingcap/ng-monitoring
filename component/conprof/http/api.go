@@ -122,16 +122,6 @@ func getProfileEstimateSize(component topology.Component) int {
 	return defaultProfileSize
 }
 
-type ProfilingState = string
-
-var (
-	ProfilingStateRunning  ProfilingState = "running"
-	ProfilingStateFinished ProfilingState = "finished"
-	// TODO(crazycs520): support following status.
-	ProfilingStateFinishedWithError ProfilingState = "finished_with_error"
-	ProfilingStateFailed            ProfilingState = "failed"
-)
-
 type ComponentNum struct {
 	TiDB    int `json:"tidb"`
 	PD      int `json:"pd"`
@@ -175,19 +165,19 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[int64]map[Target]struct{})
+	m := make(map[int64]map[Target]meta.ProfileStatus)
 	for _, plist := range profileLists {
 		target := Target{
 			Component: plist.Target.Component,
 			Address:   plist.Target.Address,
 		}
-		for _, ts := range plist.TsList {
+		for idx, ts := range plist.TsList {
 			targets, ok := m[ts]
 			if !ok {
-				targets = make(map[Target]struct{})
+				targets = make(map[Target]meta.ProfileStatus)
 				m[ts] = targets
 			}
-			targets[target] = struct{}{}
+			targets[target] = plist.StatusList[idx]
 		}
 	}
 	groupProfiles := make([]GroupProfiles, 0, len(m))
@@ -195,8 +185,12 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	lastTS := conprof.GetManager().GetLastScrapeTime().Unix()
 	for ts, targets := range m {
 		compMap := map[string]int{}
-		for target := range targets {
+		successCount := 0
+		for target, status := range targets {
 			compMap[target.Component] += 1
+			if status == meta.ProfileStatusFinished {
+				successCount++
+			}
 		}
 		totalCompNum := 0
 		compNum := ComponentNum{}
@@ -214,15 +208,21 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 			totalCompNum += num
 		}
 
-		state := ProfilingStateFinished
+		var status meta.ProfileStatus
 		if ts == lastTS && totalCompNum < len(components) {
-			state = ProfilingStateRunning
+			status = meta.ProfileStatusRunning
+		} else if successCount == len(targets) {
+			status = meta.ProfileStatusFinished
+		} else if successCount == 0 {
+			status = meta.ProfileStatusFailed
+		} else {
+			status = meta.ProfileStatusFinishedWithError
 		}
 
 		groupProfiles = append(groupProfiles, GroupProfiles{
 			Ts:          ts,
 			ProfileSecs: config.GetGlobalConfig().ContinueProfiling.ProfileSeconds, // todo: fix me
-			State:       state,
+			State:       status.String(),
 			CompNum:     compNum,
 		})
 	}
@@ -246,7 +246,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
 	for _, plist := range profileLists {
 		targetProfiles = append(targetProfiles, ProfileDetail{
-			State: ProfilingStateFinished,
+			State: plist.StatusList[0].String(),
 			Type:  plist.Target.Kind,
 			Target: Target{
 				Component: plist.Target.Component,

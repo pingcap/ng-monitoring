@@ -9,6 +9,15 @@ const (
 	ProfileDataFormatProtobuf = "protobuf"
 )
 
+type ProfileStatus int64
+
+const (
+	ProfileStatusFinished          ProfileStatus = 0
+	ProfileStatusFailed            ProfileStatus = 1
+	ProfileStatusRunning           ProfileStatus = 2
+	ProfileStatusFinishedWithError ProfileStatus = 3
+)
+
 type ProfileTarget struct {
 	Kind      string `json:"kind"`
 	Component string `json:"component"`
@@ -29,6 +38,22 @@ type BasicQueryParam struct {
 }
 
 type ProfileList struct {
-	Target ProfileTarget `json:"target"`
-	TsList []int64       `json:"timestamp_list"`
+	Target     ProfileTarget   `json:"target"`
+	StatusList []ProfileStatus `json:"status"`
+	TsList     []int64         `json:"timestamp_list"`
+}
+
+func (s ProfileStatus) String() string {
+	switch s {
+	case ProfileStatusFinished:
+		return "finished"
+	case ProfileStatusFailed:
+		return "failed"
+	case ProfileStatusRunning:
+		return "running"
+	case ProfileStatusFinishedWithError:
+		return "finished_with_error"
+	default:
+		return "unknown_state"
+	}
 }

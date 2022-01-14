@@ -1,6 +1,8 @@
 package store
 
 import (
+	"github.com/genjidb/genji/document"
+	"github.com/genjidb/genji/types"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -72,7 +74,7 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 	for i, ca := range cases {
 		pt := meta.ProfileTarget{Kind: ca.kind, Component: ca.component, Address: ca.address}
 		ts := baseTs + int64(i)
-		err = storage.AddProfile(pt, time.Unix(ts, 0), ca.data)
+		err = storage.AddProfile(pt, time.Unix(ts, 0), ca.data, meta.ProfileStatusFinished)
 		require.NoError(t, err)
 
 		param := &meta.BasicQueryParam{
@@ -141,6 +143,52 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+func TestGenjiDBAddColumn(t *testing.T) {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-genjidb.*")
+	require.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		require.NoError(t, err)
+	}()
+	db := testutil.NewGenjiDB(t, tmpDir)
+	sql := "CREATE TABLE IF NOT EXISTS metaTable (ts INTEGER PRIMARY KEY)"
+	err = db.Exec(sql)
+	require.NoError(t,err)
+	sql = "INSERT INTO metaTable (ts) VALUES (1)"
+	err = db.Exec(sql)
+	require.NoError(t,err)
+
+	err = db.Close()
+	require.NoError(t,err)
+
+	// mock after upgrade, insert with a new column
+	db = testutil.NewGenjiDB(t, tmpDir)
+	sql = "INSERT INTO metaTable (ts, status) VALUES (2,1)"
+	err = db.Exec(sql)
+	require.NoError(t,err)
+
+	query := "SELECT ts, status FROM metaTable WHERE ts > 0 ORDER BY ts"
+	res, err := db.Query(query)
+	require.NoError(t,err)
+
+	expect := [][]int64{{1,0}, {2,1}}
+	result := [][]int64{}
+	err = res.Iterate(func(d types.Document) error {
+		var ts, status int64
+		err = document.Scan(d, &ts, &status)
+		require.NoError(t,err)
+		result = append(result, []int64{ts,status})
+		return nil
+	})
+	require.NoError(t,err)
+	require.Equal(t,expect, result)
+	err = res.Close()
+	require.NoError(t,err)
+
+	err = db.Close()
+	require.NoError(t,err)
 }
 
 func mockProfile() []byte {
