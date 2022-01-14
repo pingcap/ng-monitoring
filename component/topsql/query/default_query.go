@@ -247,6 +247,9 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 }
 
 func (dq *DefaultQuery) Instances(startSecs, endSecs int, fill *[]InstanceItem) error {
+	if startSecs > endSecs {
+		return nil
+	}
 	return dq.fetchInstancesFromTSDB(startSecs, endSecs, fill)
 }
 
@@ -308,15 +311,28 @@ func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]I
 
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
-	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
+	req, err := http.NewRequest("GET", "/api/v1/query", nil)
 	if err != nil {
 		return err
 	}
 	reqQuery := req.URL.Query()
-	reqQuery.Set("query", "last_over_time(instance)")
-	reqQuery.Set("start", strconv.Itoa(startSecs))
-	reqQuery.Set("end", strconv.Itoa(endSecs))
-	reqQuery.Set("step", strconv.Itoa(endSecs-startSecs))
+
+	// Data:
+	// t1  t2  t3  t4  t5  t6  t7  t8  t9
+	// v1  v2  v3  v4  v5  v6  v7  v8  v9
+	//
+	// Given startSecs = t3, endSecs = t6, to calculate v3 || v4 || v5 || v6
+	//
+	// The exec model for vm is lookbehind. So we can set start = endSecs, end = endSecs, window = endSecs-startSecs+1,
+	// to get the point that exists from v3 to v6.
+	//
+	// t1  t2  t3  t4  t5  t6  t7  t8  t9
+	// v1  v2  v3  v4  v5  v6  v7  v8  v9
+	//         ^            ^
+	//         |   window   |
+	reqQuery.Set("query", fmt.Sprintf("last_over_time(instance[%ds])", endSecs-startSecs+1))
+	reqQuery.Set("time", strconv.Itoa(endSecs))
+	reqQuery.Set("nocache", "1")
 	req.URL.RawQuery = reqQuery.Encode()
 	req.Header.Set("Accept", "application/json")
 	respR := utils.NewRespWriter(bufResp, header)
@@ -352,12 +368,11 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
 
-	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
+	req, err := http.NewRequest("GET", "/api/v1/query", nil)
 	if err != nil {
 		return err
 	}
 	reqQuery := req.URL.Query()
-	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"})", name, instance, instanceType))
 
 	// Data:
 	// t1  t2  t3  t4  t5  t6  t7  t8  t9
@@ -365,16 +380,16 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 	//
 	// Given startSecs = t3, endSecs = t6, to calculate v3 + v4 + v5 + v6
 	//
-	// The exec model for vm is lookbehind. So we can set start = endSecs, end = endSecs, step = endSecs-startSecs+1,
+	// The exec model for vm is lookbehind. So we can set start = endSecs, end = endSecs, window = endSecs-startSecs+1,
 	// to get the point that sum up from v3 to v6.
 	//
 	// t1  t2  t3  t4  t5  t6  t7  t8  t9
 	// v1  v2  v3  v4  v5  v6  v7  v8  v9
 	//         ^            ^
-	//         | -- step -- |
-	reqQuery.Set("start", strconv.Itoa(endSecs))
-	reqQuery.Set("end", strconv.Itoa(endSecs))
-	reqQuery.Set("step", strconv.Itoa(endSecs-startSecs+1))
+	//         |   window   |
+	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%ds])", name, instance, instanceType, endSecs-startSecs+1))
+	reqQuery.Set("time", strconv.Itoa(endSecs))
+	reqQuery.Set("nocache", "1")
 	req.URL.RawQuery = reqQuery.Encode()
 	req.Header.Set("Accept", "application/json")
 
@@ -387,22 +402,17 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 		return errors.New(errStr)
 	}
 
-	var recordsResponse recordsMetricResp
-	if err = json.Unmarshal(respR.Body.Bytes(), &recordsResponse); err != nil {
+	var sumResponse sumMetricResp
+	if err = json.Unmarshal(respR.Body.Bytes(), &sumResponse); err != nil {
 		return err
 	}
 
-	for _, result := range recordsResponse.Data.Results {
-		if len(result.Values) == 0 {
+	for _, result := range sumResponse.Data.Results {
+		if len(result.Value) < 2 {
 			continue
 		}
 
-		pair := result.Values[0]
-		if len(pair) < 2 {
-			continue
-		}
-
-		v, ok := pair[1].(string)
+		v, ok := result.Value[1].(string)
 		if !ok {
 			continue
 		}
