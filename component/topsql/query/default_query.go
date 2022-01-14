@@ -323,7 +323,7 @@ func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]I
 	//
 	// Given startSecs = t3, endSecs = t6, to calculate v3 || v4 || v5 || v6
 	//
-	// The exec model for vm is lookbehind. So we can set start = endSecs, end = endSecs, window = endSecs-startSecs+1,
+	// The exec model for vm is lookbehind. So we can set time = endSecs, window = endSecs-startSecs+1,
 	// to get the point that exists from v3 to v6.
 	//
 	// t1  t2  t3  t4  t5  t6  t7  t8  t9
@@ -380,7 +380,7 @@ func (dq *DefaultQuery) fetchSumFromTSDB(name string, startSecs, endSecs int, in
 	//
 	// Given startSecs = t3, endSecs = t6, to calculate v3 + v4 + v5 + v6
 	//
-	// The exec model for vm is lookbehind. So we can set start = endSecs, end = endSecs, window = endSecs-startSecs+1,
+	// The exec model for vm is lookbehind. So we can set time = endSecs, window = endSecs-startSecs+1,
 	// to get the point that sum up from v3 to v6.
 	//
 	// t1  t2  t3  t4  t5  t6  t7  t8  t9
