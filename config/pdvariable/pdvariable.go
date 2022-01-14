@@ -29,7 +29,6 @@ func Init(do *domain.Domain) {
 		cfg: DefaultPDVariable(),
 	}
 	go utils.GoWithRecovery(loader.start, nil)
-	return
 }
 
 type PDVariable struct {
@@ -174,9 +173,7 @@ func (l *variableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, 
 }
 
 func (l *variableLoader) parseGlobalConfig(key, value string, cfg *PDVariable) error {
-	if strings.HasPrefix(key, GlobalConfigPath) {
-		key = key[len(GlobalConfigPath):]
-	}
+	key = strings.TrimPrefix(key, GlobalConfigPath)
 	switch key {
 	case "enable_resource_metering":
 		v, err := strconv.ParseBool(value)

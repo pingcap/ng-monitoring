@@ -30,9 +30,7 @@ func GetCurrentComponent() []Component {
 		return nil
 	}
 	components := make([]Component, 0, len(discover.components))
-	for _, comp := range discover.components {
-		components = append(components, comp)
-	}
+	components = append(components, discover.components...)
 	return components
 }
 

@@ -2,7 +2,6 @@ package scrape
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -160,18 +159,6 @@ func (s *Scraper) scrape(ctx context.Context, w io.Writer) error {
 
 	_, err = w.Write(b)
 	return err
-}
-
-func (s *Scraper) tryUnzip(data []byte) []byte {
-	gz, err := gzip.NewReader(bytes.NewBuffer(data))
-	if err != nil {
-		return data
-	}
-	v, err := ioutil.ReadAll(gz)
-	if err != nil {
-		return data
-	}
-	return v
 }
 
 // Target refers to a singular HTTP or HTTPS endpoint.

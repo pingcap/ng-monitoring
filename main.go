@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	stdlog "log"
 	"os"
 
@@ -24,6 +25,7 @@ import (
 )
 
 const (
+	nmVersion          = "version"
 	nmAddr             = "address"
 	nmPdEndpoints      = "pd.endpoints"
 	nmLogPath          = "log.path"
@@ -33,6 +35,7 @@ const (
 )
 
 var (
+	version          = pflag.BoolP(nmVersion, "V", false, "print version information and exit")
 	listenAddr       = pflag.String(nmAddr, "", "TCP address to listen for http connections")
 	pdEndpoints      = pflag.StringSlice(nmPdEndpoints, nil, "Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. --pd.endpoints 10.0.0.1:2379,10.0.0.2:2379")
 	logPath          = pflag.String(nmLogPath, "", "Log path of ng monitoring server")
@@ -45,6 +48,11 @@ func main() {
 	// There are dependencies that use `flag`.
 	// For isolation and avoiding conflict, we use another command line parser package `pflag`.
 	pflag.Parse()
+
+	if *version {
+		fmt.Println(printer.GetNGMInfo())
+		return
+	}
 
 	cfg, err := config.InitConfig(*configPath, overrideConfig)
 	if err != nil {

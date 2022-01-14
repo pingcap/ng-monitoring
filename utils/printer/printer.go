@@ -1,6 +1,7 @@
 package printer
 
 import (
+	"fmt"
 	_ "runtime" // import link package
 	_ "unsafe"  // required by go:linkname
 
@@ -25,4 +26,15 @@ func PrintNGMInfo() {
 		zap.String("Git Branch", NGMGitBranch),
 		zap.String("UTC Build Time", NGMBuildTS),
 		zap.String("GoVersion", buildVersion))
+}
+
+func GetNGMInfo() string {
+	return fmt.Sprintf("Git Commit Hash: %s\n"+
+		"Git Branch: %s\n"+
+		"UTC Build Time: %s\n"+
+		"GoVersion: %s",
+		NGMGitHash,
+		NGMGitBranch,
+		NGMBuildTS,
+		buildVersion)
 }
