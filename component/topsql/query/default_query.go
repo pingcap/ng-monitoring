@@ -287,6 +287,7 @@ func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs
 	reqQuery.Set("start", strconv.Itoa(startSecs))
 	reqQuery.Set("end", strconv.Itoa(endSecs))
 	reqQuery.Set("step", strconv.Itoa(windowSecs))
+	reqQuery.Set("nocache", "1")
 	req.URL.RawQuery = reqQuery.Encode()
 	req.Header.Set("Accept", "application/json")
 
