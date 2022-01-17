@@ -90,3 +90,23 @@ type instancesMetricRespDataResultMetric struct {
 	Instance     string `json:"instance"`
 	InstanceType string `json:"instance_type"`
 }
+
+type sumMetricResp struct {
+	Status string            `json:"status"`
+	Data   sumMetricRespData `json:"data"`
+}
+
+type sumMetricRespData struct {
+	ResultType string                    `json:"resultType"`
+	Results    []sumMetricRespDataResult `json:"result"`
+}
+
+type sumMetricRespDataResult struct {
+	Metric sumMetricRespDataResultMetric `json:"metric"`
+	Value  []interface{}                 `json:"value"`
+}
+
+type sumMetricRespDataResultMetric struct {
+	SQLDigest  string `json:"sql_digest"`
+	PlanDigest string `json:"plan_digest"`
+}
