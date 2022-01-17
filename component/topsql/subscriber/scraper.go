@@ -57,8 +57,11 @@ func (s *Scraper) Close() {
 }
 
 func (s *Scraper) Run() {
-	defer s.cancel()
 	log.Info("starting to scrape top SQL from the component", zap.Any("component", s.component))
+	defer func() {
+		s.cancel()
+		log.Info("stop scraping top SQL from the component", zap.Any("component", s.component))
+	}()
 
 	switch s.component.Name {
 	case topology.ComponentTiDB:
