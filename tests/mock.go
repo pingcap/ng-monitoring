@@ -66,15 +66,14 @@ func (s *MockTiDBServer) Subscribe(req *tipb.TopSQLSubRequest, stream tipb.TopSQ
 			if !changed {
 				continue
 			}
-			if records != nil {
-				for _, record := range records {
-					if err := stream.Send(&tipb.TopSQLSubResponse{
-						RespOneof: &tipb.TopSQLSubResponse_Record{
-							Record: &record,
-						},
-					}); err != nil {
-						panic(err)
-					}
+			for i := range records {
+				record := &records[i]
+				if err := stream.Send(&tipb.TopSQLSubResponse{
+					RespOneof: &tipb.TopSQLSubResponse_Record{
+						Record: record,
+					},
+				}); err != nil {
+					panic(err)
 				}
 			}
 		}
@@ -136,11 +135,9 @@ func (s *MockTiKVServer) Subscribe(req *rua.ResourceMeteringRequest, stream rua.
 			if !changed {
 				continue
 			}
-			if records != nil {
-				for _, record := range records {
-					if err := stream.Send(record); err != nil {
-						panic(err)
-					}
+			for _, record := range records {
+				if err := stream.Send(record); err != nil {
+					panic(err)
 				}
 			}
 		}

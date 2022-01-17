@@ -1,14 +1,15 @@
 package store
 
 const (
-	MetricNameInstance       = "instance"
-	MetricNameCPUTime        = "cpu_time"
-	MetricNameReadRow        = "read_row"
-	MetricNameReadIndex      = "read_index"
-	MetricNameWriteRow       = "write_row"
-	MetricNameWriteIndex     = "write_index"
-	MetricNameSQLExecCount   = "sql_exec_count"
-	MetricNameSQLDurationSum = "sql_duration_sum"
+	MetricNameInstance         = "instance"
+	MetricNameCPUTime          = "cpu_time"
+	MetricNameReadRow          = "read_row"
+	MetricNameReadIndex        = "read_index"
+	MetricNameWriteRow         = "write_row"
+	MetricNameWriteIndex       = "write_index"
+	MetricNameSQLExecCount     = "sql_exec_count"
+	MetricNameSQLDurationSum   = "sql_duration_sum"
+	MetricNameSQLDurationCount = "sql_duration_count"
 )
 
 type Metric struct {

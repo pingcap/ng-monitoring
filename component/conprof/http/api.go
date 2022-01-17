@@ -61,7 +61,7 @@ func handleSingleProfileView(c *gin.Context) {
 		return
 	}
 	c.Writer.WriteHeader(http.StatusOK)
-	c.Writer.Write(result)
+	_, _ = c.Writer.Write(result)
 }
 
 func handleDownload(c *gin.Context) {
@@ -358,7 +358,7 @@ func queryAndDownload(c *gin.Context) error {
 const downloadReadme = `
 To review the CPU profiling or heap profiling result interactively:
 
-$ go tool pprof --http=0.0.0.0:6060 profile_xxx.proto
+$ go tool pprof --http=127.0.0.1:6060 profile_xxx.proto
 `
 
 var (

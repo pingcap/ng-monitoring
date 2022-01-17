@@ -2,13 +2,14 @@ package subscriber_test
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/mock"
 	"github.com/pingcap/ng-monitoring/component/topsql/subscriber"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestDefaultSubscriberBasic(t *testing.T) {
