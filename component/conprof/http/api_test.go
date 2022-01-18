@@ -329,7 +329,7 @@ func TestQueryStatus(t *testing.T) {
 
 	storage := conprof.GetStorage()
 	pt0 := meta.ProfileTarget{Kind: "goroutine", Component: "tidb", Address: "10.0.1.2"}
-	pt1 := meta.ProfileTarget{Kind: "profile", Component: "tikv", Address: "10.0.1.2"}
+	pt1 := meta.ProfileTarget{Kind: "profile", Component: "tidb", Address: "10.0.1.2"}
 	pt2 := meta.ProfileTarget{Kind: "heap", Component: "pd", Address: "10.0.1.2"}
 	t0 := time.Now()
 	t1 := t0.Add(time.Second)

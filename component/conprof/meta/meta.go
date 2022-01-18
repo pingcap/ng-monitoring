@@ -39,7 +39,7 @@ type BasicQueryParam struct {
 
 type ProfileList struct {
 	Target     ProfileTarget   `json:"target"`
-	StatusList []ProfileStatus `json:"status"`
+	StatusList []ProfileStatus `json:"-"`
 	TsList     []int64         `json:"timestamp_list"`
 }
 
