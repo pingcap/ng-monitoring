@@ -17,6 +17,7 @@ import (
 	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/ng-monitoring/component/conprof"
+	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
@@ -312,4 +313,97 @@ func setupHTTPService(t *testing.T) string {
 		}
 	}()
 	return listener.Addr().String()
+}
+
+func TestQueryStatus(t *testing.T) {
+	ts := testSuite{}
+	ts.setup(t)
+	defer ts.close(t)
+
+	topoSubScribe := make(topology.Subscriber)
+	err := conprof.Init(ts.db, topoSubScribe)
+	require.NoError(t, err)
+	defer conprof.Stop()
+
+	httpAddr := setupHTTPService(t)
+
+	storage := conprof.GetStorage()
+	pt0 := meta.ProfileTarget{Kind: "goroutine", Component: "tidb", Address: "10.0.1.2"}
+	pt1 := meta.ProfileTarget{Kind: "profile", Component: "tikv", Address: "10.0.1.2"}
+	pt2 := meta.ProfileTarget{Kind: "heap", Component: "pd", Address: "10.0.1.2"}
+	t0 := time.Now()
+	t1 := t0.Add(time.Second)
+	t2 := t0.Add(time.Second * 2)
+
+	datas := []struct {
+		t      time.Time
+		pt     meta.ProfileTarget
+		status meta.ProfileStatus
+	}{
+		{t0, pt0, meta.ProfileStatusFinished},
+		{t0, pt1, meta.ProfileStatusFinished},
+		{t0, pt2, meta.ProfileStatusFinished},
+
+		{t1, pt0, meta.ProfileStatusFinished},
+		{t1, pt1, meta.ProfileStatusFailed},
+		{t1, pt2, meta.ProfileStatusFinished},
+
+		{t2, pt0, meta.ProfileStatusFailed},
+		{t2, pt1, meta.ProfileStatusFailed},
+		{t2, pt2, meta.ProfileStatusFailed},
+	}
+
+	profile := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	for _, data := range datas {
+		err = storage.AddProfile(data.pt, data.t, profile, data.status)
+		require.NoError(t, err)
+	}
+	// query group profile api.
+	resp, err := http.Get(fmt.Sprintf("http://%v/continuous_profiling/group_profiles?begin_time=%v&end_time=%v", httpAddr, t0.Unix(), t2.Unix()))
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+	body, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = resp.Body.Close()
+	require.NoError(t, err)
+	var groupProfiles []GroupProfiles
+	err = json.Unmarshal(body, &groupProfiles)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(groupProfiles))
+	require.Equal(t, t2.Unix(), groupProfiles[0].Ts)
+	require.Equal(t, meta.ProfileStatusFailed.String(), groupProfiles[0].State)
+	require.Equal(t, t1.Unix(), groupProfiles[1].Ts)
+	require.Equal(t, meta.ProfileStatusFinishedWithError.String(), groupProfiles[1].State)
+	require.Equal(t, t0.Unix(), groupProfiles[2].Ts)
+	require.Equal(t, meta.ProfileStatusFinished.String(), groupProfiles[2].State)
+
+	// query group profile detail api.
+	statusList := []meta.ProfileStatus{meta.ProfileStatusFinished, meta.ProfileStatusFinishedWithError, meta.ProfileStatusFailed}
+	for i, time := range []time.Time{t0, t1, t2} {
+		ts := time.Unix()
+		resp, err = http.Get("http://" + httpAddr + "/continuous_profiling/group_profile/detail?ts=" + strconv.Itoa(int(ts)))
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode)
+		body, err = ioutil.ReadAll(resp.Body)
+		require.NoError(t, err)
+		err = resp.Body.Close()
+		require.NoError(t, err)
+		var groupProfileDetail GroupProfileDetail
+		err = json.Unmarshal(body, &groupProfileDetail)
+		require.NoError(t, err)
+		require.Equal(t, ts, groupProfileDetail.Ts)
+		require.Equal(t, statusList[i].String(), groupProfileDetail.State)
+		require.Equal(t, 3, len(groupProfileDetail.TargetProfiles))
+		for _, tp := range groupProfileDetail.TargetProfiles {
+			found := false
+			for _, data := range datas {
+				if tp.Target.Component == data.pt.Component && tp.Type == data.pt.Kind && ts == data.t.Unix() {
+					require.Equal(t, data.status.String(), tp.State)
+					found = true
+					break
+				}
+			}
+			require.True(t, found)
+		}
+	}
 }

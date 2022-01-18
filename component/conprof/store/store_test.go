@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -140,6 +141,49 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 			}
 		}
 		require.Equal(t, true, found)
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestStoreProfileStatus(t *testing.T) {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	require.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		require.NoError(t, err)
+	}()
+
+	genjiDB := testutil.NewGenjiDB(t, tmpDir)
+	defer genjiDB.Close()
+	storage, err := NewProfileStorage(genjiDB)
+	require.NoError(t, err)
+	defer storage.Close()
+
+	pt := meta.ProfileTarget{Kind: "profile", Component: "tidb", Address: "10.0.1.2"}
+	t0 := time.Now()
+	err = storage.AddProfile(pt, t0, nil, meta.ProfileStatusFailed)
+	require.NoError(t, err)
+	t1 := t0.Add(time.Second)
+	profile1Data := mockProfile()
+	err = storage.AddProfile(pt, t1, profile1Data, meta.ProfileStatusFinished)
+	require.NoError(t, err)
+
+	param := &meta.BasicQueryParam{Begin: t0.Unix(), End: t1.Unix()}
+	profileLists, err := storage.QueryGroupProfiles(param)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(profileLists))
+	profileList := profileLists[0]
+	require.Equal(t, 2, len(profileList.TsList))
+	require.Equal(t, 2, len(profileList.StatusList))
+	require.Equal(t, t1.Unix(), profileList.TsList[0])
+	require.Equal(t, meta.ProfileStatusFinished, profileList.StatusList[0])
+	require.Equal(t, t0.Unix(), profileList.TsList[1])
+	require.Equal(t, meta.ProfileStatusFailed, profileList.StatusList[1])
+
+	err = storage.QueryProfileData(param, func(pt meta.ProfileTarget, ts int64, data []byte) error {
+		require.Equal(t, t1.Unix(), ts)
+		require.True(t, bytes.Equal(profile1Data, data))
 		return nil
 	})
 	require.NoError(t, err)
