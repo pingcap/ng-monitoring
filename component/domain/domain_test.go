@@ -59,6 +59,7 @@ func TestDomain(t *testing.T) {
 
 func TestClientMaintainer(t *testing.T) {
 	cfg := config.GetDefaultConfig()
+	cfg.PD.Endpoints = nil
 	config.StoreGlobalConfig(&cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	_, _, err := createClientWithRetry(ctx)
