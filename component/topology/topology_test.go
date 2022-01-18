@@ -45,6 +45,7 @@ func TestTopology(t *testing.T) {
 	defer mockPD.Close(t)
 
 	cfg := config.GetDefaultConfig()
+	cfg.PD.Endpoints = nil
 	cfg.AdvertiseAddress = "10.0.1.8:12020"
 	_, err := domain.CreatePDClient(&cfg)
 	require.NotNil(t, err)
