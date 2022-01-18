@@ -1,14 +1,14 @@
 package store
 
 import (
-	"github.com/genjidb/genji/document"
-	"github.com/genjidb/genji/types"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/genjidb/genji/document"
+	"github.com/genjidb/genji/types"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
@@ -155,40 +155,40 @@ func TestGenjiDBAddColumn(t *testing.T) {
 	db := testutil.NewGenjiDB(t, tmpDir)
 	sql := "CREATE TABLE IF NOT EXISTS metaTable (ts INTEGER PRIMARY KEY)"
 	err = db.Exec(sql)
-	require.NoError(t,err)
+	require.NoError(t, err)
 	sql = "INSERT INTO metaTable (ts) VALUES (1)"
 	err = db.Exec(sql)
-	require.NoError(t,err)
+	require.NoError(t, err)
 
 	err = db.Close()
-	require.NoError(t,err)
+	require.NoError(t, err)
 
 	// mock after upgrade, insert with a new column
 	db = testutil.NewGenjiDB(t, tmpDir)
 	sql = "INSERT INTO metaTable (ts, status) VALUES (2,1)"
 	err = db.Exec(sql)
-	require.NoError(t,err)
+	require.NoError(t, err)
 
 	query := "SELECT ts, status FROM metaTable WHERE ts > 0 ORDER BY ts"
 	res, err := db.Query(query)
-	require.NoError(t,err)
+	require.NoError(t, err)
 
-	expect := [][]int64{{1,0}, {2,1}}
+	expect := [][]int64{{1, 0}, {2, 1}}
 	result := [][]int64{}
 	err = res.Iterate(func(d types.Document) error {
 		var ts, status int64
 		err = document.Scan(d, &ts, &status)
-		require.NoError(t,err)
-		result = append(result, []int64{ts,status})
+		require.NoError(t, err)
+		result = append(result, []int64{ts, status})
 		return nil
 	})
-	require.NoError(t,err)
-	require.Equal(t,expect, result)
+	require.NoError(t, err)
+	require.Equal(t, expect, result)
 	err = res.Close()
-	require.NoError(t,err)
+	require.NoError(t, err)
 
 	err = db.Close()
-	require.NoError(t,err)
+	require.NoError(t, err)
 }
 
 func mockProfile() []byte {

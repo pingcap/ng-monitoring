@@ -211,12 +211,8 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 		var status meta.ProfileStatus
 		if ts == lastTS && totalCompNum < len(components) {
 			status = meta.ProfileStatusRunning
-		} else if successCount == len(targets) {
-			status = meta.ProfileStatusFinished
-		} else if successCount == 0 {
-			status = meta.ProfileStatusFailed
 		} else {
-			status = meta.ProfileStatusFinishedWithError
+			status = getRequestStatus(successCount, len(targets))
 		}
 
 		groupProfiles = append(groupProfiles, GroupProfiles{
@@ -232,6 +228,15 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	return groupProfiles, nil
 }
 
+func getRequestStatus(successCount, total int) meta.ProfileStatus {
+	if successCount == total {
+		return meta.ProfileStatusFinished
+	} else if successCount == 0 {
+		return meta.ProfileStatusFailed
+	}
+	return meta.ProfileStatusFinishedWithError
+}
+
 func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	param, err := buildQueryParam(c.Request, []string{tsParamStr}, []string{limitParamStr})
 	if err != nil {
@@ -244,15 +249,20 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	}
 
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
+	successCount := 0
 	for _, plist := range profileLists {
+		status := plist.StatusList[0]
 		targetProfiles = append(targetProfiles, ProfileDetail{
-			State: plist.StatusList[0].String(),
+			State: status.String(),
 			Type:  plist.Target.Kind,
 			Target: Target{
 				Component: plist.Target.Component,
 				Address:   plist.Target.Address,
 			},
 		})
+		if status == meta.ProfileStatusFinished {
+			successCount++
+		}
 	}
 	sort.Slice(targetProfiles, func(i, j int) bool {
 		return targetProfiles[i].Target.Address < targetProfiles[j].Target.Address
@@ -260,7 +270,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	return &GroupProfileDetail{
 		Ts:             param.Begin,
 		ProfileSecs:    config.GetGlobalConfig().ContinueProfiling.ProfileSeconds,
-		State:          ProfilingStateFinished,
+		State:          getRequestStatus(successCount, len(profileLists)).String(),
 		TargetProfiles: targetProfiles,
 	}, nil
 }

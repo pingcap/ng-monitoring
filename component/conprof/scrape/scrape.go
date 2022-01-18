@@ -82,9 +82,8 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 				zap.String("address", target.Address),
 				zap.String("kind", target.Kind),
 				zap.Error(scrapeErr))
-		}else if buf.Len() > 0{
-			sl.lastScrapeSize = buf.Len()
 		}
+		sl.lastScrapeSize = buf.Len()
 
 		err := sl.store.AddProfile(meta.ProfileTarget{
 			Kind:      sl.scraper.target.Kind,
