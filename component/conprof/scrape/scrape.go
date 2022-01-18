@@ -43,13 +43,13 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 
 	defer func() {
 		ticker.Stop()
-		log.Info("scraper stop running",
+		log.Debug("scraper stop running",
 			zap.String("component", target.Component),
 			zap.String("address", target.Address),
 			zap.String("kind", target.Kind))
 	}()
 
-	log.Info("scraper start to run",
+	log.Debug("scraper start to run",
 		zap.String("component", target.Component),
 		zap.String("address", target.Address),
 		zap.String("kind", target.Kind))
@@ -77,11 +77,13 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 		status := meta.ProfileStatusFinished
 		if scrapeErr != nil {
 			status = meta.ProfileStatusFailed
-			log.Error("scrape failed",
-				zap.String("component", target.Component),
-				zap.String("address", target.Address),
-				zap.String("kind", target.Kind),
-				zap.Error(scrapeErr))
+			if scrapeErr != context.Canceled {
+				log.Error("scrape failed",
+					zap.String("component", target.Component),
+					zap.String("address", target.Address),
+					zap.String("kind", target.Kind),
+					zap.Error(scrapeErr))
+			}
 		}
 		sl.lastScrapeSize = buf.Len()
 
