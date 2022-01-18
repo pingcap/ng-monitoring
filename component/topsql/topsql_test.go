@@ -94,27 +94,24 @@ func (s *testTopSQLSuite) TestInstances() {
 	var r []query.InstanceItem
 
 	r = nil
-	err = s.dq.Instances(int(now-41), int(now-40), &r)
+	err = s.dq.Instances(int(now-40), int(now-40), &r)
 	s.NoError(err)
-
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10081",
 		InstanceType: "tidb",
 	}})
 
 	r = nil
-	err = s.dq.Instances(int(now-21), int(now-20), &r)
+	err = s.dq.Instances(int(now-20), int(now-20), &r)
 	s.NoError(err)
-
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
 		InstanceType: "tidb",
 	}})
 
 	r = nil
-	err = s.dq.Instances(int(now-1), int(now), &r)
+	err = s.dq.Instances(int(now), int(now), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
@@ -127,7 +124,6 @@ func (s *testTopSQLSuite) TestInstances() {
 	r = nil
 	err = s.dq.Instances(int(now-40), int(now), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
@@ -143,7 +139,6 @@ func (s *testTopSQLSuite) TestInstances() {
 	r = nil
 	err = s.dq.Instances(int(now-10), int(now), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
@@ -156,7 +151,6 @@ func (s *testTopSQLSuite) TestInstances() {
 	r = nil
 	err = s.dq.Instances(int(now-40), int(now-20), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
@@ -165,37 +159,39 @@ func (s *testTopSQLSuite) TestInstances() {
 		Instance:     "127.0.0.1:10081",
 		InstanceType: "tidb",
 	}})
-}
 
-type testData struct {
-	sqlDigest string
-	plans     []testPlan
-}
-
-type testPlan struct {
-	planDigest    string
-	ts            []uint64
-	cpu           []uint64
-	exec          []uint64
-	duration      []uint64
-	durationCount []uint64
-	rows          []uint64
-	indexes       []uint64
+	r = nil
+	err = s.dq.Instances(int(now-31), int(now-21), &r)
+	s.NoError(err)
+	s.Equal(r, []query.InstanceItem{{
+		Instance:     "127.0.0.1:10080",
+		InstanceType: "tidb",
+	}})
 }
 
 func (s *testTopSQLSuite) TestTiDBSummary() {
+	type tidbPlanItem struct {
+		ts            []uint64
+		cpu           []uint64
+		exec          []uint64
+		duration      []uint64
+		durationCount []uint64
+	}
+	type tidbTestPlan map[string]tidbPlanItem
+	type tidbTestData map[string]tidbTestPlan
+
 	instance := "127.0.0.1:10080"
 	instanceType := "tidb"
 
 	// sql-0:
-	//     plan-0: ts:       testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
-	//             cpu:      67, 19, 54, 53, 71
-	//             exec:     49, 11, 74, 72, 98
-	//             duration: 97, 82, 24, 44, 88
 	//  <unknown>: ts:       testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
 	//             cpu:      85, 64, 43, 19, 31
 	//             exec:     40, 92, 38, 87, 21
 	//             duration: 11, 69, 58, 21, 56
+	//     plan-0: ts:       testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
+	//             cpu:      67, 19, 54, 53, 71
+	//             exec:     49, 11, 74, 72, 98
+	//             duration: 97, 82, 24, 44, 88
 	// sql-1:
 	//     plan-0: ts:       testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
 	//             cpu:      97, 46, 29, 22, 35
@@ -210,64 +206,68 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 	//             cpu:      61, 87, 37, 55, 53
 	//             exec:     54, 98, 46, 35, 52
 	//             duration: 50, 46, 19, 63, 81
-	data := []testData{{
-		sqlDigest: "sql-0",
-		plans: []testPlan{{
-			planDigest:    "plan-0",
-			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:           []uint64{67, 19, 54, 53, 71},
-			exec:          []uint64{49, 11, 74, 72, 98},
-			duration:      []uint64{97, 82, 24, 44, 88},
-			durationCount: []uint64{49, 11, 74, 72, 98},
-		}, {
-			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:           []uint64{85, 64, 43, 19, 31},
-			exec:          []uint64{40, 92, 38, 87, 21},
-			duration:      []uint64{11, 69, 58, 21, 56},
-			durationCount: []uint64{40, 92, 38, 87, 21},
-		}},
-	}, {
-		sqlDigest: "sql-1",
-		plans: []testPlan{{
-			planDigest:    "plan-0",
-			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:           []uint64{97, 46, 29, 22, 35},
-			exec:          []uint64{68, 86, 24, 70, 75},
-			duration:      []uint64{90, 59, 46, 80, 16},
-			durationCount: []uint64{68, 86, 24, 70, 75},
-		}, {
-			planDigest:    "plan-1",
-			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:           []uint64{51, 99, 14, 65, 27},
-			exec:          []uint64{16, 11, 96, 73, 31},
-			duration:      []uint64{22, 11, 77, 84, 33},
-			durationCount: []uint64{16, 11, 96, 73, 31},
-		}},
-	}, {
-		sqlDigest: "sql-2",
-		plans: []testPlan{{
-			planDigest:    "plan-0",
-			ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:           []uint64{61, 87, 37, 55, 53},
-			exec:          []uint64{54, 98, 46, 35, 52},
-			duration:      []uint64{50, 46, 19, 63, 81},
-			durationCount: []uint64{54, 98, 46, 35, 52},
-		}},
-	}}
+	data := tidbTestData{
+		"sql-0": {
+			"": {
+				ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+				cpu:           []uint64{85, 64, 43, 19, 31},
+				exec:          []uint64{40, 92, 38, 87, 21},
+				duration:      []uint64{11, 69, 58, 21, 56},
+				durationCount: []uint64{40, 92, 38, 87, 21},
+			},
+			"plan-0": {
+				ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+				cpu:           []uint64{67, 19, 54, 53, 71},
+				exec:          []uint64{49, 11, 74, 72, 98},
+				duration:      []uint64{97, 82, 24, 44, 88},
+				durationCount: []uint64{49, 11, 74, 72, 98},
+			},
+		},
+		"sql-1": {
+			"plan-0": {
+				ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+				cpu:           []uint64{97, 46, 29, 22, 35},
+				exec:          []uint64{68, 86, 24, 70, 75},
+				duration:      []uint64{90, 59, 46, 80, 16},
+				durationCount: []uint64{68, 86, 24, 70, 75},
+			},
+			"plan-1": {
+				ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+				cpu:           []uint64{51, 99, 14, 65, 27},
+				exec:          []uint64{16, 11, 96, 73, 31},
+				duration:      []uint64{22, 11, 77, 84, 33},
+				durationCount: []uint64{16, 11, 96, 73, 31},
+			},
+		},
+		"sql-2": {
+			"plan-0": {
+				ts:            []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+				cpu:           []uint64{61, 87, 37, 55, 53},
+				exec:          []uint64{54, 98, 46, 35, 52},
+				duration:      []uint64{50, 46, 19, 63, 81},
+				durationCount: []uint64{54, 98, 46, 35, 52},
+			},
+		},
+	}
 
-	for _, datum := range data {
-		for _, plan := range datum.plans {
-			for i := range plan.ts {
-				s.NoError(s.ds.TopSQLRecord(instance, instanceType, &tipb.TopSQLRecord{
-					SqlDigest:  []byte(datum.sqlDigest),
-					PlanDigest: []byte(plan.planDigest),
-					Items: []*tipb.TopSQLRecordItem{{
-						TimestampSec:      plan.ts[i],
-						CpuTimeMs:         uint32(plan.cpu[i]),
-						StmtExecCount:     plan.exec[i],
-						StmtDurationSumNs: plan.duration[i] * 1000000,
-						StmtDurationCount: plan.durationCount[i]}}}))
+	for sqlDigest, plans := range data {
+		for planDigest, planItem := range plans {
+			var items []*tipb.TopSQLRecordItem
+			for j := range planItem.ts {
+				items = append(items, &tipb.TopSQLRecordItem{
+					TimestampSec:      planItem.ts[j],
+					CpuTimeMs:         uint32(planItem.cpu[j]),
+					StmtExecCount:     planItem.exec[j],
+					StmtDurationSumNs: planItem.duration[j] * 1_000_000,
+					StmtDurationCount: planItem.durationCount[j],
+				})
 			}
+
+			s.NoError(s.ds.TopSQLRecord(instance, instanceType, &tipb.TopSQLRecord{
+				SqlDigest:  []byte(sqlDigest),
+				PlanDigest: []byte(planDigest),
+				Items:      items,
+			}))
 		}
 	}
 
@@ -278,52 +278,54 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
+	timeWindow := float64(40 + 1)
 	s.Equal(res, []query.SummaryItem{{
 		SQLDigest:         hex.EncodeToString([]byte("sql-0")),
-		CPUTimeMs:         506.0,
-		ExecCountPerSec:   582.0 / 41,
-		DurationPerExecMs: 550.0 / 582.0,
+		CPUTimeMs:         sum(data["sql-0"][""].cpu, data["sql-0"]["plan-0"].cpu),
+		ExecCountPerSec:   sumf(data["sql-0"][""].exec, data["sql-0"]["plan-0"].exec) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-0"][""].duration, data["sql-0"]["plan-0"].duration) / sumf(data["sql-0"][""].exec, data["sql-0"]["plan-0"].exec),
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{85, 64, 43, 19, 31},
-			ExecCountPerSec:   278.0 / 41,
-			DurationPerExecMs: 215.0 / 278.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"][""].cpu,
+			ExecCountPerSec:   sumf(data["sql-0"][""].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"][""].duration) / sumf(data["sql-0"][""].exec),
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{67, 19, 54, 53, 71},
-			ExecCountPerSec:   304.0 / 41,
-			DurationPerExecMs: 335.0 / 304.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"]["plan-0"].cpu,
+			ExecCountPerSec:   sumf(data["sql-0"]["plan-0"].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"]["plan-0"].duration) / sumf(data["sql-0"]["plan-0"].exec),
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-1")),
-		CPUTimeMs:         485.0,
-		ExecCountPerSec:   550.0 / 41,
-		DurationPerExecMs: 518.0 / 550.0,
+		CPUTimeMs:         sum(data["sql-1"]["plan-0"].cpu, data["sql-1"]["plan-1"].cpu),
+		ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec, data["sql-1"]["plan-1"].exec) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration, data["sql-1"]["plan-1"].duration) / sumf(data["sql-1"]["plan-0"].exec, data["sql-1"]["plan-1"].exec),
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{97, 46, 29, 22, 35},
-			ExecCountPerSec:   323.0 / 41,
-			DurationPerExecMs: 291.0 / 323.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-0"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration) / sumf(data["sql-1"]["plan-0"].exec),
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{51, 99, 14, 65, 27},
-			ExecCountPerSec:   227.0 / 41,
-			DurationPerExecMs: 227.0 / 227.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-1"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-1"].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-1"]["plan-1"].duration) / sumf(data["sql-1"]["plan-1"].exec),
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-2")),
-		CPUTimeMs:         293.0,
-		ExecCountPerSec:   285.0 / 41,
-		DurationPerExecMs: 259.0 / 285.0,
+		CPUTimeMs:         sum(data["sql-2"]["plan-0"].cpu),
+		ExecCountPerSec:   sumf(data["sql-2"]["plan-0"].exec) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-2"]["plan-0"].duration) / sumf(data["sql-2"]["plan-0"].exec),
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{61, 87, 37, 55, 53},
-			ExecCountPerSec:   285.0 / 41,
-			DurationPerExecMs: 259.0 / 285.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-2"]["plan-0"].cpu,
+			ExecCountPerSec:   sumf(data["sql-2"]["plan-0"].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-2"]["plan-0"].duration) / sumf(data["sql-2"]["plan-0"].exec),
 		}},
 	}})
 
@@ -332,33 +334,35 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
+	timeWindow = 41
 	s.Equal(res, []query.SummaryItem{{
 		IsOther:           true,
-		CPUTimeMs:         778.0,
-		ExecCountPerSec:   835.0 / 41,
-		DurationPerExecMs: 777.0 / 835.0,
+		CPUTimeMs:         sum(data["sql-1"]["plan-0"].cpu, data["sql-1"]["plan-1"].cpu, data["sql-2"]["plan-0"].cpu),
+		ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec, data["sql-1"]["plan-1"].exec, data["sql-2"]["plan-0"].exec) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration, data["sql-1"]["plan-1"].duration, data["sql-2"]["plan-0"].duration) / sumf(data["sql-1"]["plan-0"].exec, data["sql-1"]["plan-1"].exec, data["sql-2"]["plan-0"].exec),
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{209, 232, 80, 142, 115},
-			ExecCountPerSec:   835.0 / 41,
-			DurationPerExecMs: 777.0 / 835.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         sumv(data["sql-1"]["plan-0"].cpu, data["sql-1"]["plan-1"].cpu, data["sql-2"]["plan-0"].cpu),
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec, data["sql-1"]["plan-1"].exec, data["sql-2"]["plan-0"].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration, data["sql-1"]["plan-1"].duration, data["sql-2"]["plan-0"].duration) / sumf(data["sql-1"]["plan-0"].exec, data["sql-1"]["plan-1"].exec, data["sql-2"]["plan-0"].exec),
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-0")),
-		CPUTimeMs:         506.0,
-		ExecCountPerSec:   582.0 / 41,
-		DurationPerExecMs: 550.0 / 582.0,
+		CPUTimeMs:         sum(data["sql-0"][""].cpu, data["sql-0"]["plan-0"].cpu),
+		ExecCountPerSec:   sumf(data["sql-0"][""].exec, data["sql-0"]["plan-0"].exec) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-0"][""].duration, data["sql-0"]["plan-0"].duration) / sumf(data["sql-0"][""].exec, data["sql-0"]["plan-0"].exec),
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{85, 64, 43, 19, 31},
-			ExecCountPerSec:   278.0 / 41,
-			DurationPerExecMs: 215.0 / 278.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"][""].cpu,
+			ExecCountPerSec:   sumf(data["sql-0"][""].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"][""].duration) / sumf(data["sql-0"][""].exec),
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{67, 19, 54, 53, 71},
-			ExecCountPerSec:   304.0 / 41,
-			DurationPerExecMs: 335.0 / 304.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"]["plan-0"].cpu,
+			ExecCountPerSec:   sumf(data["sql-0"]["plan-0"].exec) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"]["plan-0"].duration) / sumf(data["sql-0"]["plan-0"].exec),
 		}},
 	}})
 
@@ -373,52 +377,54 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList = []uint64{testBaseTs + 40}
+	timeWindow = 1
 	s.Equal(res, []query.SummaryItem{{
 		SQLDigest:         hex.EncodeToString([]byte("sql-0")),
-		CPUTimeMs:         102.0,
-		ExecCountPerSec:   119.0,
-		DurationPerExecMs: 144.0 / 119.0,
+		CPUTimeMs:         sum(data["sql-0"][""].cpu[4:], data["sql-0"]["plan-0"].cpu[4:]),
+		ExecCountPerSec:   sumf(data["sql-0"][""].exec[4:], data["sql-0"]["plan-0"].exec[4:]) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-0"][""].duration[4:], data["sql-0"]["plan-0"].duration[4:]) / sumf(data["sql-0"][""].exec[4:], data["sql-0"]["plan-0"].exec[4:]),
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{31},
-			ExecCountPerSec:   21.0,
-			DurationPerExecMs: 56.0 / 21.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"][""].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-0"][""].exec[4:]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"][""].duration[4:]) / sumf(data["sql-0"][""].exec[4:]),
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{71},
-			ExecCountPerSec:   98.0,
-			DurationPerExecMs: 88.0 / 98.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"]["plan-0"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-0"]["plan-0"].exec[4:]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"]["plan-0"].duration[4:]) / sumf(data["sql-0"]["plan-0"].exec[4:]),
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-1")),
-		CPUTimeMs:         62.0,
-		ExecCountPerSec:   106.0,
-		DurationPerExecMs: 49.0 / 106.0,
+		CPUTimeMs:         sum(data["sql-1"]["plan-0"].cpu[4:], data["sql-1"]["plan-1"].cpu[4:]),
+		ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec[4:], data["sql-1"]["plan-1"].exec[4:]) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration[4:], data["sql-1"]["plan-1"].duration[4:]) / sumf(data["sql-1"]["plan-0"].exec[4:], data["sql-1"]["plan-1"].exec[4:]),
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{35},
-			ExecCountPerSec:   75.0,
-			DurationPerExecMs: 16.0 / 75.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-0"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec[4:]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration[4:]) / sumf(data["sql-1"]["plan-0"].exec[4:]),
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{27},
-			ExecCountPerSec:   31.0,
-			DurationPerExecMs: 33.0 / 31.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-1"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-1"].exec[4:]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-1"]["plan-1"].duration[4:]) / sumf(data["sql-1"]["plan-1"].exec[4:]),
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-2")),
-		CPUTimeMs:         53.0,
-		ExecCountPerSec:   52.0,
-		DurationPerExecMs: 81.0 / 52.0,
+		CPUTimeMs:         sum(data["sql-2"]["plan-0"].cpu[4:]),
+		ExecCountPerSec:   sumf(data["sql-2"]["plan-0"].exec[4:]) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-2"]["plan-0"].duration[4:]) / sumf(data["sql-2"]["plan-0"].exec[4:]),
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{53},
-			ExecCountPerSec:   52.0,
-			DurationPerExecMs: 81.0 / 52.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-2"]["plan-0"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-2"]["plan-0"].exec[4:]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-2"]["plan-0"].duration[4:]) / sumf(data["sql-2"]["plan-0"].exec[4:]),
 		}},
 	}})
 
@@ -427,69 +433,84 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
+	timeWindow = 32 - 19 + 1
 	s.Equal(res, []query.SummaryItem{{
 		SQLDigest:         hex.EncodeToString([]byte("sql-0")),
-		CPUTimeMs:         169.0,
-		ExecCountPerSec:   271.0 / 14,
-		DurationPerExecMs: 147.0 / 271.0,
+		CPUTimeMs:         sum(data["sql-0"][""].cpu[2:4], data["sql-0"]["plan-0"].cpu[2:4]),
+		ExecCountPerSec:   sumf(data["sql-0"][""].exec[2:4], data["sql-0"]["plan-0"].exec[2:4]) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-0"][""].duration[2:4], data["sql-0"]["plan-0"].duration[2:4]) / sumf(data["sql-0"][""].exec[2:4], data["sql-0"]["plan-0"].exec[2:4]),
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{43, 19},
-			ExecCountPerSec:   125.0 / 14,
-			DurationPerExecMs: 79.0 / 125.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"][""].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-0"][""].exec[2:4]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"][""].duration[2:4]) / sumf(data["sql-0"][""].exec[2:4]),
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{54, 53},
-			ExecCountPerSec:   146.0 / 14,
-			DurationPerExecMs: 68.0 / 146.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"]["plan-0"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-0"]["plan-0"].exec[2:4]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-0"]["plan-0"].duration[2:4]) / sumf(data["sql-0"]["plan-0"].exec[2:4]),
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-1")),
-		CPUTimeMs:         130.0,
-		ExecCountPerSec:   263.0 / 14,
-		DurationPerExecMs: 287.0 / 263.0,
+		CPUTimeMs:         sum(data["sql-1"]["plan-0"].cpu[2:4], data["sql-1"]["plan-1"].cpu[2:4]),
+		ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec[2:4], data["sql-1"]["plan-1"].exec[2:4]) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration[2:4], data["sql-1"]["plan-1"].duration[2:4]) / sumf(data["sql-1"]["plan-0"].exec[2:4], data["sql-1"]["plan-1"].exec[2:4]),
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{29, 22},
-			ExecCountPerSec:   94.0 / 14,
-			DurationPerExecMs: 126.0 / 94.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-0"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"].exec[2:4]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-1"]["plan-0"].duration[2:4]) / sumf(data["sql-1"]["plan-0"].exec[2:4]),
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{14, 65},
-			ExecCountPerSec:   169.0 / 14,
-			DurationPerExecMs: 161.0 / 169.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-1"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-1"].exec[2:4]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-1"]["plan-1"].duration[2:4]) / sumf(data["sql-1"]["plan-1"].exec[2:4]),
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-2")),
-		CPUTimeMs:         92.0,
-		ExecCountPerSec:   81.0 / 14,
-		DurationPerExecMs: 82.0 / 81.0,
+		CPUTimeMs:         sum(data["sql-2"]["plan-0"].cpu[2:4]),
+		ExecCountPerSec:   sumf(data["sql-2"]["plan-0"].exec[2:4]) / timeWindow,
+		DurationPerExecMs: sumf(data["sql-2"]["plan-0"].duration[2:4]) / sumf(data["sql-2"]["plan-0"].exec[2:4]),
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{37, 55},
-			ExecCountPerSec:   81.0 / 14,
-			DurationPerExecMs: 82.0 / 81.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-2"]["plan-0"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-2"]["plan-0"].exec[2:4]) / timeWindow,
+			DurationPerExecMs: sumf(data["sql-2"]["plan-0"].duration[2:4]) / sumf(data["sql-2"]["plan-0"].exec[2:4]),
 		}},
 	}})
 }
 
 func (s *testTopSQLSuite) TestTiKVSummary() {
+	type tikvPlanItem struct {
+		ts    []uint64
+		cpu   []uint64
+		exec  []uint64
+		reads []uint64
+	}
+	type tikvTestPlan map[string]tikvPlanItem
+	type tikvTestData map[string]map[string]tikvTestPlan
+
 	instance := "127.0.0.1:20180"
 	instanceType := "tikv"
 
 	// sql-0:
-	//     plan-0: ts:      testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
-	//             cpu:     67, 19, 54, 53, 71
-	//             exec:    49, 11, 74, 72, 98
-	//             rows:    97, 82, 24, 44, 88
 	//  <unknown>: ts:      testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
 	//             cpu:     85, 64, 43, 19, 31
 	//             exec:    40, 92, 38, 87, 21
 	//             indexes: 11, 69, 58, 21, 56
+	//     plan-0: ts:      testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
+	//             cpu:     67, 19, 54, 53, 71
+	//             exec:    49, 11, 74, 72, 98
+	//             rows:    97, 82, 24, 44, 88
+	//     plan-0: ts:      testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
+	//             cpu:     49, 93, 12, 43, 95
+	//             exec:    70, 53, 36, 84, 69
+	//             indexes: 80, 44, 12, 10, 40
 	// sql-1:
 	//     plan-0: ts:      testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
 	//             cpu:     97, 46, 29, 22, 35
@@ -508,93 +529,109 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 	//             cpu:     61, 87, 37, 55, 53
 	//             exec:    54, 98, 46, 35, 52
 	//             rows:    50, 46, 19, 63, 81
-	data := []testData{{
-		sqlDigest: "sql-0",
-		plans: []testPlan{{
-			planDigest: "plan-0",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{67, 19, 54, 53, 71},
-			exec:       []uint64{49, 11, 74, 72, 98},
-			rows:       []uint64{97, 82, 24, 44, 88},
-		}, {
-			ts:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:     []uint64{85, 64, 43, 19, 31},
-			exec:    []uint64{40, 92, 38, 87, 21},
-			indexes: []uint64{11, 69, 58, 21, 56},
-		}},
-	}, {
-		sqlDigest: "sql-1",
-		plans: []testPlan{{
-			planDigest: "plan-0",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{97, 46, 29, 22, 35},
-			exec:       []uint64{68, 86, 24, 70, 75},
-			indexes:    []uint64{90, 59, 46, 80, 16},
-		}, {
-			planDigest: "plan-1",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{51, 99, 14, 65, 27},
-			exec:       []uint64{16, 11, 96, 73, 31},
-			rows:       []uint64{22, 11, 77, 84, 33},
-		}, {
-			planDigest: "plan-2",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{61, 64, 83, 99, 43},
-			exec:       []uint64{98, 61, 98, 33, 92},
-			rows:       []uint64{51, 93, 42, 27, 21},
-		}},
-	}, {
-		sqlDigest: "sql-2",
-		plans: []testPlan{{
-			planDigest: "plan-0",
-			ts:         []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			cpu:        []uint64{61, 87, 37, 55, 53},
-			exec:       []uint64{54, 98, 46, 35, 52},
-			rows:       []uint64{50, 46, 19, 63, 81},
-		}},
-	}}
+	data := tikvTestData{
+		"sql-0": {
+			"": {
+				"index": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{85, 64, 43, 19, 31},
+					exec:  []uint64{40, 92, 38, 87, 21},
+					reads: []uint64{11, 69, 58, 21, 56},
+				},
+			},
+			"plan-0": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{67, 19, 54, 53, 71},
+					exec:  []uint64{49, 11, 74, 72, 98},
+					reads: []uint64{97, 82, 24, 44, 88},
+				},
+				"index": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{49, 93, 12, 43, 95},
+					exec:  []uint64{70, 53, 36, 84, 69},
+					reads: []uint64{80, 44, 12, 10, 40},
+				},
+			},
+		},
+		"sql-1": {
+			"plan-0": {
+				"index": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{97, 46, 29, 22, 35},
+					exec:  []uint64{68, 86, 24, 70, 75},
+					reads: []uint64{90, 59, 46, 80, 16},
+				},
+			},
+			"plan-1": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{51, 99, 14, 65, 27},
+					exec:  []uint64{16, 11, 96, 73, 31},
+					reads: []uint64{22, 11, 77, 84, 33},
+				},
+			},
+			"plan-2": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{61, 64, 83, 99, 43},
+					exec:  []uint64{98, 61, 98, 33, 92},
+					reads: []uint64{51, 93, 42, 27, 21},
+				},
+			},
+		},
+		"sql-2": {
+			"plan-0": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{61, 87, 37, 55, 53},
+					exec:  []uint64{54, 98, 46, 35, 52},
+					reads: []uint64{50, 46, 19, 63, 81},
+				},
+			},
+		},
+	}
 
-	for _, datum := range data {
-		for _, plan := range datum.plans {
-			tag := tipb.ResourceGroupTag{
-				SqlDigest:  []byte(datum.sqlDigest),
-				PlanDigest: []byte(plan.planDigest),
-			}
-			if len(plan.rows) != 0 {
-				tag.Label = tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow.Enum()
-			} else {
-				tag.Label = tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex.Enum()
-			}
-			for i := range plan.ts {
-				tagBytes, err := tag.Marshal()
-				s.NoError(err)
-
-				var readKeys uint32
-				if len(plan.rows) > 0 {
-					readKeys = uint32(plan.rows[i])
-				} else {
-					readKeys = uint32(plan.indexes[i])
+	for sqlDigest, plans := range data {
+		for planDigest, reads := range plans {
+			for typ, plan := range reads {
+				tag := tipb.ResourceGroupTag{
+					SqlDigest:  []byte(sqlDigest),
+					PlanDigest: []byte(planDigest),
 				}
-				record := &rsmetering.GroupTagRecord{
-					ResourceGroupTag: tagBytes,
-					Items: []*rsmetering.GroupTagRecordItem{{
+				if typ == "record" {
+					tag.Label = tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow.Enum()
+				} else if typ == "index" {
+					tag.Label = tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex.Enum()
+				}
+				var items []*rsmetering.GroupTagRecordItem
+				var tidbItems []*tipb.TopSQLRecordItem
+				for i := range plan.ts {
+					items = append(items, &rsmetering.GroupTagRecordItem{
 						TimestampSec: plan.ts[i],
 						CpuTimeMs:    uint32(plan.cpu[i]),
-						ReadKeys:     readKeys,
-					}},
-				}
-
-				s.NoError(s.ds.ResourceMeteringRecord(instance, instanceType, &rsmetering.ResourceUsageRecord{
-					RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: record}}))
-
-				s.NoError(s.ds.TopSQLRecord(instance, instanceType, &tipb.TopSQLRecord{
-					SqlDigest:  []byte(datum.sqlDigest),
-					PlanDigest: []byte(plan.planDigest),
-					Items: []*tipb.TopSQLRecordItem{{
+						ReadKeys:     uint32(plan.reads[i]),
+					})
+					tidbItems = append(tidbItems, &tipb.TopSQLRecordItem{
 						TimestampSec: plan.ts[i],
 						StmtKvExecCount: map[string]uint64{
 							instance: plan.exec[i],
-						}}}}))
+						},
+					})
+				}
+
+				tagBytes, err := tag.Marshal()
+				s.NoError(err)
+				s.NoError(s.ds.ResourceMeteringRecord(instance, instanceType, &rsmetering.ResourceUsageRecord{
+					RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: &rsmetering.GroupTagRecord{
+						ResourceGroupTag: tagBytes,
+						Items:            items},
+					}}))
+				s.NoError(s.ds.TopSQLRecord(instance, instanceType, &tipb.TopSQLRecord{
+					SqlDigest:  []byte(sqlDigest),
+					PlanDigest: []byte(planDigest),
+					Items:      tidbItems,
+				}))
 			}
 		}
 	}
@@ -606,60 +643,63 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
+	timeWindow := float64(40 + 1)
 	s.Equal(res, []query.SummaryItem{{
 		SQLDigest:         hex.EncodeToString([]byte("sql-0")),
-		CPUTimeMs:         506.0,
-		ExecCountPerSec:   582.0 / 41,
-		ScanRecordsPerSec: 335.0 / 41,
-		ScanIndexesPerSec: 215.0 / 41,
+		CPUTimeMs:         sum(data["sql-0"][""]["index"].cpu, data["sql-0"]["plan-0"]["record"].cpu, data["sql-0"]["plan-0"]["index"].cpu),
+		ExecCountPerSec:   sumf(data["sql-0"][""]["index"].exec, data["sql-0"]["plan-0"]["record"].exec, data["sql-0"]["plan-0"]["index"].exec) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-0"]["plan-0"]["record"].reads) / timeWindow,
+		ScanIndexesPerSec: sumf(data["sql-0"][""]["index"].reads, data["sql-0"]["plan-0"]["index"].reads) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{85, 64, 43, 19, 31},
-			ExecCountPerSec:   278.0 / 41,
-			ScanIndexesPerSec: 215.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"][""]["index"].cpu,
+			ExecCountPerSec:   sumf(data["sql-0"][""]["index"].exec) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-0"][""]["index"].reads) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{67, 19, 54, 53, 71},
-			ExecCountPerSec:   304.0 / 41,
-			ScanRecordsPerSec: 335.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         sumv(data["sql-0"]["plan-0"]["record"].cpu, data["sql-0"]["plan-0"]["index"].cpu),
+			ExecCountPerSec:   sumf(data["sql-0"]["plan-0"]["record"].exec, data["sql-0"]["plan-0"]["index"].exec) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-0"]["plan-0"]["record"].reads) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-0"]["plan-0"]["index"].reads) / timeWindow,
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-1")),
-		CPUTimeMs:         835.0,
-		ExecCountPerSec:   932.0 / 41,
-		ScanRecordsPerSec: 461.0 / 41,
-		ScanIndexesPerSec: 291.0 / 41,
+		CPUTimeMs:         sum(data["sql-1"]["plan-0"]["index"].cpu, data["sql-1"]["plan-1"]["record"].cpu, data["sql-1"]["plan-2"]["record"].cpu),
+		ExecCountPerSec:   sumf(data["sql-1"]["plan-0"]["index"].exec, data["sql-1"]["plan-1"]["record"].exec, data["sql-1"]["plan-2"]["record"].exec) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads, data["sql-1"]["plan-2"]["record"].reads) / timeWindow,
+		ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{97, 46, 29, 22, 35},
-			ExecCountPerSec:   323.0 / 41,
-			ScanIndexesPerSec: 291.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-0"]["index"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"]["index"].exec) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{51, 99, 14, 65, 27},
-			ExecCountPerSec:   227.0 / 41,
-			ScanRecordsPerSec: 227.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-1"]["record"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-1"]["record"].exec) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-2")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{61, 64, 83, 99, 43},
-			ExecCountPerSec:   382.0 / 41,
-			ScanRecordsPerSec: 234.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-2"]["record"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-2"]["record"].exec) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-2"]["record"].reads) / timeWindow,
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-2")),
-		CPUTimeMs:         293.0,
-		ExecCountPerSec:   285.0 / 41,
-		ScanRecordsPerSec: 259.0 / 41,
+		CPUTimeMs:         sum(data["sql-2"]["plan-0"]["record"].cpu),
+		ExecCountPerSec:   sumf(data["sql-2"]["plan-0"]["record"].exec) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-2"]["plan-0"]["record"].reads) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{61, 87, 37, 55, 53},
-			ExecCountPerSec:   285.0 / 41,
-			ScanRecordsPerSec: 259.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-2"]["plan-0"]["record"].cpu,
+			ExecCountPerSec:   sumf(data["sql-2"]["plan-0"]["record"].exec) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-2"]["plan-0"]["record"].reads) / timeWindow,
 		}},
 	}})
 
@@ -668,43 +708,77 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
+	timeWindow = float64(40 + 1)
 	s.Equal(res, []query.SummaryItem{{
-		IsOther:           true,
-		CPUTimeMs:         799.0,
-		ExecCountPerSec:   867.0 / 41,
-		ScanRecordsPerSec: 594.0 / 41,
-		ScanIndexesPerSec: 215.0 / 41,
+		IsOther: true,
+		CPUTimeMs: sum(
+			data["sql-0"][""]["index"].cpu,
+			data["sql-0"]["plan-0"]["record"].cpu,
+			data["sql-0"]["plan-0"]["index"].cpu,
+			data["sql-2"]["plan-0"]["record"].cpu,
+		),
+		ExecCountPerSec: sumf(
+			data["sql-0"][""]["index"].exec,
+			data["sql-0"]["plan-0"]["record"].exec,
+			data["sql-0"]["plan-0"]["index"].exec,
+			data["sql-2"]["plan-0"]["record"].exec,
+		) / timeWindow,
+		ScanRecordsPerSec: sumf(
+			data["sql-0"]["plan-0"]["record"].reads,
+			data["sql-2"]["plan-0"]["record"].reads,
+		) / timeWindow,
+		ScanIndexesPerSec: sumf(
+			data["sql-0"][""]["index"].reads,
+			data["sql-0"]["plan-0"]["index"].reads,
+		) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{213, 170, 134, 127, 155},
-			ExecCountPerSec:   867.0 / 41,
-			ScanRecordsPerSec: 594.0 / 41,
-			ScanIndexesPerSec: 215.0 / 41,
+			TimestampSec: tsList,
+			CPUTimeMs: sumv(
+				data["sql-0"][""]["index"].cpu,
+				data["sql-0"]["plan-0"]["record"].cpu,
+				data["sql-0"]["plan-0"]["index"].cpu,
+				data["sql-2"]["plan-0"]["record"].cpu,
+			),
+			ExecCountPerSec: sumf(
+				data["sql-0"][""]["index"].exec,
+				data["sql-0"]["plan-0"]["record"].exec,
+				data["sql-0"]["plan-0"]["index"].exec,
+				data["sql-2"]["plan-0"]["record"].exec,
+			) / timeWindow,
+			ScanRecordsPerSec: sumf(
+				data["sql-0"]["plan-0"]["record"].reads,
+				data["sql-2"]["plan-0"]["record"].reads,
+			) / timeWindow,
+			ScanIndexesPerSec: sumf(
+				data["sql-0"][""]["index"].reads,
+				data["sql-0"]["plan-0"]["index"].reads,
+			) / timeWindow,
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-1")),
-		CPUTimeMs:         835.0,
-		ExecCountPerSec:   932.0 / 41,
-		ScanRecordsPerSec: 461.0 / 41,
-		ScanIndexesPerSec: 291.0 / 41,
+		CPUTimeMs:         sum(data["sql-1"]["plan-0"]["index"].cpu, data["sql-1"]["plan-1"]["record"].cpu, data["sql-1"]["plan-2"]["record"].cpu),
+		ExecCountPerSec:   sumf(data["sql-1"]["plan-0"]["index"].exec, data["sql-1"]["plan-1"]["record"].exec, data["sql-1"]["plan-2"]["record"].exec) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads, data["sql-1"]["plan-2"]["record"].reads) / timeWindow,
+		ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{97, 46, 29, 22, 35},
-			ExecCountPerSec:   323.0 / 41,
-			ScanIndexesPerSec: 291.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-0"]["index"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"]["index"].exec) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{51, 99, 14, 65, 27},
-			ExecCountPerSec:   227.0 / 41,
-			ScanRecordsPerSec: 227.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-1"]["record"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-1"]["record"].exec) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-2")),
-			TimestampSec:      []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
-			CPUTimeMs:         []uint64{61, 64, 83, 99, 43},
-			ExecCountPerSec:   382.0 / 41,
-			ScanRecordsPerSec: 234.0 / 41,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-2"]["record"].cpu,
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-2"]["record"].exec) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-2"]["record"].reads) / timeWindow,
 		}},
 	}})
 
@@ -719,60 +793,76 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList = []uint64{testBaseTs + 40}
+	timeWindow = float64(1)
 	s.Equal(res, []query.SummaryItem{{
-		SQLDigest:         hex.EncodeToString([]byte("sql-0")),
-		CPUTimeMs:         102.0,
-		ExecCountPerSec:   119.0,
-		ScanRecordsPerSec: 88.0,
-		ScanIndexesPerSec: 56.0,
+		SQLDigest: hex.EncodeToString([]byte("sql-0")),
+		CPUTimeMs: sum(
+			data["sql-0"][""]["index"].cpu[4:],
+			data["sql-0"]["plan-0"]["record"].cpu[4:],
+			data["sql-0"]["plan-0"]["index"].cpu[4:],
+		),
+		ExecCountPerSec: sumf(
+			data["sql-0"][""]["index"].exec[4:],
+			data["sql-0"]["plan-0"]["record"].exec[4:],
+			data["sql-0"]["plan-0"]["index"].exec[4:],
+		) / timeWindow,
+		ScanRecordsPerSec: sumf(
+			data["sql-0"]["plan-0"]["record"].reads[4:],
+		) / timeWindow,
+		ScanIndexesPerSec: sumf(
+			data["sql-0"][""]["index"].reads[4:],
+			data["sql-0"]["plan-0"]["index"].reads[4:],
+		) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{31},
-			ExecCountPerSec:   21.0,
-			ScanIndexesPerSec: 56.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"][""]["index"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-0"][""]["index"].exec[4:]) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-0"][""]["index"].reads[4:]) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{71},
-			ExecCountPerSec:   98.0,
-			ScanRecordsPerSec: 88.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         sumv(data["sql-0"]["plan-0"]["record"].cpu[4:], data["sql-0"]["plan-0"]["index"].cpu[4:]),
+			ExecCountPerSec:   sumf(data["sql-0"]["plan-0"]["record"].exec[4:], data["sql-0"]["plan-0"]["index"].exec[4:]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-0"]["plan-0"]["record"].reads[4:]) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-0"]["plan-0"]["index"].reads[4:]) / timeWindow,
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-1")),
-		CPUTimeMs:         105.0,
-		ExecCountPerSec:   198.0,
-		ScanRecordsPerSec: 54.0,
-		ScanIndexesPerSec: 16.0,
+		CPUTimeMs:         sum(data["sql-1"]["plan-0"]["index"].cpu[4:], data["sql-1"]["plan-1"]["record"].cpu[4:], data["sql-1"]["plan-2"]["record"].cpu[4:]),
+		ExecCountPerSec:   sumf(data["sql-1"]["plan-0"]["index"].exec[4:], data["sql-1"]["plan-1"]["record"].exec[4:], data["sql-1"]["plan-2"]["record"].exec[4:]) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads[4:], data["sql-1"]["plan-2"]["record"].reads[4:]) / timeWindow,
+		ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads[4:]) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{35},
-			ExecCountPerSec:   75.0,
-			ScanIndexesPerSec: 16.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-0"]["index"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"]["index"].exec[4:]) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads[4:]) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{27},
-			ExecCountPerSec:   31.0,
-			ScanRecordsPerSec: 33.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-1"]["record"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-1"]["record"].exec[4:]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads[4:]) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-2")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{43},
-			ExecCountPerSec:   92.0,
-			ScanRecordsPerSec: 21.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-2"]["record"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-2"]["record"].exec[4:]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-2"]["record"].reads[4:]) / timeWindow,
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-2")),
-		CPUTimeMs:         53.0,
-		ExecCountPerSec:   52.0,
-		ScanRecordsPerSec: 81.0,
+		CPUTimeMs:         sum(data["sql-2"]["plan-0"]["record"].cpu[4:]),
+		ExecCountPerSec:   sumf(data["sql-2"]["plan-0"]["record"].exec[4:]) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-2"]["plan-0"]["record"].reads[4:]) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 40},
-			CPUTimeMs:         []uint64{53},
-			ExecCountPerSec:   52.0,
-			ScanRecordsPerSec: 81.0,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-2"]["plan-0"]["record"].cpu[4:],
+			ExecCountPerSec:   sumf(data["sql-2"]["plan-0"]["record"].exec[4:]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-2"]["plan-0"]["record"].reads[4:]) / timeWindow,
 		}},
 	}})
 
@@ -781,60 +871,79 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
+	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
+	timeWindow = float64(32 - 19 + 1)
 	s.Equal(res, []query.SummaryItem{{
-		SQLDigest:         hex.EncodeToString([]byte("sql-0")),
-		CPUTimeMs:         169.0,
-		ExecCountPerSec:   271.0 / 14,
-		ScanRecordsPerSec: 68.0 / 14,
-		ScanIndexesPerSec: 79.0 / 14,
+		SQLDigest: hex.EncodeToString([]byte("sql-0")),
+		CPUTimeMs: sum(
+			data["sql-0"][""]["index"].cpu[2:4],
+			data["sql-0"]["plan-0"]["record"].cpu[2:4],
+			data["sql-0"]["plan-0"]["index"].cpu[2:4],
+		),
+		ExecCountPerSec: sumf(
+			data["sql-0"][""]["index"].exec[2:4],
+			data["sql-0"]["plan-0"]["record"].exec[2:4],
+			data["sql-0"]["plan-0"]["index"].exec[2:4],
+		) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-0"]["plan-0"]["record"].reads[2:4]) / timeWindow,
+		ScanIndexesPerSec: sumf(data["sql-0"][""]["index"].reads[2:4], data["sql-0"]["plan-0"]["index"].reads[2:4]) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{43, 19},
-			ExecCountPerSec:   125.0 / 14,
-			ScanIndexesPerSec: 79.0 / 14,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-0"][""]["index"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-0"][""]["index"].exec[2:4]) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-0"][""]["index"].reads[2:4]) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{54, 53},
-			ExecCountPerSec:   146.0 / 14,
-			ScanRecordsPerSec: 68.0 / 14,
+			TimestampSec:      tsList,
+			CPUTimeMs:         sumv(data["sql-0"]["plan-0"]["record"].cpu[2:4], data["sql-0"]["plan-0"]["index"].cpu[2:4]),
+			ExecCountPerSec:   sumf(data["sql-0"]["plan-0"]["record"].exec[2:4], data["sql-0"]["plan-0"]["index"].exec[2:4]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-0"]["plan-0"]["record"].reads[2:4]) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-0"]["plan-0"]["index"].reads[2:4]) / timeWindow,
 		}},
 	}, {
-		SQLDigest:         hex.EncodeToString([]byte("sql-1")),
-		CPUTimeMs:         312.0,
-		ExecCountPerSec:   394.0 / 14,
-		ScanRecordsPerSec: 230.0 / 14,
-		ScanIndexesPerSec: 126.0 / 14,
+		SQLDigest: hex.EncodeToString([]byte("sql-1")),
+		CPUTimeMs: sum(
+			data["sql-1"]["plan-0"]["index"].cpu[2:4],
+			data["sql-1"]["plan-1"]["record"].cpu[2:4],
+			data["sql-1"]["plan-2"]["record"].cpu[2:4],
+		),
+		ExecCountPerSec: sumf(
+			data["sql-1"]["plan-0"]["index"].exec[2:4],
+			data["sql-1"]["plan-1"]["record"].exec[2:4],
+			data["sql-1"]["plan-2"]["record"].exec[2:4],
+		) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads[2:4], data["sql-1"]["plan-2"]["record"].reads[2:4]) / timeWindow,
+		ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads[2:4]) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{29, 22},
-			ExecCountPerSec:   94.0 / 14,
-			ScanIndexesPerSec: 126.0 / 14,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-0"]["index"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-0"]["index"].exec[2:4]) / timeWindow,
+			ScanIndexesPerSec: sumf(data["sql-1"]["plan-0"]["index"].reads[2:4]) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-1")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{14, 65},
-			ExecCountPerSec:   169.0 / 14,
-			ScanRecordsPerSec: 161.0 / 14,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-1"]["record"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-1"]["record"].exec[2:4]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-1"]["record"].reads[2:4]) / timeWindow,
 		}, {
 			PlanDigest:        hex.EncodeToString([]byte("plan-2")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{83, 99},
-			ExecCountPerSec:   131.0 / 14,
-			ScanRecordsPerSec: 69.0 / 14,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-1"]["plan-2"]["record"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-1"]["plan-2"]["record"].exec[2:4]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-1"]["plan-2"]["record"].reads[2:4]) / timeWindow,
 		}},
 	}, {
 		SQLDigest:         hex.EncodeToString([]byte("sql-2")),
-		CPUTimeMs:         92.0,
-		ExecCountPerSec:   81.0 / 14,
-		ScanRecordsPerSec: 82.0 / 14,
+		CPUTimeMs:         sum(data["sql-2"]["plan-0"]["record"].cpu[2:4]),
+		ExecCountPerSec:   sumf(data["sql-2"]["plan-0"]["record"].exec[2:4]) / timeWindow,
+		ScanRecordsPerSec: sumf(data["sql-2"]["plan-0"]["record"].reads[2:4]) / timeWindow,
 		Plans: []query.SummaryPlanItem{{
 			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
-			TimestampSec:      []uint64{testBaseTs + 22, testBaseTs + 32},
-			CPUTimeMs:         []uint64{37, 55},
-			ExecCountPerSec:   81.0 / 14,
-			ScanRecordsPerSec: 82.0 / 14,
+			TimestampSec:      tsList,
+			CPUTimeMs:         data["sql-2"]["plan-0"]["record"].cpu[2:4],
+			ExecCountPerSec:   sumf(data["sql-2"]["plan-0"]["record"].exec[2:4]) / timeWindow,
+			ScanRecordsPerSec: sumf(data["sql-2"]["plan-0"]["record"].reads[2:4]) / timeWindow,
 		}},
 	}})
 }
@@ -857,4 +966,29 @@ func (s *testTopSQLSuite) sortSummary(res []query.SummaryItem) {
 			return string(plani) < string(planj)
 		})
 	}
+}
+
+func sum(s ...[]uint64) uint64 {
+	sum := uint64(0)
+	for _, items := range s {
+		for _, item := range items {
+			sum += item
+		}
+	}
+	return sum
+}
+
+func sumf(s ...[]uint64) float64 {
+	return float64(sum(s...))
+}
+
+func sumv(v ...[]uint64) []uint64 {
+	var res []uint64
+	for i := range v[0] {
+		res = append(res, 0)
+		for _, s := range v {
+			res[len(res)-1] += s[i]
+		}
+	}
+	return res
 }
