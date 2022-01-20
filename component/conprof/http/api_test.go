@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -339,23 +340,24 @@ func TestQueryStatus(t *testing.T) {
 		t      time.Time
 		pt     meta.ProfileTarget
 		status meta.ProfileStatus
+		err    error
 	}{
-		{t0, pt0, meta.ProfileStatusFinished},
-		{t0, pt1, meta.ProfileStatusFinished},
-		{t0, pt2, meta.ProfileStatusFinished},
+		{t0, pt0, meta.ProfileStatusFinished, nil},
+		{t0, pt1, meta.ProfileStatusFinished, nil},
+		{t0, pt2, meta.ProfileStatusFinished, nil},
 
-		{t1, pt0, meta.ProfileStatusFinished},
-		{t1, pt1, meta.ProfileStatusFailed},
-		{t1, pt2, meta.ProfileStatusFinished},
+		{t1, pt0, meta.ProfileStatusFinished, nil},
+		{t1, pt1, meta.ProfileStatusFailed, errors.New("timeout")},
+		{t1, pt2, meta.ProfileStatusFinished, nil},
 
-		{t2, pt0, meta.ProfileStatusFailed},
-		{t2, pt1, meta.ProfileStatusFailed},
-		{t2, pt2, meta.ProfileStatusFailed},
+		{t2, pt0, meta.ProfileStatusFailed, errors.New("timeout")},
+		{t2, pt1, meta.ProfileStatusFailed, errors.New("timeout")},
+		{t2, pt2, meta.ProfileStatusFailed, errors.New("timeout")},
 	}
 
 	profile := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for _, data := range datas {
-		err = storage.AddProfile(data.pt, data.t, profile, data.status)
+		err = storage.AddProfile(data.pt, data.t, profile, data.err)
 		require.NoError(t, err)
 	}
 	// query group profile api.

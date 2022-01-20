@@ -38,9 +38,9 @@ type BasicQueryParam struct {
 }
 
 type ProfileList struct {
-	Target     ProfileTarget   `json:"target"`
-	StatusList []ProfileStatus `json:"-"`
-	TsList     []int64         `json:"timestamp_list"`
+	Target    ProfileTarget `json:"target"`
+	ErrorList []string      `json:"-"`
+	TsList    []int64       `json:"timestamp_list"`
 }
 
 func (s ProfileStatus) String() string {

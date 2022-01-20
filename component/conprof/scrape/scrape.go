@@ -74,9 +74,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 		scrapeCtx, cancel := context.WithTimeout(sl.ctx, time.Second*time.Duration(config.GetGlobalConfig().ContinueProfiling.TimeoutSeconds))
 		scrapeErr := sl.scraper.scrape(scrapeCtx, buf)
 		cancel()
-		status := meta.ProfileStatusFinished
 		if scrapeErr != nil {
-			status = meta.ProfileStatusFailed
 			if scrapeErr != context.Canceled {
 				log.Error("scrape failed",
 					zap.String("component", target.Component),
@@ -91,7 +89,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 			Kind:      sl.scraper.target.Kind,
 			Component: sl.scraper.target.Component,
 			Address:   sl.scraper.target.Address,
-		}, start, buf.Bytes(), status)
+		}, start, buf.Bytes(), scrapeErr)
 		if err != nil {
 			log.Error("save scrape data failed",
 				zap.String("component", target.Component),

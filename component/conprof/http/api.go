@@ -178,7 +178,7 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 				m[ts] = targets
 			}
 			sc := targets[target]
-			sc.add(plist.StatusList[idx])
+			sc.add(getStateFromError(plist.ErrorList[idx]))
 			targets[target] = sc
 		}
 	}
@@ -242,9 +242,10 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
 	sc := StatusCounter{}
 	for _, plist := range profileLists {
-		status := plist.StatusList[0]
+		status := getStateFromError(plist.ErrorList[0])
 		targetProfiles = append(targetProfiles, ProfileDetail{
 			State: status.String(),
+			Error: plist.ErrorList[0],
 			Type:  plist.Target.Kind,
 			Target: Target{
 				Component: plist.Target.Component,
@@ -262,6 +263,13 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 		State:          sc.getFinalStatus().String(),
 		TargetProfiles: targetProfiles,
 	}, nil
+}
+
+func getStateFromError(err string) meta.ProfileStatus {
+	if err == "" {
+		return meta.ProfileStatusFinished
+	}
+	return meta.ProfileStatusFailed
 }
 
 func querySingleProfileView(c *gin.Context) ([]byte, error) {

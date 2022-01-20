@@ -125,7 +125,7 @@ func (s *ProfileStorage) UpdateProfileTargetInfo(pt meta.ProfileTarget, ts int64
 	return true, nil
 }
 
-func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, t time.Time, profileData []byte, status meta.ProfileStatus) error {
+func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, t time.Time, profileData []byte, profileErr error) error {
 	if s.isClose() {
 		return ErrStoreIsClosed
 	}
@@ -135,19 +135,22 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, t time.Time, profileD
 	}
 
 	ts := t.Unix()
-	if status == meta.ProfileStatusFinished {
+	var errStr string
+	if profileErr == nil {
 		if pt.Kind == meta.ProfileKindGoroutine {
 			profileData = gozstd.Compress(nil, profileData)
 		}
 		sql := fmt.Sprintf("INSERT INTO %v (ts, data) VALUES (?, ?)", s.getProfileDataTableName(info))
 		err = s.db.Exec(sql, ts, profileData)
-	}
-	if err != nil {
-		status = meta.ProfileStatusFailed
+		if err != nil {
+			return err
+		}
+	} else {
+		errStr = profileErr.Error()
 	}
 
-	sql := fmt.Sprintf("INSERT INTO %v (ts, status) VALUES (?, ?)", s.getProfileMetaTableName(info))
-	err = s.db.Exec(sql, ts, int64(status))
+	sql := fmt.Sprintf("INSERT INTO %v (ts, error) VALUES (?, ?)", s.getProfileMetaTableName(info))
+	err = s.db.Exec(sql, ts, errStr)
 	if err != nil {
 		return err
 	}
@@ -250,20 +253,21 @@ func (s *ProfileStorage) QueryTargetProfiles(pt meta.ProfileTarget, ptInfo *meta
 	queryLimiter := newQueryLimiter(param.Limit)
 	result := meta.ProfileList{Target: pt}
 	args := []interface{}{param.Begin, param.End}
-	query := fmt.Sprintf("SELECT ts, status FROM %v WHERE ts >= ? and ts <= ? ORDER BY ts DESC", s.getProfileMetaTableName(ptInfo))
+	query := fmt.Sprintf("SELECT ts, error FROM %v WHERE ts >= ? and ts <= ? ORDER BY ts DESC", s.getProfileMetaTableName(ptInfo))
 	res, err := s.db.Query(query, args...)
 	if err != nil {
 		return result, err
 	}
 	defer res.Close()
 	err = res.Iterate(func(d types.Document) error {
-		var ts, status int64
-		err = document.Scan(d, &ts, &status)
+		var ts int64
+		var errStr string
+		err = document.Scan(d, &ts, &errStr)
 		if err != nil {
 			return err
 		}
 		result.TsList = append(result.TsList, ts)
-		result.StatusList = append(result.StatusList, meta.ProfileStatus(status))
+		result.ErrorList = append(result.ErrorList, errStr)
 		queryLimiter.Add(1)
 		if queryLimiter.IsFull() {
 			return errResultFull
@@ -433,7 +437,7 @@ func (s *ProfileStorage) createProfileTable(pt meta.ProfileTarget) (*meta.Target
 		LastScrapeTs: time.Now().Unix(),
 	}
 	tbName := s.getProfileMetaTableName(info)
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY, status INTEGER)", tbName)
+	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY, error TEXT)", tbName)
 	err := s.db.Exec(sql)
 	if err != nil {
 		return info, err
