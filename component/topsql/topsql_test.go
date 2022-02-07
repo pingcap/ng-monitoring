@@ -93,27 +93,24 @@ func (s *testTopSQLSuite) TestInstances() {
 	var r []query.InstanceItem
 
 	r = nil
-	err = s.dq.Instances(int(now-41), int(now-40), &r)
+	err = s.dq.Instances(int(now-40), int(now-40), &r)
 	s.NoError(err)
-
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10081",
 		InstanceType: "tidb",
 	}})
 
 	r = nil
-	err = s.dq.Instances(int(now-21), int(now-20), &r)
+	err = s.dq.Instances(int(now-20), int(now-20), &r)
 	s.NoError(err)
-
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
 		InstanceType: "tidb",
 	}})
 
 	r = nil
-	err = s.dq.Instances(int(now-1), int(now), &r)
+	err = s.dq.Instances(int(now), int(now), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
@@ -126,7 +123,6 @@ func (s *testTopSQLSuite) TestInstances() {
 	r = nil
 	err = s.dq.Instances(int(now-40), int(now), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
@@ -142,7 +138,6 @@ func (s *testTopSQLSuite) TestInstances() {
 	r = nil
 	err = s.dq.Instances(int(now-10), int(now), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
@@ -155,13 +150,20 @@ func (s *testTopSQLSuite) TestInstances() {
 	r = nil
 	err = s.dq.Instances(int(now-40), int(now-20), &r)
 	s.NoError(err)
-
 	sort.Slice(r, func(i, j int) bool { return r[i].Instance < r[j].Instance })
 	s.Equal(r, []query.InstanceItem{{
 		Instance:     "127.0.0.1:10080",
 		InstanceType: "tidb",
 	}, {
 		Instance:     "127.0.0.1:10081",
+		InstanceType: "tidb",
+	}})
+
+	r = nil
+	err = s.dq.Instances(int(now-31), int(now-21), &r)
+	s.NoError(err)
+	s.Equal(r, []query.InstanceItem{{
+		Instance:     "127.0.0.1:10080",
 		InstanceType: "tidb",
 	}})
 }
