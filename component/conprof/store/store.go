@@ -129,12 +129,12 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, t time.Time, profileD
 	if s.isClose() {
 		return ErrStoreIsClosed
 	}
-	info, err := s.prepareProfileTable(pt)
+	ts := t.Unix()
+	info, err := s.prepareProfileTable(pt, ts)
 	if err != nil {
 		return err
 	}
 
-	ts := t.Unix()
 	var errStr string
 	if profileErr == nil {
 		if pt.Kind == meta.ProfileKindGoroutine {
@@ -407,7 +407,7 @@ func (s *ProfileStorage) isClose() bool {
 	return s.closed.Load()
 }
 
-func (s *ProfileStorage) prepareProfileTable(pt meta.ProfileTarget) (*meta.TargetInfo, error) {
+func (s *ProfileStorage) prepareProfileTable(pt meta.ProfileTarget, ts int64) (*meta.TargetInfo, error) {
 	s.Lock()
 	defer s.Unlock()
 	info := s.metaCache[pt]
@@ -422,7 +422,7 @@ func (s *ProfileStorage) prepareProfileTable(pt meta.ProfileTarget) (*meta.Targe
 	if info != nil {
 		return info, nil
 	}
-	info, err = s.createProfileTable(pt)
+	info, err = s.createProfileTable(pt, ts)
 	if err != nil {
 		return info, err
 	}
@@ -431,10 +431,10 @@ func (s *ProfileStorage) prepareProfileTable(pt meta.ProfileTarget) (*meta.Targe
 	return info, nil
 }
 
-func (s *ProfileStorage) createProfileTable(pt meta.ProfileTarget) (*meta.TargetInfo, error) {
+func (s *ProfileStorage) createProfileTable(pt meta.ProfileTarget, ts int64) (*meta.TargetInfo, error) {
 	info := &meta.TargetInfo{
 		ID:           s.allocID(),
-		LastScrapeTs: time.Now().Unix(),
+		LastScrapeTs: ts,
 	}
 	tbName := s.getProfileMetaTableName(info)
 	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY, error TEXT)", tbName)
