@@ -177,9 +177,9 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 				targets = make(map[Target]StatusCounter)
 				m[ts] = targets
 			}
-			sc := targets[target]
-			sc.add(getStateFromError(plist.ErrorList[idx]))
-			targets[target] = sc
+			statusCounter := targets[target]
+			statusCounter.add(getStateFromError(plist.ErrorList[idx]))
+			targets[target] = statusCounter
 		}
 	}
 	groupProfiles := make([]GroupProfiles, 0, len(m))
@@ -187,7 +187,7 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	lastTS := conprof.GetManager().GetLastScrapeTime().Unix()
 	for ts, targets := range m {
 		compMap := map[string]int{}
-		statusCounter := &StatusCounter{}
+		statusCounter := StatusCounter{}
 		for target, sc := range targets {
 			compMap[target.Component] += 1
 			statusCounter.add(sc.getFinalStatus())
@@ -240,19 +240,23 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	}
 
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
-	sc := StatusCounter{}
+	statusCounter := StatusCounter{}
 	for _, plist := range profileLists {
-		status := getStateFromError(plist.ErrorList[0])
+		if len(plist.ErrorList) == 0 {
+			continue
+		}
+		profileError := plist.ErrorList[0]
+		status := getStateFromError(profileError)
+		statusCounter.add(status)
 		targetProfiles = append(targetProfiles, ProfileDetail{
 			State: status.String(),
-			Error: plist.ErrorList[0],
+			Error: profileError,
 			Type:  plist.Target.Kind,
 			Target: Target{
 				Component: plist.Target.Component,
 				Address:   plist.Target.Address,
 			},
 		})
-		sc.add(status)
 	}
 	sort.Slice(targetProfiles, func(i, j int) bool {
 		return targetProfiles[i].Target.Address < targetProfiles[j].Target.Address
@@ -260,7 +264,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	return &GroupProfileDetail{
 		Ts:             param.Begin,
 		ProfileSecs:    config.GetGlobalConfig().ContinueProfiling.ProfileSeconds,
-		State:          sc.getFinalStatus().String(),
+		State:          statusCounter.getFinalStatus().String(),
 		TargetProfiles: targetProfiles,
 	}, nil
 }
@@ -471,21 +475,21 @@ func getTargetFromRequest(r *http.Request, param *meta.BasicQueryParam, isRequir
 }
 
 type StatusCounter struct {
-	successCount int
-	totalCount   int
+	finishedCount int
+	totalCount    int
 }
 
 func (s *StatusCounter) add(status meta.ProfileStatus) {
 	s.totalCount++
 	if status == meta.ProfileStatusFinished {
-		s.successCount++
+		s.finishedCount++
 	}
 }
 
 func (s *StatusCounter) getFinalStatus() meta.ProfileStatus {
-	if s.successCount == s.totalCount {
+	if s.finishedCount == s.totalCount {
 		return meta.ProfileStatusFinished
-	} else if s.successCount == 0 {
+	} else if s.finishedCount == 0 {
 		return meta.ProfileStatusFailed
 	}
 	return meta.ProfileStatusFinishedWithError
