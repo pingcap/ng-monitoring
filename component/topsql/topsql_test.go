@@ -983,7 +983,7 @@ func sumf(s ...[]uint64) float64 {
 }
 
 func sumv(v ...[]uint64) []uint64 {
-	var res []uint64
+	res := make([]uint64, 0, len(v))
 	for i := range v[0] {
 		res = append(res, 0)
 		for _, s := range v {

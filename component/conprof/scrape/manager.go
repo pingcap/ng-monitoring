@@ -132,7 +132,7 @@ func (m *Manager) updateTargetMeta() {
 			count++
 		}
 	}
-	log.Info("update profile target info finished", zap.Int("update-count", count))
+	log.Debug("update profile target info finished", zap.Int("update-count", count))
 }
 
 func (m *Manager) run(ctx context.Context) {

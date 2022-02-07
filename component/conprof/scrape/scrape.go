@@ -43,13 +43,13 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 
 	defer func() {
 		ticker.Stop()
-		log.Info("scraper stop running",
+		log.Debug("scraper stop running",
 			zap.String("component", target.Component),
 			zap.String("address", target.Address),
 			zap.String("kind", target.Kind))
 	}()
 
-	log.Info("scraper start to run",
+	log.Debug("scraper start to run",
 		zap.String("component", target.Component),
 		zap.String("address", target.Address),
 		zap.String("kind", target.Kind))
@@ -74,31 +74,29 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 		scrapeCtx, cancel := context.WithTimeout(sl.ctx, time.Second*time.Duration(config.GetGlobalConfig().ContinueProfiling.TimeoutSeconds))
 		scrapeErr := sl.scraper.scrape(scrapeCtx, buf)
 		cancel()
-
-		if scrapeErr == nil {
-			if buf.Len() > 0 {
-				sl.lastScrapeSize = buf.Len()
-				err := sl.store.AddProfile(meta.ProfileTarget{
-					Kind:      sl.scraper.target.Kind,
-					Component: sl.scraper.target.Component,
-					Address:   sl.scraper.target.Address,
-				}, start, buf.Bytes())
-
-				if err != nil {
-					log.Error("save scrape data failed",
-						zap.String("component", target.Component),
-						zap.String("address", target.Address),
-						zap.String("kind", target.Kind),
-						zap.Time("start", start),
-						zap.Error(err))
-				}
+		if scrapeErr != nil {
+			if scrapeErr != context.Canceled {
+				log.Error("scrape failed",
+					zap.String("component", target.Component),
+					zap.String("address", target.Address),
+					zap.String("kind", target.Kind),
+					zap.Error(scrapeErr))
 			}
-		} else {
-			log.Error("scrape failed",
+		}
+		sl.lastScrapeSize = buf.Len()
+
+		err := sl.store.AddProfile(meta.ProfileTarget{
+			Kind:      sl.scraper.target.Kind,
+			Component: sl.scraper.target.Component,
+			Address:   sl.scraper.target.Address,
+		}, start, buf.Bytes(), scrapeErr)
+		if err != nil {
+			log.Error("save scrape data failed",
 				zap.String("component", target.Component),
 				zap.String("address", target.Address),
 				zap.String("kind", target.Kind),
-				zap.Error(scrapeErr))
+				zap.Time("start", start),
+				zap.Error(err))
 		}
 	}
 }

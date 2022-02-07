@@ -122,16 +122,6 @@ func getProfileEstimateSize(component topology.Component) int {
 	return defaultProfileSize
 }
 
-type ProfilingState = string
-
-var (
-	ProfilingStateRunning  ProfilingState = "running"
-	ProfilingStateFinished ProfilingState = "finished"
-	// TODO(crazycs520): support following status.
-	ProfilingStateFinishedWithError ProfilingState = "finished_with_error"
-	ProfilingStateFailed            ProfilingState = "failed"
-)
-
 type ComponentNum struct {
 	TiDB    int `json:"tidb"`
 	PD      int `json:"pd"`
@@ -175,19 +165,21 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[int64]map[Target]struct{})
+	m := make(map[int64]map[Target]StatusCounter)
 	for _, plist := range profileLists {
 		target := Target{
 			Component: plist.Target.Component,
 			Address:   plist.Target.Address,
 		}
-		for _, ts := range plist.TsList {
+		for idx, ts := range plist.TsList {
 			targets, ok := m[ts]
 			if !ok {
-				targets = make(map[Target]struct{})
+				targets = make(map[Target]StatusCounter)
 				m[ts] = targets
 			}
-			targets[target] = struct{}{}
+			statusCounter := targets[target]
+			statusCounter.add(getStateFromError(plist.ErrorList[idx]))
+			targets[target] = statusCounter
 		}
 	}
 	groupProfiles := make([]GroupProfiles, 0, len(m))
@@ -195,8 +187,10 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	lastTS := conprof.GetManager().GetLastScrapeTime().Unix()
 	for ts, targets := range m {
 		compMap := map[string]int{}
-		for target := range targets {
+		statusCounter := StatusCounter{}
+		for target, sc := range targets {
 			compMap[target.Component] += 1
+			statusCounter.add(sc.getFinalStatus())
 		}
 		totalCompNum := 0
 		compNum := ComponentNum{}
@@ -214,15 +208,17 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 			totalCompNum += num
 		}
 
-		state := ProfilingStateFinished
+		var status meta.ProfileStatus
 		if ts == lastTS && totalCompNum < len(components) {
-			state = ProfilingStateRunning
+			status = meta.ProfileStatusRunning
+		} else {
+			status = statusCounter.getFinalStatus()
 		}
 
 		groupProfiles = append(groupProfiles, GroupProfiles{
 			Ts:          ts,
 			ProfileSecs: config.GetGlobalConfig().ContinueProfiling.ProfileSeconds, // todo: fix me
-			State:       state,
+			State:       status.String(),
 			CompNum:     compNum,
 		})
 	}
@@ -244,9 +240,17 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	}
 
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
+	statusCounter := StatusCounter{}
 	for _, plist := range profileLists {
+		if len(plist.ErrorList) == 0 {
+			continue
+		}
+		profileError := plist.ErrorList[0]
+		status := getStateFromError(profileError)
+		statusCounter.add(status)
 		targetProfiles = append(targetProfiles, ProfileDetail{
-			State: ProfilingStateFinished,
+			State: status.String(),
+			Error: profileError,
 			Type:  plist.Target.Kind,
 			Target: Target{
 				Component: plist.Target.Component,
@@ -260,9 +264,16 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	return &GroupProfileDetail{
 		Ts:             param.Begin,
 		ProfileSecs:    config.GetGlobalConfig().ContinueProfiling.ProfileSeconds,
-		State:          ProfilingStateFinished,
+		State:          statusCounter.getFinalStatus().String(),
 		TargetProfiles: targetProfiles,
 	}, nil
+}
+
+func getStateFromError(err string) meta.ProfileStatus {
+	if err == "" {
+		return meta.ProfileStatusFinished
+	}
+	return meta.ProfileStatusFailed
 }
 
 func querySingleProfileView(c *gin.Context) ([]byte, error) {
@@ -461,4 +472,25 @@ func getTargetFromRequest(r *http.Request, param *meta.BasicQueryParam, isRequir
 		Address:   values[2],
 	})
 	return nil
+}
+
+type StatusCounter struct {
+	finishedCount int
+	totalCount    int
+}
+
+func (s *StatusCounter) add(status meta.ProfileStatus) {
+	s.totalCount++
+	if status == meta.ProfileStatusFinished {
+		s.finishedCount++
+	}
+}
+
+func (s *StatusCounter) getFinalStatus() meta.ProfileStatus {
+	if s.finishedCount == s.totalCount {
+		return meta.ProfileStatusFinished
+	} else if s.finishedCount == 0 {
+		return meta.ProfileStatusFailed
+	}
+	return meta.ProfileStatusFinishedWithError
 }

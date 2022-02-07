@@ -1,12 +1,16 @@
 package store
 
 import (
+	"bytes"
+	"context"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/genjidb/genji/document"
+	"github.com/genjidb/genji/types"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
@@ -72,7 +76,7 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 	for i, ca := range cases {
 		pt := meta.ProfileTarget{Kind: ca.kind, Component: ca.component, Address: ca.address}
 		ts := baseTs + int64(i)
-		err = storage.AddProfile(pt, time.Unix(ts, 0), ca.data)
+		err = storage.AddProfile(pt, time.Unix(ts, 0), ca.data, nil)
 		require.NoError(t, err)
 
 		param := &meta.BasicQueryParam{
@@ -140,6 +144,98 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 		require.Equal(t, true, found)
 		return nil
 	})
+	require.NoError(t, err)
+}
+
+func TestStoreProfileStatus(t *testing.T) {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	require.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		require.NoError(t, err)
+	}()
+
+	genjiDB := testutil.NewGenjiDB(t, tmpDir)
+	defer genjiDB.Close()
+	storage, err := NewProfileStorage(genjiDB)
+	require.NoError(t, err)
+	defer storage.Close()
+
+	pt := meta.ProfileTarget{Kind: "profile", Component: "tidb", Address: "10.0.1.2"}
+	t0 := time.Now()
+	err = storage.AddProfile(pt, t0, nil, context.Canceled)
+	require.NoError(t, err)
+	t1 := t0.Add(time.Second)
+	profile1Data := mockProfile()
+	err = storage.AddProfile(pt, t1, profile1Data, nil)
+	require.NoError(t, err)
+
+	param := &meta.BasicQueryParam{Begin: t0.Unix(), End: t1.Unix()}
+	profileLists, err := storage.QueryGroupProfiles(param)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(profileLists))
+	profileList := profileLists[0]
+	require.Equal(t, 2, len(profileList.TsList))
+	require.Equal(t, 2, len(profileList.ErrorList))
+	require.Equal(t, t1.Unix(), profileList.TsList[0])
+	require.Equal(t, "", profileList.ErrorList[0])
+	require.Equal(t, t0.Unix(), profileList.TsList[1])
+	require.Equal(t, context.Canceled.Error(), profileList.ErrorList[1])
+
+	err = storage.QueryProfileData(param, func(pt meta.ProfileTarget, ts int64, data []byte) error {
+		require.Equal(t, t1.Unix(), ts)
+		require.True(t, bytes.Equal(profile1Data, data))
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func TestGenjiDBAddColumn(t *testing.T) {
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-genjidb.*")
+	require.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		require.NoError(t, err)
+	}()
+	db := testutil.NewGenjiDB(t, tmpDir)
+	sql := "CREATE TABLE IF NOT EXISTS metaTable (ts INTEGER PRIMARY KEY)"
+	err = db.Exec(sql)
+	require.NoError(t, err)
+	sql = "INSERT INTO metaTable (ts) VALUES (1)"
+	err = db.Exec(sql)
+	require.NoError(t, err)
+
+	err = db.Close()
+	require.NoError(t, err)
+
+	// mock after upgrade, insert with a new column
+	db = testutil.NewGenjiDB(t, tmpDir)
+	sql = "INSERT INTO metaTable (ts, error) VALUES (2,'error')"
+	err = db.Exec(sql)
+	require.NoError(t, err)
+
+	query := "SELECT ts, error FROM metaTable WHERE ts > 0 ORDER BY ts"
+	res, err := db.Query(query)
+	require.NoError(t, err)
+
+	expectTsList := []int64{1, 2}
+	expectErrorList := []string{"", "error"}
+	idx := 0
+	err = res.Iterate(func(d types.Document) error {
+		var ts int64
+		var errStr string
+		err = document.Scan(d, &ts, &errStr)
+		require.NoError(t, err)
+		require.Equal(t, expectTsList[idx], ts)
+		require.Equal(t, expectErrorList[idx], errStr)
+		idx++
+		return nil
+	})
+	require.Equal(t, 2, idx)
+	require.NoError(t, err)
+	err = res.Close()
+	require.NoError(t, err)
+	err = db.Close()
 	require.NoError(t, err)
 }
 
