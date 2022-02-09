@@ -36,3 +36,25 @@ func TestMetaJson(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, `{"target":{"kind":"profile","component":"tidb","address":"10.0.1.21:10080"},"timestamp_list":[1,2,3,4]}`, string(data))
 }
+
+func TestStatusCounter(t *testing.T) {
+	cases := []struct {
+		statusList []ProfileStatus
+		expect     string
+	}{
+		{[]ProfileStatus{ProfileStatusFinished, ProfileStatusFailed}, "finished_with_error"},
+		{[]ProfileStatus{ProfileStatusFailed, ProfileStatusFailed}, "failed"},
+		{[]ProfileStatus{ProfileStatusFinished, ProfileStatusRunning, ProfileStatusFailed}, "running"},
+		{[]ProfileStatus{ProfileStatusFinished, ProfileStatusRunning, ProfileStatusRunning}, "running"},
+		{[]ProfileStatus{ProfileStatusRunning, ProfileStatusRunning, ProfileStatusRunning}, "running"},
+		{[]ProfileStatus{ProfileStatusFinished, ProfileStatusFinished, ProfileStatusFinished}, "finished"},
+	}
+	for _, ca := range cases {
+		sc := StatusCounter{}
+		for _, status := range ca.statusList {
+			sc.AddStatus(status)
+		}
+		final := sc.GetFinalStatus()
+		require.Equal(t, ca.expect, final.String())
+	}
+}

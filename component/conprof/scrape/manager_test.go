@@ -178,4 +178,7 @@ func TestManager(t *testing.T) {
 
 	comp = manager.GetCurrentScrapeComponents()
 	require.Equal(t, len(comp), len(components), fmt.Sprintf("%#v \n %#v", comp, components))
+
+	status := manager.GetRunningStatus()
+	require.True(t, status == meta.ProfileStatusRunning || status == meta.ProfileStatusFinished)
 }

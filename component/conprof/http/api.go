@@ -155,11 +155,6 @@ type Target struct {
 	Address   string `json:"address"`
 }
 
-type StatusCounterAndTargets struct {
-	meta.StatusCounter
-	targets map[Target]struct{}
-}
-
 func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	param, err := buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr})
 	if err != nil {
@@ -196,7 +191,7 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 		} else {
 			status = sc.GetFinalStatus()
 		}
-		compNum := getComponentNum(sc.targets)
+		compNum := sc.getComponentNum()
 		groupProfiles = append(groupProfiles, GroupProfiles{
 			Ts:          ts,
 			ProfileSecs: config.GetGlobalConfig().ContinueProfiling.ProfileSeconds, // todo: fix me
@@ -208,6 +203,32 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 		return groupProfiles[i].Ts > groupProfiles[j].Ts
 	})
 	return groupProfiles, nil
+}
+
+type StatusCounterAndTargets struct {
+	meta.StatusCounter
+	targets map[Target]struct{}
+}
+
+func (sc *StatusCounterAndTargets) getComponentNum() ComponentNum {
+	compMap := map[string]int{}
+	for target := range sc.targets {
+		compMap[target.Component] += 1
+	}
+	compNum := ComponentNum{}
+	for comp, num := range compMap {
+		switch comp {
+		case topology.ComponentTiDB:
+			compNum.TiDB = num
+		case topology.ComponentPD:
+			compNum.PD = num
+		case topology.ComponentTiKV:
+			compNum.TiKV = num
+		case topology.ComponentTiFlash:
+			compNum.TiFlash = num
+		}
+	}
+	return compNum
 }
 
 func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
@@ -454,25 +475,4 @@ func getTargetFromRequest(r *http.Request, param *meta.BasicQueryParam, isRequir
 		Address:   values[2],
 	})
 	return nil
-}
-
-func getComponentNum(targets map[Target]struct{}) ComponentNum {
-	compMap := map[string]int{}
-	for target := range targets {
-		compMap[target.Component] += 1
-	}
-	compNum := ComponentNum{}
-	for comp, num := range compMap {
-		switch comp {
-		case topology.ComponentTiDB:
-			compNum.TiDB = num
-		case topology.ComponentPD:
-			compNum.PD = num
-		case topology.ComponentTiKV:
-			compNum.TiKV = num
-		case topology.ComponentTiFlash:
-			compNum.TiFlash = num
-		}
-	}
-	return compNum
 }
