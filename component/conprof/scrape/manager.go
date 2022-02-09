@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
@@ -60,24 +61,6 @@ func (m *Manager) Start() {
 		m.updateTargetMetaLoop(ctx)
 	}, nil)
 	log.Info("continuous profiling manager started")
-}
-
-func (m *Manager) GetRunningScrapeComponents() []topology.Component {
-	components := make([]topology.Component, 0, len(m.runningScrapeSuites))
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for comp, suites := range m.runningScrapeSuites {
-		if len(suites) == 0 {
-			continue
-		}
-		// if topology changed, and a new component is added, if the scrape suite is never start to scrape,
-		// then the component scrape suite is not running.
-		if suites[0].lastScrape.Unix() == 0 {
-			continue
-		}
-		components = append(components, comp)
-	}
-	return components
 }
 
 func (m *Manager) GetCurrentScrapeComponents() []topology.Component {
@@ -300,6 +283,19 @@ func (m *Manager) GetAllCurrentScrapeSuite() []*ScrapeSuite {
 
 func (m *Manager) GetLastScrapeTime() time.Time {
 	return m.ticker.lastTime
+}
+
+func (m *Manager) GetRunningStatus() meta.ProfileStatus {
+	var statusCounter meta.StatusCounter
+	m.mu.Lock()
+	for _, scrapeSuites := range m.runningScrapeSuites {
+		for _, scrapeSuite := range scrapeSuites {
+			status := scrapeSuite.lastScrapeStatus.Load()
+			statusCounter.AddStatus(meta.ProfileStatus(status))
+		}
+	}
+	m.mu.Unlock()
+	return statusCounter.GetFinalStatus()
 }
 
 func (m *Manager) Close() {

@@ -155,6 +155,11 @@ type Target struct {
 	Address   string `json:"address"`
 }
 
+type StatusCounterAndTargets struct {
+	meta.StatusCounter
+	targets map[Target]struct{}
+}
+
 func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	param, err := buildQueryParam(c.Request, []string{beginTimeParamStr, endTimeParamStr}, []string{limitParamStr})
 	if err != nil {
@@ -165,34 +170,33 @@ func queryGroupProfiles(c *gin.Context) ([]GroupProfiles, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[int64]*StatusCounter)
+	m := make(map[int64]*StatusCounterAndTargets)
 	for _, plist := range profileLists {
 		target := Target{
 			Component: plist.Target.Component,
 			Address:   plist.Target.Address,
 		}
 		for idx, ts := range plist.TsList {
-			statusCounter, ok := m[ts]
+			sc, ok := m[ts]
 			if !ok {
-				statusCounter = &StatusCounter{targets: make(map[Target]struct{})}
-				m[ts] = statusCounter
+				sc = &StatusCounterAndTargets{targets: make(map[Target]struct{})}
+				m[ts] = sc
 			}
 			status := getStateFromError(plist.ErrorList[idx])
-			statusCounter.addStatus(status)
-			statusCounter.targets[target] = struct{}{}
+			sc.AddStatus(status)
+			sc.targets[target] = struct{}{}
 		}
 	}
 	groupProfiles := make([]GroupProfiles, 0, len(m))
-	components := conprof.GetManager().GetRunningScrapeComponents()
 	lastTS := conprof.GetManager().GetLastScrapeTime().Unix()
-	for ts, statusCounter := range m {
+	for ts, sc := range m {
 		var status meta.ProfileStatus
-		compNum, totalCompNum := statusCounter.getComponentNum()
-		if ts == lastTS && totalCompNum < len(components) {
-			status = meta.ProfileStatusRunning
+		if ts == lastTS {
+			status = conprof.GetManager().GetRunningStatus()
 		} else {
-			status = statusCounter.getFinalStatus()
+			status = sc.GetFinalStatus()
 		}
+		compNum := getComponentNum(sc.targets)
 		groupProfiles = append(groupProfiles, GroupProfiles{
 			Ts:          ts,
 			ProfileSecs: config.GetGlobalConfig().ContinueProfiling.ProfileSeconds, // todo: fix me
@@ -218,14 +222,14 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	}
 
 	targetProfiles := make([]ProfileDetail, 0, len(profileLists))
-	statusCounter := StatusCounter{targets: map[Target]struct{}{}}
+	statusCounter := meta.StatusCounter{}
 	for _, plist := range profileLists {
 		if len(plist.ErrorList) == 0 {
 			continue
 		}
 		profileError := plist.ErrorList[0]
 		status := getStateFromError(profileError)
-		statusCounter.addStatus(status)
+		statusCounter.AddStatus(status)
 		targetProfiles = append(targetProfiles, ProfileDetail{
 			State: status.String(),
 			Error: profileError,
@@ -242,7 +246,7 @@ func queryGroupProfileDetail(c *gin.Context) (*GroupProfileDetail, error) {
 	return &GroupProfileDetail{
 		Ts:             param.Begin,
 		ProfileSecs:    config.GetGlobalConfig().ContinueProfiling.ProfileSeconds,
-		State:          statusCounter.getFinalStatus().String(),
+		State:          statusCounter.GetFinalStatus().String(),
 		TargetProfiles: targetProfiles,
 	}, nil
 }
@@ -452,38 +456,11 @@ func getTargetFromRequest(r *http.Request, param *meta.BasicQueryParam, isRequir
 	return nil
 }
 
-type StatusCounter struct {
-	targets       map[Target]struct{}
-	finishedCount int
-	totalCount    int
-}
-
-func (s *StatusCounter) addStatus(status meta.ProfileStatus) {
-	s.totalCount++
-	if status == meta.ProfileStatusFinished {
-		s.finishedCount++
-	}
-}
-
-func (s *StatusCounter) getFinalStatus() meta.ProfileStatus {
-	if s.finishedCount == s.totalCount {
-		return meta.ProfileStatusFinished
-	} else if s.finishedCount == 0 {
-		return meta.ProfileStatusFailed
-	}
-	return meta.ProfileStatusFinishedWithError
-}
-
-func (s *StatusCounter) addTarget(target Target) {
-	s.targets[target] = struct{}{}
-}
-
-func (s *StatusCounter) getComponentNum() (ComponentNum, int) {
+func getComponentNum(targets map[Target]struct{}) ComponentNum {
 	compMap := map[string]int{}
-	for target := range s.targets {
+	for target := range targets {
 		compMap[target.Component] += 1
 	}
-	totalCompNum := 0
 	compNum := ComponentNum{}
 	for comp, num := range compMap {
 		switch comp {
@@ -496,7 +473,6 @@ func (s *StatusCounter) getComponentNum() (ComponentNum, int) {
 		case topology.ComponentTiFlash:
 			compNum.TiFlash = num
 		}
-		totalCompNum += num
 	}
-	return compNum, totalCompNum
+	return compNum
 }

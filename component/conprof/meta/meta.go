@@ -57,3 +57,35 @@ func (s ProfileStatus) String() string {
 		return "unknown_state"
 	}
 }
+
+type StatusCounter struct {
+	finishedCount int
+	runningCount  int
+	failedCount   int
+	totalCount    int
+}
+
+func (s *StatusCounter) AddStatus(status ProfileStatus) {
+	s.totalCount++
+	switch status {
+	case ProfileStatusFinished:
+		s.finishedCount++
+	case ProfileStatusFailed:
+		s.failedCount++
+	case ProfileStatusRunning:
+		s.runningCount++
+	}
+}
+
+func (s *StatusCounter) GetFinalStatus() ProfileStatus {
+	if s.finishedCount == s.totalCount {
+		return ProfileStatusFinished
+	}
+	if s.failedCount == s.totalCount {
+		return ProfileStatusFailed
+	}
+	if s.runningCount > 0 {
+		return ProfileStatusRunning
+	}
+	return ProfileStatusFinishedWithError
+}
