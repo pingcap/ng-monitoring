@@ -16,17 +16,19 @@ import (
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pkg/errors"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"golang.org/x/net/context/ctxhttp"
 )
 
 type ScrapeSuite struct {
-	scraper        Scraper
-	lastScrape     time.Time
-	lastScrapeSize int
-	store          *store.ProfileStorage
-	ctx            context.Context
-	cancel         func()
+	scraper          Scraper
+	lastScrape       time.Time
+	lastScrapeStatus atomic.Int64
+	lastScrapeSize   int
+	store            *store.ProfileStorage
+	ctx              context.Context
+	cancel           func()
 }
 
 func newScrapeSuite(ctx context.Context, sc Scraper, store *store.ProfileStorage) *ScrapeSuite {
@@ -63,6 +65,7 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 			return
 		case start = <-ticker.ch:
 			sl.lastScrape = start
+			sl.lastScrapeStatus.Store(int64(meta.ProfileStatusRunning))
 		}
 
 		if sl.lastScrapeSize > 0 && buf.Cap() > 2*sl.lastScrapeSize {
@@ -97,6 +100,12 @@ func (sl *ScrapeSuite) run(ticker *TickerChan) {
 				zap.String("kind", target.Kind),
 				zap.Time("start", start),
 				zap.Error(err))
+		}
+
+		if scrapeErr != nil || err != nil {
+			sl.lastScrapeStatus.Store(int64(meta.ProfileStatusFailed))
+		} else {
+			sl.lastScrapeStatus.Store(int64(meta.ProfileStatusFinished))
 		}
 	}
 }

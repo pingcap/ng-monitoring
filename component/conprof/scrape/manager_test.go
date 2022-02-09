@@ -157,8 +157,6 @@ func TestManager(t *testing.T) {
 	// currently, shouldn't have any scrape component.
 	comp = manager.GetCurrentScrapeComponents()
 	require.Equal(t, len(comp), 0)
-	comp = manager.GetRunningScrapeComponents()
-	require.Equal(t, len(comp), 0)
 
 	cfg.ContinueProfiling.Enable = true
 	config.StoreGlobalConfig(&cfg)
@@ -180,6 +178,7 @@ func TestManager(t *testing.T) {
 
 	comp = manager.GetCurrentScrapeComponents()
 	require.Equal(t, len(comp), len(components), fmt.Sprintf("%#v \n %#v", comp, components))
-	comp = manager.GetRunningScrapeComponents()
-	require.Equal(t, len(comp), len(components), fmt.Sprintf("%#v \n %#v", comp, components))
+
+	status := manager.GetRunningStatus()
+	require.True(t, status == meta.ProfileStatusRunning || status == meta.ProfileStatusFinished)
 }
