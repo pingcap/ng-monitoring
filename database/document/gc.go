@@ -78,7 +78,7 @@ func tryFlattenIfNeeded(db *badger.DB) {
 		return
 	}
 	ts := time.Now().Unix()
-	err = storeLastFlattenTs(db, time.Now().Unix())
+	err = storeLastFlattenTs(db, ts)
 	if err != nil {
 		log.Error("badger store last flatten ts failed", zap.Error(err))
 		return
