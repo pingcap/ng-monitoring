@@ -36,20 +36,20 @@ func doGCLoop(db *badger.DB, closed chan struct{}) {
 }
 
 func runGC(db *badger.DB) {
-	tryFlattenIfNeeded(db)
-	runValueLogGC(db)
-}
-
-func runValueLogGC(db *badger.DB) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			log.Error("panic when run badger value log",
+			log.Error("panic when run badger gc",
 				zap.Reflect("r", r),
 				zap.Stack("stack trace"))
 		}
 	}()
 
+	tryFlattenIfNeeded(db)
+	runValueLogGC(db)
+}
+
+func runValueLogGC(db *badger.DB) {
 	// at most do 10 value log gc each time.
 	for i := 0; i < 10; i++ {
 		err := db.RunValueLogGC(0.1)
