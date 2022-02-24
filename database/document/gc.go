@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
+const (
 	lastFlattenTsKey = []byte("last_flatten_ts")
 	flattenInterval  = time.Hour * 24
 )
