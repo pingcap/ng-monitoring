@@ -37,6 +37,17 @@ func NewGenjiDB(t *testing.T, storagePath string) *genji.DB {
 	return db
 }
 
+func NewBadgerDB(t *testing.T, storagePath string) *badger.DB {
+	opts := badger.DefaultOptions(storagePath).
+		WithZSTDCompressionLevel(3).
+		WithBlockSize(8 * 1024).
+		WithValueThreshold(128 * 1024)
+
+	engine, err := badgerengine.NewEngine(opts)
+	require.NoError(t, err)
+	return engine.DB
+}
+
 type MockProfileServer struct {
 	Addr       string
 	Port       uint
