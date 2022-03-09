@@ -117,7 +117,8 @@ func getProfileEstimateSize(component topology.Component) int {
 	case topology.ComponentTiKV:
 		return 200 * 1024 // profile size
 	case topology.ComponentTiFlash:
-		return 200 * 1024 // profile size
+		// TODO: remove this after TiFlash fix the profile bug.
+		return 0
 	}
 	return defaultProfileSize
 }
