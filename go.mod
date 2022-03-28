@@ -5,9 +5,9 @@ go 1.16
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/VictoriaMetrics/VictoriaMetrics v1.65.0
-	github.com/dgraph-io/badger/v3 v3.2103.1
-	github.com/genjidb/genji v0.13.0
-	github.com/genjidb/genji/engine/badgerengine v0.13.0
+	github.com/dgraph-io/badger/v3 v3.2103.2
+	github.com/genjidb/genji v0.14.1
+	github.com/genjidb/genji/engine/badgerengine v0.14.1
 	github.com/gin-contrib/pprof v1.3.0
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-playground/validator/v10 v10.9.0 // indirect
@@ -28,16 +28,19 @@ require (
 	github.com/ugorji/go v1.2.6 // indirect
 	github.com/valyala/gozstd v1.14.2
 	github.com/wangjohn/quickselect v0.0.0-20161129230411-ed8402a42d5f
-	go.etcd.io/bbolt v1.3.6 // indirect
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20191023171146-3cf2f69b5738
 	go.uber.org/atomic v1.9.0
 	go.uber.org/goleak v1.1.12
 	go.uber.org/zap v1.19.1
 	golang.org/x/crypto v0.0.0-20210915214749-c084706c2272 // indirect
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f
+	golang.org/x/net v0.0.0-20211209124913-491a49abca63
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/tools v0.1.8 // indirect
 	google.golang.org/grpc v1.40.0
 )
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
+
+replace github.com/genjidb/genji => github.com/crazycs520/genji v0.14.2-0.20220328051836-41729dc2ed3e
+
+replace github.com/genjidb/genji/engine/badgerengine => github.com/crazycs520/genji/engine/badgerengine v0.14.1-0.20220328051836-41729dc2ed3e
