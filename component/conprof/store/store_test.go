@@ -1,12 +1,17 @@
 package store
 
 import (
+	"context"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/badger/v3"
+	"github.com/genjidb/genji"
+	"github.com/genjidb/genji/engine/badgerengine"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
@@ -140,6 +145,78 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 		require.Equal(t, true, found)
 		return nil
 	})
+	require.NoError(t, err)
+}
+
+func TestGenjiDBGCBug(t *testing.T) {
+	// related issue: https://github.com/genjidb/genji/issues/454
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-genjidb-gc.*")
+	require.NoError(t, err)
+	defer func() {
+		err := os.RemoveAll(tmpDir)
+		require.NoError(t, err)
+	}()
+	opts := badger.DefaultOptions(tmpDir).
+		WithMemTableSize(1024 * 1024).
+		WithNumLevelZeroTables(1).
+		WithNumLevelZeroTablesStall(2).WithValueThreshold(128 * 1024)
+
+	engine, err := badgerengine.NewEngine(opts)
+	require.NoError(t, err)
+	db, err := genji.New(context.Background(), engine)
+	require.NoError(t, err)
+	defer db.Close()
+	badgerDB := engine.DB
+
+	sql := "CREATE TABLE IF NOT EXISTS t (ts INTEGER PRIMARY KEY, data BLOB)"
+	err = db.Exec(sql)
+	require.NoError(t, err)
+	// triage the bug in https://github.com/genjidb/genji/issues/454.
+	err = db.Exec(sql)
+	require.NoError(t, err)
+
+	ts := time.Now().Unix()
+	for i := 0; i < 1000; i++ {
+		data := mockProfile()
+		sql = "INSERT INTO t (ts, data) VALUES (?, ?)"
+		err = db.Exec(sql, int(ts)+i, data)
+		require.NoError(t, err)
+	}
+
+	sql = "DELETE FROM t WHERE ts <= ?"
+	err = db.Exec(sql, int(ts)+1000)
+	require.NoError(t, err)
+
+	// Insert 1000 kv to make sure the deleted kv will been compacted.
+	for i := 1000; i < 2000; i++ {
+		data := mockProfile()
+		sql = "INSERT INTO t (ts, data) VALUES (?, ?)"
+		err = db.Exec(sql, int(ts)+i, data)
+		require.NoError(t, err)
+	}
+
+	err = badgerDB.Flatten(runtime.NumCPU())
+	require.NoError(t, err)
+
+	keyCount := 0
+	err = badgerDB.View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		opts.AllVersions = true
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			valueSize := it.Item().ValueSize()
+			if valueSize <= 1024 {
+				continue
+			}
+			keyCount++
+		}
+		return nil
+	})
+	// Without the pr-fix, the keyCount will be 2000, since those deleted keys don't been gc.
+	require.Equal(t, keyCount, 1000)
+
+	err = db.Close()
 	require.NoError(t, err)
 }
 
