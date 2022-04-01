@@ -38,7 +38,7 @@ func TestManager(t *testing.T) {
 	cfg.ContinueProfiling.Enable = true
 	cfg.ContinueProfiling.ProfileSeconds = 1
 	cfg.ContinueProfiling.IntervalSeconds = 1
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 
 	db := testutil.NewGenjiDB(t, tmpDir)
 	defer db.Close()
@@ -149,7 +149,7 @@ func TestManager(t *testing.T) {
 
 	// mock for disable conprof
 	cfg.ContinueProfiling.Enable = false
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 
 	// notify topology
 	topoSubScribe <- components
@@ -162,7 +162,7 @@ func TestManager(t *testing.T) {
 	require.Equal(t, len(comp), 0)
 
 	cfg.ContinueProfiling.Enable = true
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	// renotify topology
 	topoSubScribe <- components
 	// wait for scrape finish

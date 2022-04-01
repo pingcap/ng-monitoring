@@ -18,11 +18,10 @@ func TestDefaultSubscriberBasic(t *testing.T) {
 	store := mock.NewMemStore()
 	defer store.Close()
 
-	cfg := config.GetDefaultConfig()
 	varSubscriber := make(pdvariable.Subscriber)
 	topoSubscriber := make(topology.Subscriber)
 	cfgSubscriber := make(config.Subscriber)
-	sub := subscriber.NewDefaultSubscriber(&cfg, topoSubscriber, varSubscriber, cfgSubscriber, store)
+	sub := subscriber.NewDefaultSubscriber(topoSubscriber, varSubscriber, cfgSubscriber, store)
 	defer sub.Close()
 
 	pubsub := mock.NewMockPubSub()

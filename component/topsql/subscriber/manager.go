@@ -31,7 +31,7 @@ type Manager struct {
 	scrapers       map[topology.Component]*Scraper
 	topoSubscriber topology.Subscriber
 
-	config        *config.Config
+	config        config.Config
 	cfgSubscriber config.Subscriber
 
 	store store.Store
@@ -40,7 +40,6 @@ type Manager struct {
 func NewManager(
 	ctx context.Context,
 	wg *sync.WaitGroup,
-	cfg *config.Config,
 	varSubscriber pdvariable.Subscriber,
 	topoSubscriber topology.Subscriber,
 	cfgSubscriber config.Subscriber,
@@ -55,7 +54,7 @@ func NewManager(
 		scrapers:       make(map[topology.Component]*Scraper),
 		topoSubscriber: topoSubscriber,
 
-		config:        cfg,
+		config:        config.GetDefaultConfig(),
 		cfgSubscriber: cfgSubscriber,
 
 		store: store,
@@ -80,6 +79,8 @@ func (m *Manager) Run() {
 		}
 
 		select {
+		case getCfg := <-m.cfgSubscriber:
+			m.config = getCfg()
 		case getVars := <-m.varSubscriber:
 			vars := getVars()
 			if vars.EnableTopSQL && !m.enabled {
@@ -104,8 +105,6 @@ func (m *Manager) Run() {
 			}
 		case <-storeTopoInterval.C:
 			continue
-		case cfg := <-m.cfgSubscriber:
-			m.config = cfg
 		case <-m.ctx.Done():
 			return
 		}

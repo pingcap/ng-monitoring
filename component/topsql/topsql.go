@@ -22,7 +22,6 @@ var (
 )
 
 func Init(
-	config *config.Config,
 	cfgSub config.Subscriber,
 	gj *genji.DB,
 	insertHdr, selectHdr http.HandlerFunc,
@@ -35,7 +34,7 @@ func Init(
 	}
 
 	defQuery = query.NewDefaultQuery(selectHdr, gj)
-	defSubscriber = subscriber.NewDefaultSubscriber(config, topSub, varSub, cfgSub, defStore)
+	defSubscriber = subscriber.NewDefaultSubscriber(topSub, varSub, cfgSub, defStore)
 	defService = service.NewService(defQuery)
 
 	return nil

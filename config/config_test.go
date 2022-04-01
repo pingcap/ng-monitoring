@@ -99,12 +99,15 @@ endpoints = ["10.0.1.8:2378", "10.0.1.9:2379"]
 [storage]
 path = "data1"`
 	cfgSub := Subscribe()
+	<-cfgSub
 	err = ioutil.WriteFile(cfgFileName, []byte(cfgData), 0666)
 	require.NoError(t, err)
 
 	procutil.SelfSIGHUP()
-	<-cfgSub
-	data, err = json.Marshal(GetGlobalConfig())
+	getCfg := <-cfgSub
+	globalCfg := GetGlobalConfig()
+	require.Equal(t, getCfg(), globalCfg)
+	data, err = json.Marshal(globalCfg)
 	require.NoError(t, err)
 	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2378","10.0.1.9:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"}}`, string(data))
 
@@ -267,15 +270,15 @@ func TestConfigPersist(t *testing.T) {
 	require.NoError(t, err)
 
 	oldCfg := GetGlobalConfig()
-	cfg := *oldCfg
+	cfg := oldCfg
 	cfg.ContinueProfiling.Enable = true
 	cfg.ContinueProfiling.IntervalSeconds = 100
-	StoreGlobalConfig(&cfg)
+	StoreGlobalConfig(cfg)
 	err = saveConfigIntoStorage()
 	require.NoError(t, err)
 
 	defCfg := GetDefaultConfig()
-	StoreGlobalConfig(&defCfg)
+	StoreGlobalConfig(defCfg)
 	err = LoadConfigFromStorage(func() *genji.DB {
 		return db
 	})

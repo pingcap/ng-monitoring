@@ -48,7 +48,7 @@ func testProfileStorageGC(t *testing.T, tmpDir string, baseTs int64) {
 
 	cfg := config.GetDefaultConfig()
 	cfg.ContinueProfiling.DataRetentionSeconds = -100000
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	storage.runGC()
 	require.Equal(t, 0, len(storage.metaCache))
 }

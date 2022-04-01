@@ -31,13 +31,12 @@ type testSuite struct {
 func newTestSuite() *testSuite {
 	ts := &testSuite{}
 
-	cfg := config.GetDefaultConfig()
 	ts.varSubscriber = make(pdvariable.Subscriber)
 	ts.topoSubscriber = make(topology.Subscriber)
 	ts.cfgSubscriber = make(config.Subscriber)
 	ts.store = mock.NewMemStore()
 
-	ts.manager = subscriber.NewManager(context.Background(), &ts.wg, &cfg, ts.varSubscriber, ts.topoSubscriber, ts.cfgSubscriber, ts.store)
+	ts.manager = subscriber.NewManager(context.Background(), &ts.wg, ts.varSubscriber, ts.topoSubscriber, ts.cfgSubscriber, ts.store)
 	go ts.manager.Run()
 
 	return ts

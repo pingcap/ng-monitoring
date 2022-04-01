@@ -126,18 +126,19 @@ func (m *Manager) run(ctx context.Context) {
 		}
 		return m
 	}
-	oldCfg := config.GetGlobalConfig().ContinueProfiling
+	getCfg := <-m.configChangeCh
+	oldCfg := getCfg().ContinueProfiling
 	for {
+		newCfg := oldCfg
 		select {
 		case <-ctx.Done():
 			return
 		case components := <-m.topoSubScribe:
 			m.latestTopoComps = buildMap(components)
-		case <-m.configChangeCh:
-			break
+		case getCfg = <-m.configChangeCh:
+			newCfg = getCfg().ContinueProfiling
 		}
 
-		newCfg := config.GetGlobalConfig().ContinueProfiling
 		m.reload(ctx, oldCfg, newCfg)
 		oldCfg = newCfg
 	}
