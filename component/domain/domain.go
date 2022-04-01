@@ -18,14 +18,18 @@ type Domain struct {
 
 func NewDomain() *Domain {
 	cfgSub := config.Subscribe()
+	getCurCfg := <-cfgSub
+	curCfg := getCurCfg()
+
+	ctx, cancel := context.WithCancel(context.Background())
 	do := &Domain{
+		ctx:         ctx,
+		cancel:      cancel,
 		cm:          NewClientMaintainer(),
 		cfgChangeCh: cfgSub,
 	}
-	getCurCfg := <-cfgSub
-	do.ctx, do.cancel = context.WithCancel(context.Background())
 	go utils.GoWithRecovery(func() {
-		do.start(getCurCfg())
+		do.start(curCfg)
 	}, nil)
 	return do
 }
@@ -33,12 +37,16 @@ func NewDomain() *Domain {
 func NewDomainForTest(pdCli *pdclient.APIClient, etcdCli *clientv3.Client) *Domain {
 	cfgSub := config.Subscribe()
 	getCurCfg := <-cfgSub
+	curCfg := getCurCfg()
+
+	ctx, cancel := context.WithCancel(context.Background())
 	do := &Domain{
+		ctx:         ctx,
+		cancel:      cancel,
 		cm:          NewClientMaintainer(),
 		cfgChangeCh: cfgSub,
 	}
-	do.ctx, do.cancel = context.WithCancel(context.Background())
-	do.cm.Init(getCurCfg().PD, pdCli, etcdCli)
+	do.cm.Init(curCfg.PD, pdCli, etcdCli)
 	return do
 }
 

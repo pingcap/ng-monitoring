@@ -72,6 +72,17 @@ var (
 	configChangeSubscribers []Subscriber
 )
 
+// Subscribe returns a channel that receives a config getter every
+// time the config is changed. By calling the getter, you can get
+// the latest config.
+//
+// There will be one getter in the channel after subscribing. It
+// can be used to get the current config immediately as follows.
+// ```go
+// cfgSubscriber := config.Subscribe()
+// getCurrentCfg := <-cfgSubscriber
+// currentCfg := getCurrentCfg()
+// ```
 func Subscribe() Subscriber {
 	mu.Lock()
 	defer mu.Unlock()
