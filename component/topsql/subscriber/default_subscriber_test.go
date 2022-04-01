@@ -31,7 +31,7 @@ func TestDefaultSubscriberBasic(t *testing.T) {
 	go pubsub.Serve()
 	defer pubsub.Stop()
 
-	varSubscriber <- &pdvariable.PDVariable{EnableTopSQL: true}
+	varSubscriber <- enable
 	topo := []topology.Component{{
 		Name:       "tidb",
 		IP:         ip,
@@ -39,4 +39,12 @@ func TestDefaultSubscriberBasic(t *testing.T) {
 	}}
 	topoSubscriber <- topo
 	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, store)
+}
+
+func enable() pdvariable.PDVariable {
+	return pdvariable.PDVariable{EnableTopSQL: true}
+}
+
+func disable() pdvariable.PDVariable {
+	return pdvariable.PDVariable{EnableTopSQL: false}
 }

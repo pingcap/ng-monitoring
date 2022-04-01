@@ -80,7 +80,8 @@ func (m *Manager) Run() {
 		}
 
 		select {
-		case vars := <-m.varSubscriber:
+		case getVars := <-m.varSubscriber:
+			vars := getVars()
 			if vars.EnableTopSQL && !m.enabled {
 				m.updateScrapers()
 				log.Info("Top SQL is enabled")
