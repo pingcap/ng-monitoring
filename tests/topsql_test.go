@@ -107,7 +107,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 	s.cfgCh = make(config.Subscriber)
 	err = topsql.Init(&cfg, s.cfgCh, document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
 	s.NoError(err)
-	s.varCh <- &pdvariable.PDVariable{EnableTopSQL: true}
+	s.varCh <- enable
 	time.Sleep(100 * time.Millisecond)
 	s.topCh <- []topology.Component{{
 		Name:       topology.ComponentTiDB,
@@ -510,4 +510,8 @@ func (s *testTopSQLSuite) encodeTag(sql, plan []byte, label tipb.ResourceGroupTa
 	})
 	s.NoError(err)
 	return b
+}
+
+func enable() pdvariable.PDVariable {
+	return pdvariable.PDVariable{EnableTopSQL: true}
 }

@@ -3,7 +3,6 @@ package pdvariable_test
 import (
 	"context"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
@@ -45,23 +44,54 @@ func testPDVariableSubscribe(t *testing.T, init bool) {
 	time.Sleep(time.Millisecond * 100)
 
 	sub := pdvariable.Subscribe()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		cli := cluster.RandClient()
-		_, err := cli.Put(context.Background(), pdvariable.GlobalConfigPath+"unknow", "false")
-		require.NoError(t, err)
-		_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "true")
-		require.NoError(t, err)
-		_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"unknow", "abcd")
-		require.NoError(t, err)
-		_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "false")
-		require.NoError(t, err)
-	}()
+	getVars := <-sub
+	require.Equal(t, false, getVars().EnableTopSQL)
 
-	for i, v := range []bool{true, false} {
-		vars := <-sub
-		require.Equal(t, v, vars.EnableTopSQL, "idx: %v", i)
-	}
+	cli := cluster.RandClient()
+	_, err := cli.Put(context.Background(), pdvariable.GlobalConfigPath+"unknown", "false")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"unknown", "abcd")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "true")
+	require.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 100)
+	getVars = <-sub
+	require.Equal(t, true, getVars().EnableTopSQL)
+
+	cli = cluster.RandClient()
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "false")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "false")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "true")
+	require.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 100)
+	getVars = <-sub
+	require.Equal(t, true, getVars().EnableTopSQL)
+
+	cli = cluster.RandClient()
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "true")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "false")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "true")
+	require.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 100)
+	getVars = <-sub
+	require.Equal(t, true, getVars().EnableTopSQL)
+
+	cli = cluster.RandClient()
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "false")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "true")
+	require.NoError(t, err)
+	_, err = cli.Put(context.Background(), pdvariable.GlobalConfigPath+"enable_resource_metering", "false")
+	require.NoError(t, err)
+
+	time.Sleep(time.Millisecond * 100)
+	getVars = <-sub
+	require.Equal(t, false, getVars().EnableTopSQL)
 }

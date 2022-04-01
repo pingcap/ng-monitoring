@@ -61,7 +61,7 @@ func TestManagerBasic(t *testing.T) {
 	go pubsub.Serve()
 	defer pubsub.Stop()
 
-	ts.varSubscriber <- &pdvariable.PDVariable{EnableTopSQL: true}
+	ts.varSubscriber <- enable
 	topo := []topology.Component{{
 		Name:       "tidb",
 		IP:         ip,
@@ -98,7 +98,7 @@ func TestManagerEnableAfterTopoIsReady(t *testing.T) {
 	}}
 	ts.topoSubscriber <- topo
 
-	ts.varSubscriber <- &pdvariable.PDVariable{EnableTopSQL: true}
+	ts.varSubscriber <- enable
 	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
 }
 
@@ -114,7 +114,7 @@ func TestManagerTopoChange(t *testing.T) {
 	go pubsub.Serve()
 	defer pubsub.Stop()
 
-	ts.varSubscriber <- &pdvariable.PDVariable{EnableTopSQL: true}
+	ts.varSubscriber <- enable
 	topo := []topology.Component{{
 		Name:       "tidb",
 		IP:         ip,
@@ -160,7 +160,7 @@ func TestManagerDisable(t *testing.T) {
 	go pubsub.Serve()
 	defer pubsub.Stop()
 
-	ts.varSubscriber <- &pdvariable.PDVariable{EnableTopSQL: true}
+	ts.varSubscriber <- enable
 	topo := []topology.Component{{
 		Name:       "tidb",
 		IP:         ip,
@@ -185,5 +185,5 @@ func TestManagerDisable(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
-	ts.varSubscriber <- &pdvariable.PDVariable{EnableTopSQL: false}
+	ts.varSubscriber <- disable
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pingcap/log"
@@ -25,9 +26,10 @@ var (
 
 func Init(do *domain.Domain) {
 	loader = &variableLoader{
-		do:  do,
-		cfg: DefaultPDVariable(),
+		do: do,
 	}
+	defVar := DefaultPDVariable()
+	loader.variable.Store(*defVar)
 	go utils.GoWithRecovery(loader.start, nil)
 }
 
@@ -39,7 +41,8 @@ func DefaultPDVariable() *PDVariable {
 	return &PDVariable{EnableTopSQL: false}
 }
 
-type Subscriber = chan *PDVariable
+type Subscriber = chan GetLatestPDVariable
+type GetLatestPDVariable = func() PDVariable
 
 func Subscribe() Subscriber {
 	return loader.subscribe()
@@ -49,8 +52,9 @@ var loader *variableLoader
 
 type variableLoader struct {
 	do     *domain.Domain
-	cfg    *PDVariable
 	cancel context.CancelFunc
+
+	variable atomic.Value
 
 	sync.Mutex
 	subscribers []Subscriber
@@ -83,11 +87,12 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 	ticker := time.NewTicker(time.Minute)
 	watchCh := etcdCli.Watch(ctx, GlobalConfigPath, clientv3.WithPrefix())
 
-	l.cfg, err = l.loadAllGlobalConfig(ctx)
+	cfg, err := l.loadAllGlobalConfig(ctx)
 	if err != nil {
 		log.Error("first load global config failed", zap.Error(err))
 	} else {
-		log.Info("first load global config", zap.Reflect("global-config", l.cfg))
+		log.Info("first load global config", zap.Reflect("global-config", cfg))
+		l.variable.Store(*cfg)
 		l.notifySubscriber()
 	}
 
@@ -96,13 +101,14 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			cfg, err := l.loadAllGlobalConfig(ctx)
+			newCfg, err := l.loadAllGlobalConfig(ctx)
 			if err != nil {
 				log.Error("load global config failed", zap.Error(err))
 			} else if cfg != nil {
-				if *l.cfg != *cfg {
-					l.cfg = cfg
-					log.Info("load global config", zap.Reflect("cfg", l.cfg))
+				if newCfg != cfg {
+					cfg = newCfg
+					log.Info("load global config", zap.Reflect("cfg", cfg))
+					l.variable.Store(*cfg)
 					l.notifySubscriber()
 				}
 			}
@@ -117,18 +123,19 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 				// sleep a while to avoid too often.
 				time.Sleep(time.Second)
 			} else {
-				oldCfg := *l.cfg
+				oldCfg := *cfg
 				for _, event := range e.Events {
 					if event.Type != mvccpb.PUT {
 						continue
 					}
-					err = l.parseGlobalConfig(string(event.Kv.Key), string(event.Kv.Value), l.cfg)
+					err = l.parseGlobalConfig(string(event.Kv.Key), string(event.Kv.Value), cfg)
 					if err != nil {
 						log.Error("load global config failed", zap.Error(err))
 					}
-					log.Info("watch global config changed", zap.Reflect("cfg", l.cfg))
+					log.Info("watch global config changed", zap.Reflect("cfg", cfg))
 				}
-				if oldCfg != *l.cfg {
+				if oldCfg != *cfg {
+					l.variable.Store(*cfg)
 					l.notifySubscriber()
 				}
 			}
@@ -190,8 +197,13 @@ func (l *variableLoader) subscribe() Subscriber {
 	ch := make(Subscriber, 1)
 	l.Lock()
 	l.subscribers = append(l.subscribers, ch)
+	ch <- l.load
 	l.Unlock()
 	return ch
+}
+
+func (l *variableLoader) load() PDVariable {
+	return l.variable.Load().(PDVariable)
 }
 
 func (l *variableLoader) notifySubscriber() {
@@ -199,7 +211,7 @@ func (l *variableLoader) notifySubscriber() {
 
 	for _, ch := range l.subscribers {
 		select {
-		case ch <- l.cfg:
+		case ch <- l.load:
 		default:
 		}
 	}
