@@ -9,9 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/utils"
+
+	"github.com/pingcap/log"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/mvcc/mvccpb"
 	"go.uber.org/zap"
@@ -25,9 +26,7 @@ var (
 )
 
 func Init(do *domain.Domain) {
-	loader = &variableLoader{
-		do: do,
-	}
+	loader = &variableLoader{do: do}
 	defVar := DefaultPDVariable()
 	loader.variable.Store(*defVar)
 	go utils.GoWithRecovery(loader.start, nil)
@@ -106,9 +105,9 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 				log.Error("load global config failed", zap.Error(err))
 			} else if cfg != nil {
 				if newCfg != cfg {
+					l.variable.Store(*newCfg)
 					cfg = newCfg
 					log.Info("load global config", zap.Reflect("cfg", cfg))
-					l.variable.Store(*cfg)
 					l.notifySubscriber()
 				}
 			}
@@ -123,19 +122,20 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 				// sleep a while to avoid too often.
 				time.Sleep(time.Second)
 			} else {
-				oldCfg := *cfg
+				newCfg := *cfg
 				for _, event := range e.Events {
 					if event.Type != mvccpb.PUT {
 						continue
 					}
-					err = l.parseGlobalConfig(string(event.Kv.Key), string(event.Kv.Value), cfg)
+					err = l.parseGlobalConfig(string(event.Kv.Key), string(event.Kv.Value), &newCfg)
 					if err != nil {
 						log.Error("load global config failed", zap.Error(err))
 					}
-					log.Info("watch global config changed", zap.Reflect("cfg", cfg))
+					log.Info("watch global config changed", zap.Reflect("cfg", newCfg))
 				}
-				if oldCfg != *cfg {
-					l.variable.Store(*cfg)
+				if newCfg != *cfg {
+					l.variable.Store(newCfg)
+					*cfg = newCfg
 					l.notifySubscriber()
 				}
 			}
