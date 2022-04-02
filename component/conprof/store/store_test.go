@@ -308,6 +308,8 @@ func TestGenjiDBGCBug(t *testing.T) {
 		}
 		return nil
 	})
+	require.NoError(t, err)
+
 	// Without the pr-fix, the keyCount will be 2000, since those deleted keys don't been gc.
 	require.Equal(t, keyCount, 1000)
 

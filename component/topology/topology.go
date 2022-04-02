@@ -22,16 +22,15 @@ func Init(do *domain.Domain) error {
 }
 
 func InitForTest(comps []Component) {
-	discover = &TopologyDiscoverer{components: comps}
+	discover = &TopologyDiscoverer{}
+	discover.components.Store(comps)
 }
 
 func GetCurrentComponent() []Component {
 	if discover == nil {
 		return nil
 	}
-	components := make([]Component, 0, len(discover.components))
-	components = append(components, discover.components...)
-	return components
+	return discover.load()
 }
 
 func Subscribe() Subscriber {

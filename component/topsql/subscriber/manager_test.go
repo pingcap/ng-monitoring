@@ -66,7 +66,7 @@ func TestManagerBasic(t *testing.T) {
 		IP:         ip,
 		StatusPort: port,
 	}}
-	ts.topoSubscriber <- topo
+	ts.topoSubscriber <- topoGetter(topo)
 	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
 
 	topo = append(topo, topology.Component{
@@ -74,7 +74,7 @@ func TestManagerBasic(t *testing.T) {
 		IP:   ip,
 		Port: port,
 	})
-	ts.topoSubscriber <- topo
+	ts.topoSubscriber <- topoGetter(topo)
 	checkTiKVScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
 }
 
@@ -95,7 +95,7 @@ func TestManagerEnableAfterTopoIsReady(t *testing.T) {
 		IP:         ip,
 		StatusPort: port,
 	}}
-	ts.topoSubscriber <- topo
+	ts.topoSubscriber <- topoGetter(topo)
 
 	ts.varSubscriber <- enable
 	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
@@ -123,7 +123,7 @@ func TestManagerTopoChange(t *testing.T) {
 		IP:   ip,
 		Port: port,
 	}}
-	ts.topoSubscriber <- topo
+	ts.topoSubscriber <- topoGetter(topo)
 
 	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
 	checkTiKVScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
@@ -144,7 +144,7 @@ func TestManagerTopoChange(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}
 	})
-	ts.topoSubscriber <- topo[1:]
+	ts.topoSubscriber <- topoGetter(topo[1:])
 }
 
 func TestManagerDisable(t *testing.T) {
@@ -165,7 +165,7 @@ func TestManagerDisable(t *testing.T) {
 		IP:         ip,
 		StatusPort: port,
 	}}
-	ts.topoSubscriber <- topo
+	ts.topoSubscriber <- topoGetter(topo)
 	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
 
 	// disable

@@ -94,7 +94,8 @@ func (m *Manager) Run() {
 			}
 
 			m.enabled = vars.EnableTopSQL
-		case coms := <-m.topoSubscriber:
+		case getComs := <-m.topoSubscriber:
+			coms := getComs()
 			if len(coms) == 0 {
 				log.Warn("got empty scrapers. Seems to be encountering network problems")
 				continue
