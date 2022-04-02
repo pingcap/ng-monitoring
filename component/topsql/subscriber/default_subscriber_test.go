@@ -36,7 +36,7 @@ func TestDefaultSubscriberBasic(t *testing.T) {
 		IP:         ip,
 		StatusPort: port,
 	}}
-	topoSubscriber <- topo
+	topoSubscriber <- topoGetter(topo)
 	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, store)
 }
 
@@ -46,4 +46,10 @@ func enable() pdvariable.PDVariable {
 
 func disable() pdvariable.PDVariable {
 	return pdvariable.PDVariable{EnableTopSQL: false}
+}
+
+func topoGetter(topo []topology.Component) topology.GetLatestTopology {
+	return func() []topology.Component {
+		return topo
+	}
 }

@@ -73,7 +73,7 @@ func TestAPI(t *testing.T) {
 	}
 	topology.InitForTest(components)
 	// notify topology
-	topoSubScribe <- components
+	topoSubScribe <- func() []topology.Component { return components }
 
 	testErrorRequest(t, httpAddr)
 

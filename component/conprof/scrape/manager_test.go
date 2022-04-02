@@ -63,7 +63,7 @@ func TestManager(t *testing.T) {
 		{Name: topology.ComponentTiFlash, IP: addr, Port: port, StatusPort: port},
 	}
 	// notify topology
-	topoSubScribe <- components
+	topoSubScribe <- topoGetter(components)
 
 	t1 := time.Now()
 	// wait for scrape finish
@@ -152,7 +152,7 @@ func TestManager(t *testing.T) {
 	config.StoreGlobalConfig(cfg)
 
 	// notify topology
-	topoSubScribe <- components
+	topoSubScribe <- topoGetter(components)
 
 	// wait for stop scrape
 	time.Sleep(time.Millisecond * 100)
@@ -164,7 +164,7 @@ func TestManager(t *testing.T) {
 	cfg.ContinueProfiling.Enable = true
 	config.StoreGlobalConfig(cfg)
 	// renotify topology
-	topoSubScribe <- components
+	topoSubScribe <- topoGetter(components)
 	// wait for scrape finish
 	time.Sleep(time.Millisecond * 3000)
 
@@ -184,4 +184,10 @@ func TestManager(t *testing.T) {
 
 	status := manager.GetRunningStatus()
 	require.True(t, status == meta.ProfileStatusRunning || status == meta.ProfileStatusFinished)
+}
+
+func topoGetter(components []topology.Component) topology.GetLatestTopology {
+	return func() []topology.Component {
+		return components
+	}
 }

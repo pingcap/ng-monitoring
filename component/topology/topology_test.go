@@ -62,19 +62,18 @@ func TestTopology(t *testing.T) {
 
 	do := domain.NewDomainForTest(pdCli, cluster.RandClient())
 	discover = &TopologyDiscoverer{
-		do: do,
-
-		notifyCh: make(chan struct{}, 1),
-		closed:   make(chan struct{}),
+		do:     do,
+		closed: make(chan struct{}),
 	}
-	err = discover.loadTopology()
+	err = discover.fetchTopology()
 	require.NoError(t, err)
 
 	sub := discover.Subscribe()
 	discoverInterval = time.Millisecond * 100
 	go discover.loadTopologyLoop()
 
-	components := <-sub
+	getComponents := <-sub
+	components := getComponents()
 	require.Equal(t, len(components), 2)
 	require.Equal(t, components[0].Name, "pd")
 	require.Equal(t, components[1].Name, "tikv")

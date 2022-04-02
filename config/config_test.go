@@ -99,11 +99,11 @@ endpoints = ["10.0.1.8:2378", "10.0.1.9:2379"]
 [storage]
 path = "data1"`
 	cfgSub := Subscribe()
-	<-cfgSub
 	err = ioutil.WriteFile(cfgFileName, []byte(cfgData), 0666)
 	require.NoError(t, err)
 
 	procutil.SelfSIGHUP()
+	time.Sleep(time.Second)
 	getCfg := <-cfgSub
 	globalCfg := GetGlobalConfig()
 	require.Equal(t, getCfg(), globalCfg)

@@ -3,6 +3,7 @@ package topology
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pingcap/log"
@@ -26,9 +27,8 @@ var (
 type TopologyDiscoverer struct {
 	sync.Mutex
 	do         *domain.Domain
-	subscriber []chan []Component
-	components []Component
-	notifyCh   chan struct{}
+	subscriber []Subscriber
+	components atomic.Value
 	closed     chan struct{}
 }
 
@@ -39,27 +39,23 @@ type Component struct {
 	StatusPort uint   `json:"status_port"`
 }
 
-type Subscriber = chan []Component
+type Subscriber = chan GetLatestTopology
+type GetLatestTopology = func() []Component
 
 func NewTopologyDiscoverer(do *domain.Domain) (*TopologyDiscoverer, error) {
 	d := &TopologyDiscoverer{
-		do:       do,
-		notifyCh: make(chan struct{}, 1),
-		closed:   make(chan struct{}),
+		do:     do,
+		closed: make(chan struct{}),
 	}
 	return d, nil
 }
 
-func (d *TopologyDiscoverer) Subscribe() chan []Component {
-	ch := make(chan []Component, 1)
+func (d *TopologyDiscoverer) Subscribe() Subscriber {
+	ch := make(Subscriber, 1)
 	d.Lock()
 	d.subscriber = append(d.subscriber, ch)
+	ch <- d.load
 	d.Unlock()
-
-	select {
-	case d.notifyCh <- struct{}{}:
-	default:
-	}
 	return ch
 }
 
@@ -73,7 +69,7 @@ func (d *TopologyDiscoverer) Close() error {
 }
 
 func (d *TopologyDiscoverer) loadTopologyLoop() {
-	err := d.loadTopology()
+	err := d.fetchTopology()
 	log.Info("first load topology", zap.Reflect("component", d.components), zap.Error(err))
 	ticker := time.NewTicker(discoverInterval)
 	defer ticker.Stop()
@@ -82,42 +78,48 @@ func (d *TopologyDiscoverer) loadTopologyLoop() {
 		case <-d.closed:
 			return
 		case <-ticker.C:
-			err = d.loadTopology()
+			err = d.fetchTopology()
 			if err != nil {
 				log.Error("load topology failed", zap.Error(err))
 			} else {
 				log.Debug("load topology success", zap.Reflect("component", d.components))
 			}
 			d.notifySubscriber()
-		case <-d.notifyCh:
-			d.notifySubscriber()
 		}
 	}
 }
 
-func (d *TopologyDiscoverer) loadTopology() error {
+func (d *TopologyDiscoverer) fetchTopology() error {
 	ctx, cancel := context.WithTimeout(context.Background(), discoverInterval)
 	defer cancel()
-	components, err := d.getAllScrapeTargets(ctx)
+	components, err := d.fetchAllScrapeTargets(ctx)
 	if err != nil {
 		return err
 	}
-	d.components = components
+	d.components.Store(components)
 	return nil
+}
+
+func (d *TopologyDiscoverer) load() []Component {
+	v := d.components.Load()
+	if v == nil {
+		return nil
+	}
+	return d.components.Load().([]Component)
 }
 
 func (d *TopologyDiscoverer) notifySubscriber() {
 	d.Lock()
 	for _, ch := range d.subscriber {
 		select {
-		case ch <- d.components:
+		case ch <- d.load:
 		default:
 		}
 	}
 	d.Unlock()
 }
 
-func (d *TopologyDiscoverer) getAllScrapeTargets(ctx context.Context) ([]Component, error) {
+func (d *TopologyDiscoverer) fetchAllScrapeTargets(ctx context.Context) ([]Component, error) {
 	fns := []func(context.Context) ([]Component, error){
 		d.getTiDBComponents,
 		d.getPDComponents,

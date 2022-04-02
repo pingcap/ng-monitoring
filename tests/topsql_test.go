@@ -109,7 +109,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 	s.NoError(err)
 	s.varCh <- enable
 	time.Sleep(100 * time.Millisecond)
-	s.topCh <- []topology.Component{{
+	s.topCh <- topoGetter([]topology.Component{{
 		Name:       topology.ComponentTiDB,
 		IP:         tidbTestIp,
 		Port:       uint(tidbTestPort),
@@ -119,7 +119,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 		IP:         tikvTestIp,
 		Port:       uint(tikvTestPort),
 		StatusPort: uint(tikvTestPort),
-	}}
+	}})
 	time.Sleep(100 * time.Millisecond)
 
 	ng := gin.New()
@@ -514,4 +514,10 @@ func (s *testTopSQLSuite) encodeTag(sql, plan []byte, label tipb.ResourceGroupTa
 
 func enable() pdvariable.PDVariable {
 	return pdvariable.PDVariable{EnableTopSQL: true}
+}
+
+func topoGetter(topo []topology.Component) topology.GetLatestTopology {
+	return func() []topology.Component {
+		return topo
+	}
 }
