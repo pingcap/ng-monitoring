@@ -29,7 +29,7 @@ func (ts *testSuite) setup(t *testing.T) {
 		return ts.db
 	}
 	def := GetDefaultConfig()
-	StoreGlobalConfig(&def)
+	StoreGlobalConfig(def)
 	err = LoadConfigFromStorage(func() *genji.DB {
 		return ts.db
 	})

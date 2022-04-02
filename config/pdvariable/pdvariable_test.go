@@ -25,7 +25,7 @@ func TestPDVariableSubscribe(t *testing.T) {
 
 func testPDVariableSubscribe(t *testing.T, init bool) {
 	cfg := config.GetDefaultConfig()
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 
 	cluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
 	defer cluster.Terminate(t)

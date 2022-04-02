@@ -70,7 +70,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 
 	cfg := config.GetDefaultConfig()
 	cfg.Storage.Path = dir
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 
 	// init local mock tidb server
 	s.tidbServer = NewMockTiDBServer()
@@ -105,7 +105,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 	s.topCh = make(topology.Subscriber)
 	s.varCh = make(pdvariable.Subscriber)
 	s.cfgCh = make(config.Subscriber)
-	err = topsql.Init(&cfg, s.cfgCh, document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
+	err = topsql.Init(s.cfgCh, document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
 	s.NoError(err)
 	s.varCh <- enable
 	time.Sleep(100 * time.Millisecond)

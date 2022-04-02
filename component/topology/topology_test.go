@@ -18,7 +18,7 @@ import (
 
 func TestBasic(t *testing.T) {
 	cfg := config.GetDefaultConfig()
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	do := domain.NewDomain()
 	defer do.Close()
 	err := Init(do)
@@ -51,7 +51,7 @@ func TestTopology(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, "need specify pd endpoints", err.Error())
 	cfg.PD.Endpoints = []string{mockPD.Addr}
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	mockPD.Health = false
 	_, err = domain.CreatePDClient(&cfg)
 	require.NotNil(t, err)
@@ -128,12 +128,12 @@ func TestTopology(t *testing.T) {
 
 	// Test invalid address
 	cfg.AdvertiseAddress = "abcd"
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	serverInfo := getServerInfo()
 	require.Equal(t, "", serverInfo.IP)
 	require.Equal(t, uint64(0), serverInfo.Port)
 	cfg.AdvertiseAddress = "abcd:x"
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	serverInfo = getServerInfo()
 	require.Equal(t, "abcd", serverInfo.IP)
 	require.Equal(t, uint64(0), serverInfo.Port)

@@ -39,7 +39,7 @@ func (ts *testSuite) setup(t *testing.T) {
 	cfg.ContinueProfiling.Enable = true
 	cfg.ContinueProfiling.ProfileSeconds = 1
 	cfg.ContinueProfiling.IntervalSeconds = 1
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 }
 
 func (ts *testSuite) close(t *testing.T) {

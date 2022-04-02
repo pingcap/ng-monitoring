@@ -27,8 +27,10 @@ var (
 type Manager struct {
 	store           *store.ProfileStorage
 	topoSubScribe   topology.Subscriber
-	configChangeCh  config.Subscriber
 	latestTopoComps map[topology.Component]struct{}
+
+	config         config.Config
+	configChangeCh config.Subscriber
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -40,13 +42,18 @@ type Manager struct {
 
 // NewManager is the Manager constructor
 func NewManager(store *store.ProfileStorage, topoSubScribe topology.Subscriber) *Manager {
+	cfgSub := config.Subscribe()
+	getCurCfg := <-cfgSub
+	cfg := getCurCfg()
+
 	return &Manager{
 		store:               store,
 		topoSubScribe:       topoSubScribe,
-		configChangeCh:      config.Subscribe(),
+		config:              cfg,
+		configChangeCh:      cfgSub,
 		latestTopoComps:     map[topology.Component]struct{}{},
 		runningScrapeSuites: make(map[topology.Component][]*ScrapeSuite),
-		ticker:              NewTicker(time.Duration(config.GetGlobalConfig().ContinueProfiling.IntervalSeconds) * time.Second),
+		ticker:              NewTicker(time.Duration(cfg.ContinueProfiling.IntervalSeconds) * time.Second),
 	}
 }
 
@@ -126,20 +133,19 @@ func (m *Manager) run(ctx context.Context) {
 		}
 		return m
 	}
-	oldCfg := config.GetGlobalConfig().ContinueProfiling
+	oldCfg := m.config.ContinueProfiling
 	for {
 		select {
+		case getCfg := <-m.configChangeCh:
+			m.config = getCfg()
 		case <-ctx.Done():
 			return
 		case components := <-m.topoSubScribe:
 			m.latestTopoComps = buildMap(components)
-		case <-m.configChangeCh:
-			break
 		}
 
-		newCfg := config.GetGlobalConfig().ContinueProfiling
-		m.reload(ctx, oldCfg, newCfg)
-		oldCfg = newCfg
+		m.reload(ctx, oldCfg, m.config.ContinueProfiling)
+		oldCfg = m.config.ContinueProfiling
 	}
 }
 
@@ -185,12 +191,11 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 		return nil
 	}
 	profilingConfig := m.getProfilingConfig(component)
-	cfg := config.GetGlobalConfig()
-	httpCfg := cfg.Security.GetHTTPClientConfig()
+	httpCfg := m.config.Security.GetHTTPClientConfig()
 	addr := fmt.Sprintf("%v:%v", component.IP, component.Port)
 	scrapeAddr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
 	for profileName, profileConfig := range profilingConfig.PprofConfig {
-		target := NewTarget(component.Name, addr, scrapeAddr, profileName, cfg.GetHTTPScheme(), profileConfig)
+		target := NewTarget(component.Name, addr, scrapeAddr, profileName, m.config.GetHTTPScheme(), profileConfig)
 		client, err := commonconfig.NewClientFromConfig(httpCfg, component.Name)
 		if err != nil {
 			return err
@@ -227,9 +232,9 @@ func (m *Manager) stopScrape(component topology.Component) {
 func (m *Manager) getProfilingConfig(component topology.Component) *config.ProfilingConfig {
 	switch component.Name {
 	case topology.ComponentTiDB, topology.ComponentPD:
-		return goAppProfilingConfig()
+		return goAppProfilingConfig(m.config.ContinueProfiling)
 	default:
-		return nonGoAppProfilingConfig()
+		return nonGoAppProfilingConfig(m.config.ContinueProfiling)
 	}
 }
 
@@ -313,8 +318,7 @@ func (m *Manager) Close() {
 	m.wg.Wait()
 }
 
-func goAppProfilingConfig() *config.ProfilingConfig {
-	cfg := config.GetGlobalConfig().ContinueProfiling
+func goAppProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingConfig {
 	return &config.ProfilingConfig{
 		PprofConfig: config.PprofConfig{
 			"heap": &config.PprofProfilingConfig{
@@ -335,8 +339,7 @@ func goAppProfilingConfig() *config.ProfilingConfig {
 	}
 }
 
-func nonGoAppProfilingConfig() *config.ProfilingConfig {
-	cfg := config.GetGlobalConfig().ContinueProfiling
+func nonGoAppProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingConfig {
 	return &config.ProfilingConfig{
 		PprofConfig: config.PprofConfig{
 			"profile": &config.PprofProfilingConfig{

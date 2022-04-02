@@ -62,7 +62,8 @@ var defaultConfig = Config{
 	},
 }
 
-type Subscriber = chan *Config
+type Subscriber = chan GetLatestConfig
+type GetLatestConfig = func() Config
 
 var (
 	globalConf atomic.Value
@@ -71,33 +72,45 @@ var (
 	configChangeSubscribers []Subscriber
 )
 
+// Subscribe returns a channel that receives a config getter every
+// time the config is changed. By calling the getter, you can get
+// the latest config.
+//
+// There will be one getter in the channel after subscribing. It
+// can be used to get the current config immediately as follows.
+// ```go
+// cfgSubscriber := config.Subscribe()
+// getCurrentCfg := <-cfgSubscriber
+// currentCfg := getCurrentCfg()
+// ```
 func Subscribe() Subscriber {
 	mu.Lock()
 	defer mu.Unlock()
 
-	ch := make(chan *Config, 1)
+	ch := make(chan GetLatestConfig, 1)
 	configChangeSubscribers = append(configChangeSubscribers, ch)
+	ch <- GetGlobalConfig
 	return ch
 }
 
-func notifyConfigChange(config *Config) {
+func notifyConfigChange() {
 	mu.Lock()
 	defer mu.Unlock()
 
 	for _, ch := range configChangeSubscribers {
 		select {
-		case ch <- config:
+		case ch <- GetGlobalConfig:
 		default:
 		}
 	}
 }
 
-func GetGlobalConfig() *Config {
-	if v := globalConf.Load(); v == nil {
-		return nil
-	} else {
-		return v.(*Config)
+func GetGlobalConfig() Config {
+	v := globalConf.Load()
+	if v == nil {
+		return defaultConfig
 	}
+	return v.(Config)
 }
 
 func GetDefaultConfig() Config {
@@ -105,9 +118,9 @@ func GetDefaultConfig() Config {
 }
 
 // StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
-func StoreGlobalConfig(config *Config) {
+func StoreGlobalConfig(config Config) {
 	globalConf.Store(config)
-	notifyConfigChange(config)
+	notifyConfigChange()
 }
 
 func InitConfig(configPath string, override func(config *Config)) (*Config, error) {
@@ -127,7 +140,7 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 	if err := config.valid(); err != nil {
 		return nil, err
 	}
-	StoreGlobalConfig(&config)
+	StoreGlobalConfig(config)
 	return &config, nil
 }
 
@@ -310,7 +323,7 @@ func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
 		}
 
 		currentCfg.PD = newCfg.PD
-		StoreGlobalConfig(currentCfg)
+		StoreGlobalConfig(*currentCfg)
 		log.Info("PD endpoints changed", zap.Strings("endpoints", currentCfg.PD.Endpoints))
 	}
 }

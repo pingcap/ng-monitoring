@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 
 func TestDomain(t *testing.T) {
 	cfg := config.GetDefaultConfig()
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	do := NewDomain()
 	do.Close()
 	_, err := do.GetEtcdClient()
@@ -33,7 +33,7 @@ func TestDomain(t *testing.T) {
 	mockPD.Setup(t)
 	defer mockPD.Close(t)
 	cfg.PD.Endpoints = []string{mockPD.Addr}
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 
 	do = NewDomain()
 	defer do.Close()
@@ -41,7 +41,7 @@ func TestDomain(t *testing.T) {
 	pdCli1, err := do.GetPDClient()
 	require.NoError(t, err)
 	cfg.ContinueProfiling.Enable = true
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	pdCli2, err := do.GetPDClient()
 	require.NoError(t, err)
 	require.Equal(t, pdCli1, pdCli2)
@@ -50,7 +50,7 @@ func TestDomain(t *testing.T) {
 	mockPD2.Setup(t)
 	defer mockPD2.Close(t)
 	cfg.PD.Endpoints = []string{mockPD2.Addr}
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	time.Sleep(time.Millisecond * 10)
 	pdCli3, err := do.GetPDClient()
 	require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestDomain(t *testing.T) {
 func TestClientMaintainer(t *testing.T) {
 	cfg := config.GetDefaultConfig()
 	cfg.PD.Endpoints = nil
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
 	_, _, err := createClientWithRetry(ctx)
 	cancel()
@@ -74,7 +74,7 @@ func TestClientMaintainer(t *testing.T) {
 	require.NotNil(t, err)
 	require.Equal(t, "need specify pd endpoints", err.Error())
 	cfg.PD.Endpoints = []string{mockPD.Addr}
-	config.StoreGlobalConfig(&cfg)
+	config.StoreGlobalConfig(cfg)
 	mockPD.Health = false
 	_, err = CreatePDClient(&cfg)
 	require.NotNil(t, err)
