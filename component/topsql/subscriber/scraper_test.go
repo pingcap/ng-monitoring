@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	rua "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/mock"
 	"github.com/pingcap/ng-monitoring/component/topsql/subscriber"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
+
+	rua "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/tipb/go-tipb"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +53,7 @@ func testScraperTiDBBasic(t *testing.T, serverTLS *tls.Config, clientTLS *tls.Co
 	defer pubsub.Stop()
 
 	component := topology.Component{
-		Name:       "tidb",
+		Name:       topology.ComponentTiDB,
 		IP:         ip,
 		StatusPort: port,
 	}
@@ -74,7 +75,7 @@ func testScraperTiKVBasic(t *testing.T, serverTLS *tls.Config, clientTLS *tls.Co
 	defer pubsub.Stop()
 
 	component := topology.Component{
-		Name: "tikv",
+		Name: topology.ComponentTiKV,
 		IP:   ip,
 		Port: port,
 	}
@@ -83,6 +84,41 @@ func testScraperTiKVBasic(t *testing.T, serverTLS *tls.Config, clientTLS *tls.Co
 	defer scraper.Close()
 
 	checkTiKVScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, store)
+}
+
+func TestScraperCloseFirst(t *testing.T) {
+	t.Parallel()
+
+	store := mock.NewMemStore()
+	defer store.Close()
+
+	pubsub := mock.NewMockPubSub()
+	ip, port, err := pubsub.Listen("127.0.0.1:0", nil)
+	require.NoError(t, err)
+	go pubsub.Serve()
+	defer pubsub.Stop()
+
+	component := topology.Component{
+		Name: topology.ComponentTiDB,
+		IP:   ip,
+		Port: port,
+	}
+	scraper := subscriber.NewScraper(context.Background(), component, store, nil)
+	scraper.Close()
+	scraper.Run()
+}
+
+func TestScraperOtherComponent(t *testing.T) {
+	t.Parallel()
+
+	store := mock.NewMemStore()
+	defer store.Close()
+
+	component := topology.Component{
+		Name: topology.ComponentPD,
+	}
+	scraper := subscriber.NewScraper(context.Background(), component, store, nil)
+	require.Nil(t, scraper)
 }
 
 func TestScraperTiDBRestart(t *testing.T) {
@@ -97,7 +133,7 @@ func TestScraperTiDBRestart(t *testing.T) {
 	go pubsub.Serve()
 
 	component := topology.Component{
-		Name:       "tidb",
+		Name:       topology.ComponentTiDB,
 		IP:         ip,
 		StatusPort: port,
 	}
@@ -131,7 +167,7 @@ func TestScraperTiKVRestart(t *testing.T) {
 	go pubsub.Serve()
 
 	component := topology.Component{
-		Name: "tikv",
+		Name: topology.ComponentTiKV,
 		IP:   ip,
 		Port: port,
 	}
@@ -188,7 +224,7 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 		return nil
 	})
 
-	require.True(t, store.Predict(func(store *mock.MemStore) bool {
+	require.True(t, store.Pred(func(store *mock.MemStore) bool {
 		if _, ok := store.TopSQLRecords[addr]; !ok {
 			return false
 		}
@@ -244,7 +280,7 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 		})
 	})
 
-	require.True(t, store.Predict(func(store *mock.MemStore) bool {
+	require.True(t, store.Pred(func(store *mock.MemStore) bool {
 		if _, ok := store.ResourceMeteringRecords[addr]; !ok {
 			return false
 		}

@@ -51,7 +51,7 @@ func NewMemStore() *MemStore {
 	}
 }
 
-func (m *MemStore) Predict(pred func(*MemStore) bool, beginWaitTime time.Duration, maxWaitTime time.Duration) bool {
+func (m *MemStore) Pred(pred func(*MemStore) bool, beginWaitTime time.Duration, maxWaitTime time.Duration) bool {
 	begin := time.Now()
 	timeToWait := beginWaitTime
 

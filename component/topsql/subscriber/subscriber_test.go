@@ -1,31 +1,34 @@
 package subscriber_test
 
 import (
-	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/component/subscriber"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/mock"
-	"github.com/pingcap/ng-monitoring/component/topsql/subscriber"
+	sub "github.com/pingcap/ng-monitoring/component/topsql/subscriber"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
+
 	"github.com/pingcap/tipb/go-tipb"
 	"github.com/stretchr/testify/require"
 )
 
 type testSuite struct {
-	manager *subscriber.Manager
+	subscriber *subscriber.Subscriber
 
 	varSubscriber  pdvariable.Subscriber
 	topoSubscriber topology.Subscriber
 	cfgSubscriber  config.Subscriber
 
-	store *mock.MemStore
-	wg    sync.WaitGroup
+	store   *mock.MemStore
+	service *mock.MockPubSub
+
+	ip   string
+	port uint
 }
 
 func newTestSuite() *testSuite {
@@ -36,100 +39,96 @@ func newTestSuite() *testSuite {
 	ts.cfgSubscriber = make(config.Subscriber)
 	ts.store = mock.NewMemStore()
 
-	ts.manager = subscriber.NewManager(context.Background(), &ts.wg, ts.varSubscriber, ts.topoSubscriber, ts.cfgSubscriber, ts.store)
-	go ts.manager.Run()
+	controller := sub.NewSubscriberController(ts.store)
+	ts.subscriber = subscriber.NewSubscriber(ts.topoSubscriber, ts.varSubscriber, ts.cfgSubscriber, controller)
 
+	ts.service = mock.NewMockPubSub()
+	ts.ip, ts.port, _ = ts.service.Listen("127.0.0.1:0", nil)
+	go ts.service.Serve()
 	return ts
 }
 
-func (t *testSuite) Close() {
-	t.manager.Close()
-	t.store.Close()
-	t.wg.Wait()
+func (ts *testSuite) checkTiDBScrape(t *testing.T) {
+	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ts.ip, ts.port), ts.service, ts.store)
 }
 
-func TestManagerBasic(t *testing.T) {
+func (ts *testSuite) checkTiKVScrape(t *testing.T) {
+	checkTiKVScrape(t, fmt.Sprintf("%s:%d", ts.ip, ts.port), ts.service, ts.store)
+}
+
+func (ts *testSuite) Close() {
+	ts.service.Stop()
+	ts.subscriber.Close()
+	ts.store.Close()
+}
+
+func TestSubscriberBasic(t *testing.T) {
 	t.Parallel()
 
 	ts := newTestSuite()
 	defer ts.Close()
 
-	pubsub := mock.NewMockPubSub()
-	ip, port, err := pubsub.Listen("127.0.0.1:0", nil)
-	require.NoError(t, err)
-	go pubsub.Serve()
-	defer pubsub.Stop()
-
 	ts.varSubscriber <- enable
 	topo := []topology.Component{{
-		Name:       "tidb",
-		IP:         ip,
-		StatusPort: port,
+		Name:       topology.ComponentTiDB,
+		IP:         ts.ip,
+		StatusPort: ts.port,
+	}, {
+		Name: topology.ComponentPD,
+	}, {
+		Name: topology.ComponentTiFlash,
 	}}
 	ts.topoSubscriber <- topoGetter(topo)
-	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
+	ts.checkTiDBScrape(t)
 
 	topo = append(topo, topology.Component{
-		Name: "tikv",
-		IP:   ip,
-		Port: port,
+		Name: topology.ComponentTiKV,
+		IP:   ts.ip,
+		Port: ts.port,
 	})
 	ts.topoSubscriber <- topoGetter(topo)
-	checkTiKVScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
+	ts.checkTiKVScrape(t)
 }
 
-func TestManagerEnableAfterTopoIsReady(t *testing.T) {
+func TestSubscriberEnableAfterTopoIsReady(t *testing.T) {
 	t.Parallel()
 
 	ts := newTestSuite()
 	defer ts.Close()
 
-	pubsub := mock.NewMockPubSub()
-	ip, port, err := pubsub.Listen("127.0.0.1:0", nil)
-	require.NoError(t, err)
-	go pubsub.Serve()
-	defer pubsub.Stop()
-
 	topo := []topology.Component{{
-		Name:       "tidb",
-		IP:         ip,
-		StatusPort: port,
+		Name:       topology.ComponentTiDB,
+		IP:         ts.ip,
+		StatusPort: ts.port,
 	}}
 	ts.topoSubscriber <- topoGetter(topo)
-
 	ts.varSubscriber <- enable
-	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
+	ts.checkTiDBScrape(t)
 }
 
-func TestManagerTopoChange(t *testing.T) {
+func TestSubscriberTopoChange(t *testing.T) {
 	t.Parallel()
 
 	ts := newTestSuite()
 	defer ts.Close()
 
-	pubsub := mock.NewMockPubSub()
-	ip, port, err := pubsub.Listen("127.0.0.1:0", nil)
-	require.NoError(t, err)
-	go pubsub.Serve()
-	defer pubsub.Stop()
-
 	ts.varSubscriber <- enable
 	topo := []topology.Component{{
-		Name:       "tidb",
-		IP:         ip,
-		StatusPort: port,
+		Name:       topology.ComponentTiDB,
+		IP:         ts.ip,
+		StatusPort: ts.port,
 	}, {
-		Name: "tikv",
-		IP:   ip,
-		Port: port,
+		Name: topology.ComponentTiKV,
+		IP:   ts.ip,
+		Port: ts.port,
 	}}
 	ts.topoSubscriber <- topoGetter(topo)
 
-	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
-	checkTiKVScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
+	ts.checkTiDBScrape(t)
+	ts.checkTiKVScrape(t)
 
 	// tidb component is out
-	pubsub.AccessTiDBStream(func(s tipb.TopSQLPubSub_SubscribeServer) error {
+	ts.service.AccessTiDBStream(func(s tipb.TopSQLPubSub_SubscribeServer) error {
 		retry := 0
 		for {
 			err := s.Send(&tipb.TopSQLSubResponse{})
@@ -147,29 +146,23 @@ func TestManagerTopoChange(t *testing.T) {
 	ts.topoSubscriber <- topoGetter(topo[1:])
 }
 
-func TestManagerDisable(t *testing.T) {
+func TestSubscriberDisable(t *testing.T) {
 	t.Parallel()
 
 	ts := newTestSuite()
 	defer ts.Close()
 
-	pubsub := mock.NewMockPubSub()
-	ip, port, err := pubsub.Listen("127.0.0.1:0", nil)
-	require.NoError(t, err)
-	go pubsub.Serve()
-	defer pubsub.Stop()
-
 	ts.varSubscriber <- enable
 	topo := []topology.Component{{
-		Name:       "tidb",
-		IP:         ip,
-		StatusPort: port,
+		Name:       topology.ComponentTiDB,
+		IP:         ts.ip,
+		StatusPort: ts.port,
 	}}
 	ts.topoSubscriber <- topoGetter(topo)
-	checkTiDBScrape(t, fmt.Sprintf("%s:%d", ip, port), pubsub, ts.store)
+	ts.checkTiDBScrape(t)
 
 	// disable
-	pubsub.AccessTiDBStream(func(s tipb.TopSQLPubSub_SubscribeServer) error {
+	ts.service.AccessTiDBStream(func(s tipb.TopSQLPubSub_SubscribeServer) error {
 		retry := 0
 		for {
 			err := s.Send(&tipb.TopSQLSubResponse{})
@@ -185,4 +178,18 @@ func TestManagerDisable(t *testing.T) {
 		}
 	})
 	ts.varSubscriber <- disable
+}
+
+func enable() pdvariable.PDVariable {
+	return pdvariable.PDVariable{EnableTopSQL: true}
+}
+
+func disable() pdvariable.PDVariable {
+	return pdvariable.PDVariable{EnableTopSQL: false}
+}
+
+func topoGetter(topo []topology.Component) topology.GetLatestTopology {
+	return func() []topology.Component {
+		return topo
+	}
 }

@@ -12,6 +12,7 @@ require (
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-playground/validator/v10 v10.9.0 // indirect
 	github.com/goccy/go-graphviz v0.0.9
+	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/pprof v0.0.0-20211008130755-947d60d73cc0
 	github.com/json-iterator/go v1.1.12 // indirect
