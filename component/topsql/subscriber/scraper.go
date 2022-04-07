@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
-	"github.com/pingcap/log"
+	"github.com/pingcap/ng-monitoring/component/subscriber"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/utils"
+
+	"github.com/pingcap/kvproto/pkg/resource_usage_agent"
+	"github.com/pingcap/log"
 	"github.com/pingcap/tipb/go-tipb"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -32,16 +34,22 @@ type Scraper struct {
 }
 
 func NewScraper(ctx context.Context, component topology.Component, store store.Store, tlsConfig *tls.Config) *Scraper {
-	ctx, cancel := context.WithCancel(ctx)
-
-	return &Scraper{
-		ctx:       ctx,
-		cancel:    cancel,
-		tlsConfig: tlsConfig,
-		component: component,
-		store:     store,
+	switch component.Name {
+	case topology.ComponentTiDB, topology.ComponentTiKV:
+		ctx, cancel := context.WithCancel(ctx)
+		return &Scraper{
+			ctx:       ctx,
+			cancel:    cancel,
+			tlsConfig: tlsConfig,
+			component: component,
+			store:     store,
+		}
+	default:
+		return nil
 	}
 }
+
+var _ subscriber.Scraper = &Scraper{}
 
 func (s *Scraper) IsDown() bool {
 	select {
@@ -57,10 +65,10 @@ func (s *Scraper) Close() {
 }
 
 func (s *Scraper) Run() {
-	log.Info("starting to scrape top SQL from the component", zap.Any("component", s.component))
+	log.Info("starting to scrape Top SQL from the component", zap.Any("component", s.component))
 	defer func() {
 		s.cancel()
-		log.Info("stop scraping top SQL from the component", zap.Any("component", s.component))
+		log.Info("stop scraping Top SQL from the component", zap.Any("component", s.component))
 	}()
 
 	switch s.component.Name {
@@ -87,7 +95,7 @@ func (s *Scraper) scrapeTiDB() {
 		if r := record.GetRecord(); r != nil {
 			err := s.store.TopSQLRecord(addr, topology.ComponentTiDB, r)
 			if err != nil {
-				log.Warn("failed to store top SQL records", zap.Error(err))
+				log.Warn("failed to store Top SQL records", zap.Error(err))
 			}
 			continue
 		}
@@ -243,7 +251,7 @@ func (bo *backoffScrape) backoffScrape() (record interface{}) {
 
 		bo.conn = conn
 		switch bo.component.Name {
-		case "tidb":
+		case topology.ComponentTiDB:
 			client := tipb.NewTopSQLPubSubClient(conn)
 			bo.client = client
 			stream, err := client.Subscribe(bo.ctx, &tipb.TopSQLSubRequest{})
@@ -260,7 +268,7 @@ func (bo *backoffScrape) backoffScrape() (record interface{}) {
 
 			return true
 
-		case "tikv":
+		case topology.ComponentTiKV:
 			client := resource_usage_agent.NewResourceMeteringPubSubClient(conn)
 			bo.client = client
 			stream, err := client.Subscribe(bo.ctx, &resource_usage_agent.ResourceMeteringRequest{})
