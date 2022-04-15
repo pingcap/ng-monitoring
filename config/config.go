@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	DefProfilingEnable               = false
+	DefProfilingEnable               = true
 	DefProfilingIntervalSeconds      = 60
 	DefProfileSeconds                = 10
 	DefProfilingTimeoutSeconds       = 120
