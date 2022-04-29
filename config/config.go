@@ -27,7 +27,7 @@ const (
 	DefProfilingEnable               = true
 	DefProfilingIntervalSeconds      = 60
 	DefProfileSeconds                = 10
-	DefProfilingTimeoutSeconds       = 120
+	DefProfilingTimeoutSeconds     = 120
 	DefProfilingDataRetentionSeconds = 3 * 24 * 60 * 60 // 3 days
 )
 
