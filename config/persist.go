@@ -25,9 +25,9 @@ func LoadConfigFromStorage(getDB func() *genji.DB) error {
 	// create meta table if not exists.
 	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (module TEXT primary key, config TEXT)", configTableName)
 	err := db.Exec(sql)
-	//if err != nil {
-	//	return err
-	//}
+	if err != nil {
+		return err
+	}
 
 	query := fmt.Sprintf("SELECT module, config FROM %v", configTableName)
 	res, err := db.Query(query)
