@@ -171,7 +171,7 @@ func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProf
 		return
 	}
 
-	//start for new component.
+	// start for new component.
 	comps = m.getComponentNeedStartScrape(needReload)
 	for _, comp := range comps {
 		err := m.startScrape(ctx, comp, newCfg)
@@ -185,10 +185,6 @@ func (m *Manager) reload(ctx context.Context, oldCfg, newCfg config.ContinueProf
 
 func (m *Manager) startScrape(ctx context.Context, component topology.Component, continueProfilingCfg config.ContinueProfilingConfig) error {
 	if !continueProfilingCfg.Enable {
-		return nil
-	}
-	// TODO: remove this after TiFlash fix the profile bug.
-	if component.Name == topology.ComponentTiFlash {
 		return nil
 	}
 	profilingConfig := m.getProfilingConfig(component)
