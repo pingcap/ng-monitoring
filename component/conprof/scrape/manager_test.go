@@ -89,8 +89,6 @@ func TestManager(t *testing.T) {
 					break
 				}
 			}
-			// TODO(crazycs): remove this after support tiflash
-			require.True(t, list.Target.Component != topology.ComponentTiFlash)
 			require.True(t, found, fmt.Sprintf("%#v", list))
 			for _, ts := range list.TsList {
 				require.True(t, ts >= param.Begin && ts <= param.End)
@@ -131,8 +129,7 @@ func TestManager(t *testing.T) {
 
 	// test for GetCurrentScrapeComponents
 	comp := manager.GetCurrentScrapeComponents()
-	// // TODO(crazycs): update this after support tiflash
-	require.Equal(t, len(comp), len(components)-1)
+	require.Equal(t, len(comp), len(components))
 
 	// test for topology changed.
 	mockServer2 := testutil.CreateMockProfileServer(t)
