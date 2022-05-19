@@ -55,47 +55,58 @@ func handleModifyConfig(c *gin.Context) error {
 	return nil
 }
 
-func handleContinueProfilingConfigModify(reqNested map[string]interface{}) error {
-	cfg := GetGlobalConfig()
-	current, err := json.Marshal(cfg.ContinueProfiling)
-	if err != nil {
-		return err
-	}
-
-	var currentNested map[string]interface{}
-	if err := json.NewDecoder(bytes.NewReader(current)).Decode(&currentNested); err != nil {
-		return err
-	}
-
-	for k, newValue := range reqNested {
-		oldValue, ok := currentNested[k]
-		if !ok {
-			return fmt.Errorf("unknow config `%v`", k)
+func handleContinueProfilingConfigModify(reqNested map[string]interface{}) (err error) {
+	UpdateGlobalConfig(func(curCfg Config) (res Config) {
+		res = curCfg
+		var current []byte
+		current, err = json.Marshal(curCfg.ContinueProfiling)
+		if err != nil {
+			return
 		}
-		if oldValue == newValue {
-			continue
+
+		var currentNested map[string]interface{}
+		if err = json.NewDecoder(bytes.NewReader(current)).Decode(&currentNested); err != nil {
+			return
 		}
-		currentNested[k] = newValue
-		log.Info("handle continuous profiling config modify",
-			zap.String("name", k),
-			zap.Reflect("old-value", oldValue),
-			zap.Reflect("new-value", newValue))
-	}
 
-	data, err := json.Marshal(currentNested)
+		for k, newValue := range reqNested {
+			oldValue, ok := currentNested[k]
+			if !ok {
+				err = fmt.Errorf("unknown config `%v`", k)
+				return
+			}
+			if oldValue == newValue {
+				continue
+			}
+			currentNested[k] = newValue
+			log.Info("handle continuous profiling config modify",
+				zap.String("name", k),
+				zap.Reflect("old-value", oldValue),
+				zap.Reflect("new-value", newValue))
+		}
+
+		var data []byte
+		data, err = json.Marshal(currentNested)
+		if err != nil {
+			return
+		}
+		var newCfg ContinueProfilingConfig
+		err = json.NewDecoder(bytes.NewReader(data)).Decode(&newCfg)
+		if err != nil {
+			return
+		}
+
+		if !newCfg.Valid() {
+			err = fmt.Errorf("new config is invalid: %v", string(data))
+			return
+		}
+		res.ContinueProfiling = newCfg
+		return
+	})
+
 	if err != nil {
 		return err
 	}
-	var newCfg ContinueProfilingConfig
-	err = json.NewDecoder(bytes.NewReader(data)).Decode(&newCfg)
-	if err != nil {
-		return err
-	}
 
-	if !newCfg.Valid() {
-		return fmt.Errorf("new config is invalid: %v", string(data))
-	}
-	cfg.ContinueProfiling = newCfg
-	StoreGlobalConfig(cfg)
 	return saveConfigIntoStorage()
 }
