@@ -2,13 +2,16 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
@@ -92,6 +95,57 @@ func TestHTTPService(t *testing.T) {
 	require.Equal(t, true, globalCfg.ContinueProfiling.Enable)
 	require.Equal(t, 6, globalCfg.ContinueProfiling.ProfileSeconds)
 	require.Equal(t, 11, globalCfg.ContinueProfiling.IntervalSeconds)
+}
+
+func TestCombineHTTPWithFile(t *testing.T) {
+	ts := testSuite{}
+	ts.setup(t)
+	defer ts.close(t)
+	addr := setupHTTPService(t)
+
+	cfgFileName := "test-cfg.toml"
+	err := ioutil.WriteFile(cfgFileName, []byte(""), 0666)
+	require.NoError(t, err)
+	defer os.Remove(cfgFileName)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go ReloadRoutine(ctx, cfgFileName)
+
+	res, err := http.Post("http://"+addr+"/config", "application/json", bytes.NewReader([]byte(`{"continuous_profiling": {"enable": true}}`)))
+	require.NoError(t, err)
+	require.NoError(t, res.Body.Close())
+
+	time.Sleep(100 * time.Millisecond)
+	cfg := GetGlobalConfig()
+	require.Equal(t, cfg.ContinueProfiling.Enable, true)
+
+	err = ioutil.WriteFile(cfgFileName, []byte("[pd]\nendpoints = [\"10.0.1.8:2379\"]"), 0666)
+	require.NoError(t, err)
+	procutil.SelfSIGHUP()
+
+	time.Sleep(100 * time.Millisecond)
+	cfg = GetGlobalConfig()
+	require.Equal(t, cfg.ContinueProfiling.Enable, true)
+	require.Equal(t, cfg.PD.Endpoints, []string{"10.0.1.8:2379"})
+
+	res, err = http.Post("http://"+addr+"/config", "application/json", bytes.NewReader([]byte(`{"continuous_profiling": {"enable": false}}`)))
+	require.NoError(t, err)
+	require.NoError(t, res.Body.Close())
+
+	time.Sleep(100 * time.Millisecond)
+	cfg = GetGlobalConfig()
+	require.Equal(t, cfg.ContinueProfiling.Enable, false)
+	require.Equal(t, cfg.PD.Endpoints, []string{"10.0.1.8:2379"})
+
+	err = ioutil.WriteFile(cfgFileName, []byte("[pd]\nendpoints = [\"10.0.1.8:2479\"]"), 0666)
+	require.NoError(t, err)
+	procutil.SelfSIGHUP()
+
+	time.Sleep(100 * time.Millisecond)
+	cfg = GetGlobalConfig()
+	require.Equal(t, cfg.ContinueProfiling.Enable, false)
+	require.Equal(t, cfg.PD.Endpoints, []string{"10.0.1.8:2479"})
 }
 
 func setupHTTPService(t *testing.T) string {
