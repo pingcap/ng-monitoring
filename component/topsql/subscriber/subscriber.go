@@ -325,7 +325,8 @@ func (s *Subscriber) scrapeTiKV() {
 }
 
 func dial(addr string) (*grpc.ClientConn, error) {
-	tlsConfig := config.GetGlobalConfig().Security.GetTLSConfig()
+	cfg := config.GetGlobalConfig()
+	tlsConfig := cfg.Security.GetTLSConfig()
 
 	var tlsOption grpc.DialOption
 	if tlsConfig == nil {

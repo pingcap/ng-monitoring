@@ -30,8 +30,8 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) reCreateClient(cfg *config.Config) {
-	pdCli, etcdCli, err := createClient(cfg)
+func (c *Client) reCreateClient(cfg config.Config) {
+	pdCli, etcdCli, err := createClient(&cfg)
 	if err != nil {
 		log.Error("recreate pd/etcd client failed", zap.Error(err))
 		return

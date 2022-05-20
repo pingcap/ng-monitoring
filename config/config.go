@@ -8,11 +8,7 @@ import (
 	"path"
 	"sort"
 	"strings"
-<<<<<<< HEAD
-	"sync/atomic"
-=======
 	"sync"
->>>>>>> 74826ae (config: fix update conflict causing by http API and file reload (#137))
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -62,56 +58,15 @@ var defaultConfig = Config{
 	},
 }
 
-<<<<<<< HEAD
-var globalConf atomic.Value
 var configChangeSubscribers []chan struct{}
 
 func SubscribeConfigChange() chan struct{} {
 	ch := make(chan struct{})
-=======
-func GetDefaultConfig() Config {
-	return defaultConfig
-}
-
-type Subscriber = chan GetLatestConfig
-type GetLatestConfig = func() Config
-
-var (
-	globalConfigMutex sync.Mutex
-	globalConfig      = defaultConfig
-
-	subscribersMutex        sync.Mutex
-	configChangeSubscribers []Subscriber
-)
-
-// Subscribe returns a channel that receives a config getter every
-// time the config is changed. By calling the getter, you can get
-// the latest config.
-//
-// There will be one getter in the channel after subscribing. It
-// can be used to get the current config immediately as follows.
-// ```go
-// cfgSubscriber := config.Subscribe()
-// getCurrentCfg := <-cfgSubscriber
-// currentCfg := getCurrentCfg()
-// ```
-func Subscribe() Subscriber {
-	subscribersMutex.Lock()
-	defer subscribersMutex.Unlock()
-
-	ch := make(chan GetLatestConfig, 1)
->>>>>>> 74826ae (config: fix update conflict causing by http API and file reload (#137))
 	configChangeSubscribers = append(configChangeSubscribers, ch)
 	return ch
 }
 
 func notifyConfigChange() {
-<<<<<<< HEAD
-=======
-	subscribersMutex.Lock()
-	defer subscribersMutex.Unlock()
-
->>>>>>> 74826ae (config: fix update conflict causing by http API and file reload (#137))
 	for _, ch := range configChangeSubscribers {
 		select {
 		case ch <- struct{}{}:
@@ -120,15 +75,15 @@ func notifyConfigChange() {
 	}
 }
 
-<<<<<<< HEAD
-func GetGlobalConfig() *Config {
-	return globalConf.Load().(*Config)
+func GetDefaultConfig() Config {
+	return defaultConfig
 }
 
-// StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
-func StoreGlobalConfig(config *Config) {
-	globalConf.Store(config)
-=======
+var (
+	globalConfigMutex sync.Mutex
+	globalConfig      = defaultConfig
+)
+
 func GetGlobalConfig() (res Config) {
 	globalConfigMutex.Lock()
 	res = globalConfig
@@ -149,7 +104,6 @@ func UpdateGlobalConfig(update func(Config) Config) {
 	globalConfigMutex.Lock()
 	globalConfig = update(globalConfig)
 	globalConfigMutex.Unlock()
->>>>>>> 74826ae (config: fix update conflict causing by http API and file reload (#137))
 	notifyConfigChange()
 }
 
@@ -170,7 +124,7 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 	if err := config.valid(); err != nil {
 		return nil, err
 	}
-	StoreGlobalConfig(&config)
+	StoreGlobalConfig(config)
 	return &config, nil
 }
 
@@ -284,15 +238,11 @@ func (l *Log) InitDefaultLogger() {
 	log.ReplaceGlobals(logger, p)
 }
 
-<<<<<<< HEAD
-func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
-=======
 func ReloadRoutine(ctx context.Context, configPath string) {
 	if len(configPath) == 0 {
 		log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
 		return
 	}
->>>>>>> 74826ae (config: fix update conflict causing by http API and file reload (#137))
 	sighupCh := procutil.NewSighupChan()
 	for {
 		select {
@@ -323,16 +273,10 @@ func ReloadRoutine(ctx context.Context, configPath string) {
 				return curCfg
 			}
 
-<<<<<<< HEAD
-		currentCfg.PD = newCfg.PD
-		StoreGlobalConfig(currentCfg)
-		log.Info("PD endpoints changed", zap.Strings("endpoints", currentCfg.PD.Endpoints))
-=======
 			curCfg.PD = newCfg.PD
 			log.Info("PD endpoints changed", zap.Strings("endpoints", curCfg.PD.Endpoints))
 			return curCfg
 		})
->>>>>>> 74826ae (config: fix update conflict causing by http API and file reload (#137))
 	}
 }
 
