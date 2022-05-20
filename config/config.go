@@ -75,10 +75,6 @@ func notifyConfigChange() {
 	}
 }
 
-func GetDefaultConfig() Config {
-	return defaultConfig
-}
-
 var (
 	globalConfigMutex sync.Mutex
 	globalConfig      = defaultConfig
