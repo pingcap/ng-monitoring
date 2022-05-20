@@ -103,7 +103,7 @@ func createClientWithRetry(ctx context.Context) (*pdclient.APIClient, *clientv3.
 		}
 
 		cfg := config.GetGlobalConfig()
-		pdCli, etcdCli, err := createClient(cfg)
+		pdCli, etcdCli, err := createClient(&cfg)
 		if err == nil {
 			return pdCli, etcdCli, nil
 		}
