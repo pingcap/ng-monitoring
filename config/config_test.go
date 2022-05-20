@@ -267,7 +267,7 @@ func TestConfigPersist(t *testing.T) {
 	require.NoError(t, err)
 
 	oldCfg := GetGlobalConfig()
-	cfg := *oldCfg
+	cfg := oldCfg
 	cfg.ContinueProfiling.Enable = true
 	cfg.ContinueProfiling.IntervalSeconds = 100
 	StoreGlobalConfig(&cfg)
