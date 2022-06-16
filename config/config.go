@@ -8,7 +8,7 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -58,7 +58,6 @@ var defaultConfig = Config{
 	},
 }
 
-var globalConf atomic.Value
 var configChangeSubscribers []chan struct{}
 
 func SubscribeConfigChange() chan struct{} {
@@ -76,13 +75,31 @@ func notifyConfigChange() {
 	}
 }
 
-func GetGlobalConfig() *Config {
-	return globalConf.Load().(*Config)
+var (
+	globalConfigMutex sync.Mutex
+	globalConfig      = defaultConfig
+)
+
+func GetGlobalConfig() (res Config) {
+	globalConfigMutex.Lock()
+	res = globalConfig
+	globalConfigMutex.Unlock()
+	return
 }
 
 // StoreGlobalConfig stores a new config to the globalConf. It mostly uses in the test to avoid some data races.
-func StoreGlobalConfig(config *Config) {
-	globalConf.Store(config)
+func StoreGlobalConfig(config Config) {
+	globalConfigMutex.Lock()
+	globalConfig = config
+	globalConfigMutex.Unlock()
+	notifyConfigChange()
+}
+
+// UpdateGlobalConfig accesses an update function to update the global config
+func UpdateGlobalConfig(update func(Config) Config) {
+	globalConfigMutex.Lock()
+	globalConfig = update(globalConfig)
+	globalConfigMutex.Unlock()
 	notifyConfigChange()
 }
 
@@ -103,7 +120,7 @@ func InitConfig(configPath string, override func(config *Config)) (*Config, erro
 	if err := config.valid(); err != nil {
 		return nil, err
 	}
-	StoreGlobalConfig(&config)
+	StoreGlobalConfig(config)
 	return &config, nil
 }
 
@@ -217,7 +234,11 @@ func (l *Log) InitDefaultLogger() {
 	log.ReplaceGlobals(logger, p)
 }
 
-func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
+func ReloadRoutine(ctx context.Context, configPath string) {
+	if len(configPath) == 0 {
+		log.Warn("failed to reload config due to empty config path. Please specify the command line argument \"--config <path>\"")
+		return
+	}
 	sighupCh := procutil.NewSighupChan()
 	for {
 		select {
@@ -243,13 +264,15 @@ func ReloadRoutine(ctx context.Context, configPath string, currentCfg *Config) {
 			continue
 		}
 
-		if currentCfg.PD.Equal(newCfg.PD) {
-			continue
-		}
+		UpdateGlobalConfig(func(curCfg Config) Config {
+			if curCfg.PD.Equal(newCfg.PD) {
+				return curCfg
+			}
 
-		currentCfg.PD = newCfg.PD
-		StoreGlobalConfig(currentCfg)
-		log.Info("PD endpoints changed", zap.Strings("endpoints", currentCfg.PD.Endpoints))
+			curCfg.PD = newCfg.PD
+			log.Info("PD endpoints changed", zap.Strings("endpoints", curCfg.PD.Endpoints))
+			return curCfg
+		})
 	}
 }
 

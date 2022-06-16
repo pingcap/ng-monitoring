@@ -39,8 +39,8 @@ type Component struct {
 
 type Subscriber = chan []Component
 
-func NewTopologyDiscoverer(cfg *config.Config, configChangeCh chan struct{}) (*TopologyDiscoverer, error) {
-	cli, err := NewClient(cfg)
+func NewTopologyDiscoverer(cfg config.Config, configChangeCh chan struct{}) (*TopologyDiscoverer, error) {
+	cli, err := NewClient(&cfg)
 	if err != nil {
 		return nil, err
 	}

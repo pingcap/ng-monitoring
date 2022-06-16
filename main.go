@@ -86,7 +86,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go config.ReloadRoutine(ctx, *configPath, cfg)
+	go config.ReloadRoutine(ctx, *configPath)
 	sig := procutil.WaitForSigterm()
 	log.Info("received signal", zap.String("sig", sig.String()))
 }
