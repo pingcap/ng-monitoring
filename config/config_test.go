@@ -84,7 +84,9 @@ key-path = "ngm.key"`
 	require.NoError(t, err)
 	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"}}`, string(data))
 
-	go ReloadRoutine(context.Background(), cfgFileName, cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go ReloadRoutine(ctx, cfgFileName)
 	time.Sleep(time.Millisecond * 10)
 	cfgData = `
 address = "0.0.0.1:12020"
@@ -265,7 +267,7 @@ func TestConfigPersist(t *testing.T) {
 	require.NoError(t, err)
 
 	oldCfg := GetGlobalConfig()
-	cfg := *oldCfg
+	cfg := oldCfg
 	cfg.ContinueProfiling.Enable = true
 	cfg.ContinueProfiling.IntervalSeconds = 100
 	StoreGlobalConfig(&cfg)
