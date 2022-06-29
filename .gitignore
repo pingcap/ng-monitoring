@@ -1,7 +1,0 @@
-.idea
-data
-bin
-log
-*.log
-coverage.txt
-tools/bin/
