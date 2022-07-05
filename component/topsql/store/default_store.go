@@ -10,6 +10,7 @@ import (
 	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
+	"github.com/pingcap/ng-monitoring/component/topsql/codec/resource_group_tag"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/tipb/go-tipb"
 	"go.uber.org/zap"
@@ -78,7 +79,7 @@ func (ds *DefaultStore) ResourceMeteringRecord(
 }
 
 func (ds *DefaultStore) SQLMeta(meta *tipb.SQLMeta) error {
-	prepareStmt := "INSERT INTO sql_digest(digest, sql_text, is_internal) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
+	prepareStmt := "INSERT INTO sql_digest(digest, sql_text, is_internal) VALUES (?, ?, ?) ON CONFLICT DO REPLACE"
 	prepare, err := ds.documentDB.Prepare(prepareStmt)
 	if err != nil {
 		return err
@@ -88,13 +89,13 @@ func (ds *DefaultStore) SQLMeta(meta *tipb.SQLMeta) error {
 }
 
 func (ds *DefaultStore) PlanMeta(meta *tipb.PlanMeta) error {
-	prepareStmt := "INSERT INTO plan_digest(digest, plan_text) VALUES (?, ?) ON CONFLICT DO NOTHING"
+	prepareStmt := "INSERT INTO plan_digest(digest, plan_text, encoded_plan) VALUES (?, ?, ?) ON CONFLICT DO REPLACE"
 	prepare, err := ds.documentDB.Prepare(prepareStmt)
 	if err != nil {
 		return err
 	}
 
-	return prepare.Exec(hex.EncodeToString(meta.PlanDigest), meta.NormalizedPlan)
+	return prepare.Exec(hex.EncodeToString(meta.PlanDigest), meta.NormalizedPlan, meta.EncodedNormalizedPlan)
 }
 
 func (ds *DefaultStore) Close() {}
@@ -209,11 +210,12 @@ func rsMeteringProtoToMetrics(
 	instance, instanceType string,
 	record *rsmetering.ResourceUsageRecord,
 ) (ms []Metric, err error) {
-	tag := tipb.ResourceGroupTag{}
-	tag.Reset()
-	if err = tag.Unmarshal(record.GetRecord().ResourceGroupTag); err != nil {
+	var tag tipb.ResourceGroupTag
+	tag, err = resource_group_tag.Decode(record.GetRecord().ResourceGroupTag)
+	if err != nil {
 		return
 	}
+
 	sqlDigest := hex.EncodeToString(tag.SqlDigest)
 	planDigest := hex.EncodeToString(tag.PlanDigest)
 

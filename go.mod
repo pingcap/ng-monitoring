@@ -16,9 +16,11 @@ require (
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
+	github.com/golang/snappy v0.0.4
 	github.com/google/pprof v0.0.0-20211008130755-947d60d73cc0
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/pingcap/errors v0.11.4
 	github.com/pingcap/kvproto v0.0.0-20211229082925-7a8280c36daf
 	github.com/pingcap/log v0.0.0-20210906054005-afc726e70354
 	github.com/pingcap/tidb-dashboard/util v0.0.0-20211014081729-82f8b809f5ae
@@ -48,3 +50,5 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
 replace github.com/genjidb/genji/engine/badgerengine => github.com/crazycs520/genji/engine/badgerengine v0.12.1-0.20220328082424-727a2d089bde
 
 replace github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.1.1-0.20220403145359-8e850b710d6d
+
+replace github.com/pingcap/tipb => github.com/zhongzc/tipb v0.0.0-20220705042122-25552dfea922
