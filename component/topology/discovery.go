@@ -10,6 +10,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/tidb-dashboard/util/topo"
+	"github.com/pingcap/tidb-dashboard/util/topo/pdtopo"
 	"go.uber.org/zap"
 )
 
@@ -141,13 +142,13 @@ func (d *TopologyDiscoverer) getTiDBComponents(ctx context.Context) ([]Component
 	if err != nil {
 		return nil, err
 	}
-	instances, err := topo.GetTiDBInstances(ctx, etcdCli)
+	instances, err := pdtopo.GetTiDBInstances(ctx, etcdCli)
 	if err != nil {
 		return nil, err
 	}
 	components := make([]Component, 0, len(instances))
 	for _, instance := range instances {
-		if instance.Status != topo.ComponentStatusUp {
+		if instance.Status != topo.CompStatusUp {
 			continue
 		}
 		components = append(components, Component{
@@ -165,13 +166,13 @@ func (d *TopologyDiscoverer) getPDComponents(ctx context.Context) ([]Component, 
 	if err != nil {
 		return nil, err
 	}
-	instances, err := topo.GetPDInstances(pdCli)
+	instances, err := pdtopo.GetPDInstances(ctx, pdCli)
 	if err != nil {
 		return nil, err
 	}
 	components := make([]Component, 0, len(instances))
 	for _, instance := range instances {
-		if instance.Status != topo.ComponentStatusUp {
+		if instance.Status != topo.CompStatusUp {
 			continue
 		}
 		components = append(components, Component{
@@ -189,25 +190,32 @@ func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Componen
 	if err != nil {
 		return nil, err
 	}
-	tikvInstances, tiflashInstances, err := topo.GetStoreInstances(pdCli)
+	tikvInstances, tiflashInstances, err := pdtopo.GetStoreInstances(ctx, pdCli)
 	if err != nil {
 		return nil, err
 	}
 	components := make([]Component, 0, len(tikvInstances)+len(tiflashInstances))
-	getComponents := func(instances []topo.StoreInfo, name string) {
-		for _, instance := range instances {
-			if instance.Status != topo.ComponentStatusUp {
-				continue
-			}
-			components = append(components, Component{
-				Name:       name,
-				IP:         instance.IP,
-				Port:       instance.Port,
-				StatusPort: instance.StatusPort,
-			})
+	for _, instance := range tikvInstances {
+		if instance.Status != topo.CompStatusUp {
+			continue
 		}
+		components = append(components, Component{
+			Name:       ComponentTiKV,
+			IP:         instance.IP,
+			Port:       instance.Port,
+			StatusPort: instance.StatusPort,
+		})
 	}
-	getComponents(tikvInstances, ComponentTiKV)
-	getComponents(tiflashInstances, ComponentTiFlash)
+	for _, instance := range tiflashInstances {
+		if instance.Status != topo.CompStatusUp {
+			continue
+		}
+		components = append(components, Component{
+			Name:       ComponentTiFlash,
+			IP:         instance.IP,
+			Port:       instance.Port,
+			StatusPort: instance.StatusPort,
+		})
+	}
 	return components, nil
 }

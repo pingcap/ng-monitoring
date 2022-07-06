@@ -11,7 +11,7 @@ import (
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/tidb-dashboard/util/client/httpclient"
 	"github.com/pingcap/tidb-dashboard/util/client/pdclient"
-	"go.etcd.io/etcd/clientv3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 )
 
@@ -147,14 +147,14 @@ func CreatePDClient(cfg *config.Config) (*pdclient.APIClient, error) {
 	var pdCli *pdclient.APIClient
 	var err error
 	for _, endpoint := range cfg.PD.Endpoints {
-		pdCli, err = pdclient.NewAPIClient(httpclient.APIClientConfig{
+		pdCli = pdclient.NewAPIClient(httpclient.Config{
 			// TODO: support all PD endpoints.
-			Endpoint: fmt.Sprintf("%v://%v", cfg.GetHTTPScheme(), endpoint),
-			Context:  context.Background(),
-			TLS:      cfg.Security.GetTLSConfig(),
+			DefaultBaseURL: fmt.Sprintf("%v://%v", cfg.GetHTTPScheme(), endpoint),
+			DefaultCtx:     context.Background(),
+			TLSConfig:      cfg.Security.GetTLSConfig(),
 		})
 		if err == nil {
-			_, err = pdCli.GetHealth()
+			_, err = pdCli.GetHealth(context.Background())
 			if err == nil {
 				log.Info("create pd client success", zap.String("pd-address", endpoint))
 				return pdCli, nil

@@ -13,8 +13,8 @@ import (
 	"github.com/pingcap/ng-monitoring/utils"
 
 	"github.com/pingcap/log"
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/mvcc/mvccpb"
+	"go.etcd.io/etcd/api/v3/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 )
 
