@@ -140,13 +140,7 @@ func (s *MockPDHTTPServer) Setup(t *testing.T) {
 
 	router.HandleFunc("/pd/api/v1/members", func(writer http.ResponseWriter, request *http.Request) {
 		resp := pdclient.GetMembersResponse{
-			Members: []struct {
-				GitHash       string   `json:"git_hash"`
-				ClientUrls    []string `json:"client_urls"`
-				DeployPath    string   `json:"deploy_path"`
-				BinaryVersion string   `json:"binary_version"`
-				MemberID      uint64   `json:"member_id"`
-			}{
+			Members: []pdclient.GetMembersResponseMember{
 				{GitHash: "abcd", ClientUrls: []string{"http://" + s.Addr}, DeployPath: "data", BinaryVersion: "v5.3.0", MemberID: 1},
 			},
 		}
@@ -155,9 +149,7 @@ func (s *MockPDHTTPServer) Setup(t *testing.T) {
 
 	router.HandleFunc("/pd/api/v1/stores", func(writer http.ResponseWriter, request *http.Request) {
 		resp := pdclient.GetStoresResponse{
-			Stores: []struct {
-				Store pdclient.GetStoresResponseStore
-			}{
+			Stores: []pdclient.GetStoresResponseStoresElem{
 				{pdclient.GetStoresResponseStore{Address: "127.0.0.1:20160", ID: 1, Version: "v5.3.0", StatusAddress: "127.0.0.1:20180", StartTimestamp: time.Now().Unix(), StateName: "up"}},
 			},
 		}
