@@ -24,7 +24,7 @@ require (
 	github.com/pingcap/kvproto v0.0.0-20211229082925-7a8280c36daf
 	github.com/pingcap/log v0.0.0-20210906054005-afc726e70354
 	github.com/pingcap/tidb-dashboard/util v0.0.0-20211014081729-82f8b809f5ae
-	github.com/pingcap/tipb v0.0.0-20220107024056-3b91949a18a7
+	github.com/pingcap/tipb v0.0.0-20220706024432-7be3cc83a7d5
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/common v0.31.1
@@ -50,5 +50,3 @@ replace google.golang.org/grpc => google.golang.org/grpc v1.26.0
 replace github.com/genjidb/genji/engine/badgerengine => github.com/crazycs520/genji/engine/badgerengine v0.12.1-0.20220328082424-727a2d089bde
 
 replace github.com/dgraph-io/ristretto => github.com/dgraph-io/ristretto v0.1.1-0.20220403145359-8e850b710d6d
-
-replace github.com/pingcap/tipb => github.com/zhongzc/tipb v0.0.0-20220705042122-25552dfea922
