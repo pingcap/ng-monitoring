@@ -39,7 +39,7 @@ func TestTopology(t *testing.T) {
 		t.Skip("integration.NewClusterV3 will create file contains a colon which is not allowed on Windows")
 	}
 
-	integration.BeforeTest(t)
+	integration.BeforeTestExternal(t)
 	cluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
 	defer cluster.Terminate(t)
 	mockPD := testutil.MockPDHTTPServer{}
