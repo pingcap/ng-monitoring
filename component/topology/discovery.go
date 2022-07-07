@@ -6,9 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/utils"
+
+	"github.com/pingcap/log"
 	"github.com/pingcap/tidb-dashboard/util/topo"
 	"github.com/pingcap/tidb-dashboard/util/topo/pdtopo"
 	"go.uber.org/zap"

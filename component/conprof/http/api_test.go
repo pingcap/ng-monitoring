@@ -15,13 +15,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/genjidb/genji"
-	"github.com/gin-gonic/gin"
 	"github.com/pingcap/ng-monitoring/component/conprof"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
+
+	"github.com/genjidb/genji"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 

@@ -10,14 +10,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/component/conprof/meta"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils/testutil"
+
 	"github.com/dgraph-io/badger/v3"
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/engine/badgerengine"
 	"github.com/genjidb/genji/types"
-	"github.com/pingcap/ng-monitoring/component/conprof/meta"
-	"github.com/pingcap/ng-monitoring/config"
-	"github.com/pingcap/ng-monitoring/utils/testutil"
 	"github.com/stretchr/testify/require"
 )
 

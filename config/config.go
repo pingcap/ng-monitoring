@@ -13,10 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/utils"
+
 	"github.com/BurntSushi/toml"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng-monitoring/utils"
 	commonconfig "github.com/prometheus/common/config"
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	"go.uber.org/zap"

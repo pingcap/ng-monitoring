@@ -8,11 +8,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/ng-monitoring/utils/printer"
+
+	"github.com/pingcap/log"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.uber.org/zap"

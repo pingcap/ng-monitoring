@@ -8,12 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/utils"
+
+	"github.com/pingcap/log"
 	commonconfig "github.com/prometheus/common/config"
 	"go.uber.org/zap"
 )

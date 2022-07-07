@@ -11,10 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
 	"github.com/pingcap/ng-monitoring/config"
+
+	"github.com/pingcap/log"
 	"github.com/pkg/errors"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"

@@ -9,6 +9,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
+
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/tests/v3/integration"
 )

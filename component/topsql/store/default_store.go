@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/genjidb/genji"
-	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/codec/resource_group_tag"
 	"github.com/pingcap/ng-monitoring/utils"
+
+	"github.com/genjidb/genji"
+	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
+	"github.com/pingcap/log"
 	"github.com/pingcap/tipb/go-tipb"
 	"go.uber.org/zap"
 )
