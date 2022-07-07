@@ -38,6 +38,7 @@ func TestTopology(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("integration.NewClusterV3 will create file contains a colon which is not allowed on Windows")
 	}
+
 	integration.BeforeTest(t)
 	cluster := integration.NewClusterV3(t, &integration.ClusterConfig{Size: 1})
 	defer cluster.Terminate(t)
@@ -71,8 +72,7 @@ func TestTopology(t *testing.T) {
 
 	sub := discover.Subscribe()
 	discoverInterval = time.Millisecond * 100
-	go discover.loadTopologyLoop()
-	defer discover.Close()
+	discover.Start()
 
 	getComponents := <-sub
 	components := getComponents()
