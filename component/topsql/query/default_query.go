@@ -9,11 +9,13 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/pingcap/ng-monitoring/component/topsql/codec/plan"
+	"github.com/pingcap/ng-monitoring/component/topsql/store"
+	"github.com/pingcap/ng-monitoring/utils"
+
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng-monitoring/component/topsql/store"
-	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/wangjohn/quickselect"
 	"go.uber.org/zap"
 )
@@ -591,22 +593,33 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill func(R
 			for _, series := range group.planSeries {
 				planDigest := series.planDigest
 				var planText string
+				var encodedPlan string
 
 				if len(planDigest) != 0 {
 					r, err := tx.QueryDocument(
-						"SELECT plan_text FROM plan_digest WHERE digest = ?",
+						"SELECT plan_text, encoded_plan FROM plan_digest WHERE digest = ?",
 						planDigest,
 					)
 					if err == nil {
-						_ = document.Scan(r, &planText)
+						_ = document.Scan(r, &planText, &encodedPlan)
 					}
 				}
 
 				planItem := RecordPlanItem{
 					PlanDigest:   planDigest,
-					PlanText:     planText,
 					TimestampSec: series.timestampSecs,
 				}
+
+				if len(planText) > 0 {
+					planItem.PlanText = planText
+				} else if len(encodedPlan) > 0 {
+					var err error
+					planItem.PlanText, err = plan.Decode(encodedPlan)
+					if err != nil {
+						log.Warn("failed to decode plan", zap.Error(err), zap.String("encoded plan", encodedPlan))
+					}
+				}
+
 				switch name {
 				case store.MetricNameCPUTime:
 					planItem.CPUTimeMs = series.values

@@ -8,12 +8,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/component/conprof/meta"
+	"github.com/pingcap/ng-monitoring/utils"
+
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng-monitoring/component/conprof/meta"
-	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/valyala/gozstd"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"

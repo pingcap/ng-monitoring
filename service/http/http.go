@@ -6,12 +6,13 @@ import (
 	"os"
 	"path"
 
-	"github.com/gin-contrib/pprof"
-	"github.com/gin-gonic/gin"
-	"github.com/pingcap/log"
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
+
+	"github.com/gin-contrib/pprof"
+	"github.com/gin-gonic/gin"
+	"github.com/pingcap/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )

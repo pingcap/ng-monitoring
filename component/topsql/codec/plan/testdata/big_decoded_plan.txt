@@ -1,0 +1,1511 @@
+	HashAgg                      	root	funcs:sum(?)->?, funcs:sum(?)->?, funcs:sum(?)->?
+	└─Projection                 	root	cast(test.t.a, decimal(20,0) BINARY), cast(test.t.a, decimal(20,0) BINARY), cast(test.t.a, decimal(20,0) BINARY)
+	  └─HashJoin                 	root	CARTESIAN inner join
+	    ├─HashJoin               	root	CARTESIAN inner join
+	    │ ├─HashJoin             	root	CARTESIAN inner join
+	    │ │ ├─PartitionUnion     	root	
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ ├─TableReader      	root	
+	    │ │ │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │ │   └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ │ └─TableReader      	root	
+	    │ │ │   └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │ │     └─TableFullScan	cop 	table:t1, partition:?, range:[?,?], keep order:false
+	    │ │ └─PartitionUnion     	root	
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   ├─TableReader      	root	
+	    │ │   │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │   │   └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ │   └─TableReader      	root	
+	    │ │     └─Selection      	cop 	ne(test.t.a, ?)
+	    │ │       └─TableFullScan	cop 	table:t2, partition:?, range:[?,?], keep order:false
+	    │ └─HashJoin             	root	CARTESIAN inner join
+	    │   ├─PartitionUnion     	root	
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ ├─TableReader      	root	
+	    │   │ │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │ │   └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   │ └─TableReader      	root	
+	    │   │   └─Selection      	cop 	ne(test.t.a, ?)
+	    │   │     └─TableFullScan	cop 	table:t3, partition:?, range:[?,?], keep order:false
+	    │   └─PartitionUnion     	root	
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     ├─TableReader      	root	
+	    │     │ └─Selection      	cop 	ne(test.t.a, ?)
+	    │     │   └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    │     └─TableReader      	root	
+	    │       └─Selection      	cop 	ne(test.t.a, ?)
+	    │         └─TableFullScan	cop 	table:t4, partition:?, range:[?,?], keep order:false
+	    └─PartitionUnion         	root	
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      ├─TableReader          	root	
+	      │ └─Selection          	cop 	ne(test.t.a, ?)
+	      │   └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false
+	      └─TableReader          	root	
+	        └─Selection          	cop 	ne(test.t.a, ?)
+	          └─TableFullScan    	cop 	table:t5, partition:?, range:[?,?], keep order:false

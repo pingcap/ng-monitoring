@@ -3,10 +3,11 @@ package service
 import (
 	"net"
 
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/service/http"
 	"github.com/pingcap/ng-monitoring/utils"
+
+	"github.com/pingcap/log"
 	"go.uber.org/zap"
 )
 

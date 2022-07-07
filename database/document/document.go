@@ -4,12 +4,13 @@ import (
 	"context"
 	"path"
 
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils"
+
 	"github.com/dgraph-io/badger/v3"
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/engine/badgerengine"
 	"github.com/pingcap/log"
-	"github.com/pingcap/ng-monitoring/config"
-	"github.com/pingcap/ng-monitoring/utils"
 	"go.uber.org/zap"
 )
 

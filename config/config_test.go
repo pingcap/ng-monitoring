@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/genjidb/genji"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
+	"github.com/genjidb/genji"
 	"github.com/stretchr/testify/require"
 )
 

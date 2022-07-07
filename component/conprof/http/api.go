@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
+
+	"github.com/gin-gonic/gin"
+	"github.com/pingcap/log"
 	"go.uber.org/zap"
 )
 

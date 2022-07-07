@@ -9,6 +9,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
+
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/tests/v3/integration"
 )
@@ -18,7 +19,7 @@ func TestPDVariableSubscribe(t *testing.T) {
 		t.Skip("integration.NewClusterV3 will create file contains a colon which is not allowed on Windows")
 	}
 
-	integration.BeforeTest(t)
+	integration.BeforeTestExternal(t)
 	for i := 0; i < 2; i++ {
 		testPDVariableSubscribe(t, i%2 == 0)
 	}

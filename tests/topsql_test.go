@@ -12,9 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/golang/protobuf/proto"
-	rua "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
@@ -24,6 +21,10 @@ import (
 	"github.com/pingcap/ng-monitoring/database"
 	"github.com/pingcap/ng-monitoring/database/document"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang/protobuf/proto"
+	rua "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/tipb/go-tipb"
 	"github.com/stretchr/testify/suite"
 )

@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/database"
 	"github.com/pingcap/ng-monitoring/database/document"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	rsmetering "github.com/pingcap/kvproto/pkg/resource_usage_agent"
 	"github.com/pingcap/tipb/go-tipb"
 	"github.com/stretchr/testify/suite"
 )
