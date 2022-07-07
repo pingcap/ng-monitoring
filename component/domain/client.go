@@ -153,12 +153,10 @@ func CreatePDClient(cfg *config.Config) (*pdclient.APIClient, error) {
 			DefaultCtx:     context.Background(),
 			TLSConfig:      cfg.Security.GetTLSConfig(),
 		})
+		_, err = pdCli.GetHealth(context.Background())
 		if err == nil {
-			_, err = pdCli.GetHealth(context.Background())
-			if err == nil {
-				log.Info("create pd client success", zap.String("pd-address", endpoint))
-				return pdCli, nil
-			}
+			log.Info("create pd client success", zap.String("pd-address", endpoint))
+			return pdCli, nil
 		}
 	}
 	if err != nil {
