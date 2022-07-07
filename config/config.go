@@ -18,7 +18,7 @@ import (
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/utils"
 	commonconfig "github.com/prometheus/common/config"
-	"go.etcd.io/etcd/pkg/transport"
+	"go.etcd.io/etcd/client/pkg/v3/transport"
 	"go.uber.org/zap"
 )
 
