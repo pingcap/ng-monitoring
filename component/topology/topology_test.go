@@ -73,7 +73,6 @@ func TestTopology(t *testing.T) {
 	sub := discover.Subscribe()
 	discoverInterval = time.Millisecond * 100
 	discover.Start()
-	defer discover.Close()
 
 	getComponents := <-sub
 	components := getComponents()
