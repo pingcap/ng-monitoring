@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	DefProfilingEnable               = true
+	DefProfilingEnable               = false // TODO(mornyx): Enable when tiflash#5687 is fixed.
 	DefProfilingIntervalSeconds      = 60
 	DefProfileSeconds                = 10
 	DefProfilingTimeoutSeconds       = 120
