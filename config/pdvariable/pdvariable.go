@@ -101,7 +101,7 @@ func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			newCfg, err := l.loadAllGlobalConfig(ctx)
-			if err != nil {
+			if err != nil || newCfg == nil {
 				log.Error("load global config failed", zap.Error(err))
 			} else if cfg != nil {
 				if newCfg != cfg {
@@ -152,7 +152,8 @@ func (l *variableLoader) loadAllGlobalConfig(ctx context.Context) (*PDVariable, 
 			return nil, ctx.Err()
 		default:
 		}
-		etcdCli, err := l.do.GetEtcdClient()
+		var etcdCli *clientv3.Client
+		etcdCli, err = l.do.GetEtcdClient()
 		if err != nil {
 			return nil, err
 		}
