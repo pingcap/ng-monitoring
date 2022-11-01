@@ -3,7 +3,6 @@ package topology
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -233,9 +232,7 @@ func (d *TopologyDiscoverer) getTiCDCComponents(ctx context.Context) ([]Componen
 	if err != nil {
 		return nil, err
 	}
-	comps, err := getTiCDCInstances(ctx, etcdCli)
-	fmt.Println(comps, err)
-	return comps, err
+	return getTiCDCInstances(ctx, etcdCli)
 }
 
 const ticdcTopologyKeyPrefix = "/tidb/cdc/default/__cdc_meta__/capture/"
