@@ -232,7 +232,7 @@ func (d *TopologyDiscoverer) getTiCDCComponents(ctx context.Context) ([]Componen
 	if err != nil {
 		return nil, err
 	}
-	return getTiCDCInstances(ctx, etcdCli)
+	return getTiCDCComponents(ctx, etcdCli)
 }
 
 const ticdcTopologyKeyPrefix = "/tidb/cdc/default/__cdc_meta__/capture/"
@@ -243,12 +243,12 @@ type ticdcNodeItem struct {
 	Version string `json:"version"`
 }
 
-func getTiCDCInstances(ctx context.Context, etcdCli *clientv3.Client) ([]Component, error) {
+func getTiCDCComponents(ctx context.Context, etcdCli *clientv3.Client) ([]Component, error) {
 	resp, err := etcdCli.Get(ctx, ticdcTopologyKeyPrefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
-	var components []Component
+	components := make([]Component, 0, 3)
 	for _, kv := range resp.Kvs {
 		key := string(kv.Key)
 		if !strings.HasPrefix(key, ticdcTopologyKeyPrefix) {
