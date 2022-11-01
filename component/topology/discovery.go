@@ -2,12 +2,17 @@ package topology
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/utils"
+	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/pingcap/log"
 	"github.com/pingcap/tidb-dashboard/util/topo"
@@ -20,6 +25,7 @@ const (
 	ComponentTiKV    = "tikv"
 	ComponentTiFlash = "tiflash"
 	ComponentPD      = "pd"
+	ComponentTiCDC   = "ticdc"
 )
 
 var (
@@ -126,6 +132,7 @@ func (d *TopologyDiscoverer) fetchAllScrapeTargets(ctx context.Context) ([]Compo
 		d.getTiDBComponents,
 		d.getPDComponents,
 		d.getStoreComponents,
+		d.getTiCDCComponents,
 	}
 	components := make([]Component, 0, 8)
 	for _, fn := range fns {
@@ -216,6 +223,63 @@ func (d *TopologyDiscoverer) getStoreComponents(ctx context.Context) ([]Componen
 			IP:         instance.IP,
 			Port:       instance.Port,
 			StatusPort: instance.StatusPort,
+		})
+	}
+	return components, nil
+}
+
+func (d *TopologyDiscoverer) getTiCDCComponents(ctx context.Context) ([]Component, error) {
+	etcdCli, err := d.do.GetEtcdClient()
+	if err != nil {
+		return nil, err
+	}
+	comps, err := getTiCDCInstances(ctx, etcdCli)
+	fmt.Println(comps, err)
+	return comps, err
+}
+
+const ticdcTopologyKeyPrefix = "/tidb/cdc/default/__cdc_meta__/capture/"
+
+type ticdcNodeItem struct {
+	ID      string `json:"id"`
+	Address string `json:"address"`
+	Version string `json:"version"`
+}
+
+func getTiCDCInstances(ctx context.Context, etcdCli *clientv3.Client) ([]Component, error) {
+	resp, err := etcdCli.Get(ctx, ticdcTopologyKeyPrefix, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+	var components []Component
+	for _, kv := range resp.Kvs {
+		key := string(kv.Key)
+		if !strings.HasPrefix(key, ticdcTopologyKeyPrefix) {
+			continue
+		}
+		var item ticdcNodeItem
+		if err := json.Unmarshal(kv.Value, &item); err != nil {
+			log.Warn("invalid ticdc node item in etcd", zap.Error(err))
+			continue
+		}
+		arr := strings.Split(item.Address, ":")
+		if len(arr) != 2 {
+			log.Warn("invalid ticdc node address in etcd", zap.String("address", item.Address))
+			continue
+		}
+		ip := arr[0]
+		port, err := strconv.Atoi(arr[1])
+		if err != nil {
+			log.Warn("invalid ticdc node address in etcd",
+				zap.Error(err),
+				zap.String("address", item.Address))
+			continue
+		}
+		components = append(components, Component{
+			Name:       ComponentTiCDC,
+			IP:         ip,
+			Port:       uint(port),
+			StatusPort: uint(port),
 		})
 	}
 	return components, nil

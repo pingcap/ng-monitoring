@@ -115,6 +115,11 @@ func getProfileEstimateSize(component topology.Component) int {
 			100*1024 + // goroutine size
 			400*1024 + // heap size
 			30*1024 // mutex size
+	case topology.ComponentTiCDC:
+		return 100*1024 + // profile size
+			100*1024 + // goroutine size
+			400*1024 + // heap size
+			30*1024 // mutex size
 	case topology.ComponentTiKV:
 		return 200 * 1024 // profile size
 	case topology.ComponentTiFlash:
@@ -128,6 +133,7 @@ type ComponentNum struct {
 	PD      int `json:"pd"`
 	TiKV    int `json:"tikv"`
 	TiFlash int `json:"tiflash"`
+	TiCDC   int `json:"ticdc"`
 }
 
 type GroupProfiles struct {
@@ -227,6 +233,8 @@ func (sc *StatusCounterAndTargets) getComponentNum() ComponentNum {
 			compNum.TiKV = num
 		case topology.ComponentTiFlash:
 			compNum.TiFlash = num
+		case topology.ComponentTiCDC:
+			compNum.TiCDC = num
 		}
 	}
 	return compNum
