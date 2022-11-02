@@ -229,7 +229,7 @@ func (m *Manager) stopScrape(component topology.Component) {
 
 func (m *Manager) getProfilingConfig(component topology.Component) *config.ProfilingConfig {
 	switch component.Name {
-	case topology.ComponentTiDB, topology.ComponentPD:
+	case topology.ComponentTiDB, topology.ComponentPD, topology.ComponentTiCDC:
 		return goAppProfilingConfig(m.config.ContinueProfiling)
 	default:
 		return nonGoAppProfilingConfig(m.config.ContinueProfiling)
