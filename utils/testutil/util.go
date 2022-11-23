@@ -25,10 +25,15 @@ import (
 )
 
 func NewGenjiDB(t *testing.T, storagePath string) *genji.DB {
+	badger.DefaultIteratorOptions.PrefetchValues = false
+
 	opts := badger.DefaultOptions(storagePath).
 		WithZSTDCompressionLevel(3).
 		WithBlockSize(8 * 1024).
-		WithValueThreshold(128 * 1024)
+		WithValueThreshold(128 * 1024).
+		WithValueLogFileSize(64 * 1024 * 1024).
+		WithBlockCacheSize(16 * 1024 * 1024).
+		WithMemTableSize(16 * 1024 * 1024)
 
 	engine, err := badgerengine.NewEngine(opts)
 	require.NoError(t, err)
@@ -38,10 +43,15 @@ func NewGenjiDB(t *testing.T, storagePath string) *genji.DB {
 }
 
 func NewBadgerDB(t *testing.T, storagePath string) *badger.DB {
+	badger.DefaultIteratorOptions.PrefetchValues = false
+
 	opts := badger.DefaultOptions(storagePath).
 		WithZSTDCompressionLevel(3).
 		WithBlockSize(8 * 1024).
-		WithValueThreshold(128 * 1024)
+		WithValueThreshold(128 * 1024).
+		WithValueLogFileSize(64 * 1024 * 1024).
+		WithBlockCacheSize(16 * 1024 * 1024).
+		WithMemTableSize(16 * 1024 * 1024)
 
 	engine, err := badgerengine.NewEngine(opts)
 	require.NoError(t, err)

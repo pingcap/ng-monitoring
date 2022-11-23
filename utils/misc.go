@@ -9,8 +9,9 @@ import (
 
 // GoWithRecovery wraps goroutine startup call with force recovery.
 // it will dump current goroutine stack into log if catch any recover result.
-//   exec:      execute logic function.
-//   recoverFn: handler will be called after recover and before dump stack, passing `nil` means noop.
+//
+//	exec:      execute logic function.
+//	recoverFn: handler will be called after recover and before dump stack, passing `nil` means noop.
 func GoWithRecovery(exec func(), recoverFn func(r interface{})) {
 	defer func() {
 		r := recover()
