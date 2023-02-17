@@ -167,7 +167,8 @@ func (s *MockPDHTTPServer) Setup(t *testing.T) {
 	})
 
 	httpServer := &http.Server{
-		Handler: router,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
 		if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {

@@ -62,7 +62,10 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 		promHandler.ServeHTTP(c.Writer, c.Request)
 	})
 
-	httpServer = &http.Server{Handler: ng}
+	httpServer = &http.Server{
+		Handler:           ng,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Warn("failed to serve http service", zap.Error(err))
 	}
