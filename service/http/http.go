@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"time"
 
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
 	"github.com/pingcap/ng-monitoring/component/topsql"
