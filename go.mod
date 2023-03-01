@@ -9,7 +9,7 @@ require (
 	github.com/genjidb/genji v0.13.0
 	github.com/genjidb/genji/engine/badgerengine v0.13.0
 	github.com/gin-contrib/pprof v1.3.0
-	github.com/gin-gonic/gin v1.7.4
+	github.com/gin-gonic/gin v1.7.7
 	github.com/goccy/go-graphviz v0.0.9
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
