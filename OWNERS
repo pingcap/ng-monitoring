@@ -1,0 +1,27 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+approvers:
+  - breezewish
+  - c4pt0r
+  - crazycs520
+  - iamxy
+  - mornyx
+  - ngaut
+  - qiuyesuifeng
+  - shenli
+  - siddontang
+  - ucjmh
+  - zhangyangyu
+  - zhongzc
+reviewers:
+  - breezewish
+  - c4pt0r
+  - crazycs520
+  - iamxy
+  - mornyx
+  - ngaut
+  - qiuyesuifeng
+  - shenli
+  - siddontang
+  - ucjmh
+  - zhangyangyu
+  - zhongzc
