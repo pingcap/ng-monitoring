@@ -89,7 +89,11 @@ func TestManager(t *testing.T) {
 					break
 				}
 			}
+<<<<<<< HEAD
 			// TODO(crazycs): remove this after support tiflash
+=======
+			// TODO: remove this after support tiflash
+>>>>>>> 0b36375 (conprof: disable profiling tiflash (#184))
 			require.True(t, list.Target.Component != topology.ComponentTiFlash)
 			require.True(t, found, fmt.Sprintf("%#v", list))
 			for _, ts := range list.TsList {
@@ -131,7 +135,11 @@ func TestManager(t *testing.T) {
 
 	// test for GetCurrentScrapeComponents
 	comp := manager.GetCurrentScrapeComponents()
+<<<<<<< HEAD
 	// // TODO(crazycs): update this after support tiflash
+=======
+	// TODO: update this after support tiflash
+>>>>>>> 0b36375 (conprof: disable profiling tiflash (#184))
 	require.Equal(t, len(comp), len(components)-1)
 
 	// test for topology changed.
