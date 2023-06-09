@@ -187,6 +187,10 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 	if !continueProfilingCfg.Enable {
 		return nil
 	}
+	// TODO: remove this after TiFlash fix the profile bug.
+	if component.Name == topology.ComponentTiFlash {
+		return nil
+	}
 	profilingConfig := m.getProfilingConfig(component)
 	httpCfg := m.config.Security.GetHTTPClientConfig()
 	addr := fmt.Sprintf("%v:%v", component.IP, component.Port)
