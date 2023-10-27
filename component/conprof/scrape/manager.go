@@ -352,7 +352,7 @@ func tikvProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingCo
 				Header:  map[string]string{"Content-Type": "application/protobuf"},
 			},
 			"heap": &config.PprofProfilingConfig{
-				Path:    "/debug/pprof/heap",
+				Path: "/debug/pprof/heap",
 			},
 		},
 	}
