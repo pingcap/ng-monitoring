@@ -249,7 +249,7 @@ func testAPIEstimateSize(t *testing.T, httpAddr string, components []topology.Co
 	err = json.Unmarshal(body, &estimateSize)
 	require.NoError(t, err)
 	require.Equal(t, len(components), estimateSize.InstanceCount, string(body))
-	require.Equal(t, 97763328000, estimateSize.ProfileSize)
+	require.Equal(t, 106610688000, estimateSize.ProfileSize)
 }
 
 func testErrorRequest(t *testing.T, httpAddr string) {
