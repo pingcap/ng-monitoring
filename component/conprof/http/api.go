@@ -121,7 +121,8 @@ func getProfileEstimateSize(component topology.Component) int {
 			400*1024 + // heap size
 			30*1024 // mutex size
 	case topology.ComponentTiKV:
-		return 200 * 1024 // profile size
+		return 200 * 1024 + // profile size
+			100*1024 // heap size
 	case topology.ComponentTiFlash:
 		// TODO: remove this after TiFlash fix the profile bug.
 		return 0
@@ -380,9 +381,11 @@ func queryAndDownload(c *gin.Context) error {
 }
 
 const downloadReadme = `
-To review the profile data whose file name suffix is '.proto' interactively:
-
+To review the go profile data whose file name suffix is '.proto' interactively:
 $ go tool pprof --http=127.0.0.1:6060 profile_xxx.proto
+
+To review the jemalloc profile data whose file name suffix is '.prof' interactively:
+$ jeprof --web profile_xxx.prof
 `
 
 var (
