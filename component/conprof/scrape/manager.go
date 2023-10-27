@@ -193,6 +193,9 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 		return nil
 	}
 	profilingConfig := m.getProfilingConfig(component)
+	if profilingConfig == nil {
+		return nil
+	}
 	httpCfg := m.config.Security.GetHTTPClientConfig()
 	addr := fmt.Sprintf("%v:%v", component.IP, component.Port)
 	scrapeAddr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
@@ -239,6 +242,8 @@ func (m *Manager) getProfilingConfig(component topology.Component) *config.Profi
 		return tikvProfilingConfig(m.config.ContinueProfiling)
 	case topology.ComponentTiFlash:
 		return tiflashProfilingConfig(m.config.ContinueProfiling)
+	default:
+		return nil
 	}
 }
 

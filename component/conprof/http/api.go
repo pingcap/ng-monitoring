@@ -121,8 +121,8 @@ func getProfileEstimateSize(component topology.Component) int {
 			400*1024 + // heap size
 			30*1024 // mutex size
 	case topology.ComponentTiKV:
-		return 200*1024 + // profile size
-			100*1024 // heap size
+		return 100*1024 + // profile size
+			200*1024 // heap size
 	case topology.ComponentTiFlash:
 		// TODO: remove this after TiFlash fix the profile bug.
 		return 0
