@@ -349,6 +349,8 @@ func queryAndDownload(c *gin.Context) error {
 		fileName = strings.ReplaceAll(fileName, ":", "_")
 		if pt.Kind == meta.ProfileKindGoroutine {
 			fileName += ".txt"
+		} else if pt.Kind == meta.ProfileKindHeap && pt.Component == topology.ComponentTiKV {
+			fileName += ".prof"
 		} else {
 			fileName += ".proto"
 		}
@@ -464,11 +466,11 @@ func getParamFromRequest(r *http.Request, param *meta.BasicQueryParam, paramName
 		param.Limit = value
 	case dataFormatParamStr:
 		switch v {
-		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf, meta.ProfileDataFormatJeprof:
+		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf, meta.ProfileDataFormatJeprof, meta.ProfileDataFormatText:
 			param.DataFormat = v
 		default:
-			return fmt.Errorf("invalid param %v value %v, expected: %v, %v",
-				dataFormatParamStr, v, meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf)
+			return fmt.Errorf("invalid param %v value %v, expected: %v, %v, %v, %v",
+				dataFormatParamStr, v, meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf, meta.ProfileDataFormatJeprof, meta.ProfileDataFormatText)
 		}
 	default:
 		return fmt.Errorf("unknow param %s", paramName)
