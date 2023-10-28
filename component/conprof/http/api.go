@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/conprof"
+	"github.com/pingcap/ng-monitoring/component/conprof/jeprof"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
@@ -308,7 +309,13 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if param.DataFormat == meta.ProfileDataFormatSVG {
+	if param.Targets[0].Component == topology.ComponentTiKV && param.Targets[0].Kind == meta.ProfileKindHeap {
+		if param.DataFormat == meta.ProfileDataFormatSVG {
+			return jeprof.ConvertToSVG(profileData)
+		} else if param.DataFormat == meta.ProfileDataFormatText {
+			return jeprof.ConvertToText(profileData)
+		}
+	} else if param.DataFormat == meta.ProfileDataFormatSVG {
 		if svg, err := ConvertToSVG(profileData); err == nil {
 			return svg, nil
 		}
@@ -457,7 +464,7 @@ func getParamFromRequest(r *http.Request, param *meta.BasicQueryParam, paramName
 		param.Limit = value
 	case dataFormatParamStr:
 		switch v {
-		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf:
+		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf, meta.ProfileDataFormatJeprof:
 			param.DataFormat = v
 		default:
 			return fmt.Errorf("invalid param %v value %v, expected: %v, %v",
