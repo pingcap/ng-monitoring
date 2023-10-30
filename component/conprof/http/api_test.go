@@ -191,7 +191,11 @@ func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topol
 			buf := make([]byte, len(fields[0]))
 			n, _ := reader.Read(buf)
 			require.Equal(t, len(fields[0]), n)
-			require.Equal(t, fields[0], string(buf))
+			if fields[1] == "tikv" && fields[0] == "heap" {
+				require.Equal(t, "--- ", string(buf))
+			} else {
+				require.Equal(t, fields[0], string(buf))
+			}
 
 			if idx == len(urls)-1 {
 				// test for download single profile
