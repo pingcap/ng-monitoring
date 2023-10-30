@@ -273,7 +273,7 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		{"/single_profile/view?ts=x", `{"message":"invalid param ts value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
 		{"/single_profile/view?ts=0", `{"message":"need param profile_type","status":"error"}`},
 		{"/single_profile/view?ts=0&data_format=svg", `{"message":"need param profile_type","status":"error"}`},
-		{"/single_profile/view?ts=0&data_format=unknown", `{"message":"invalid param data_format value unknown, expected: svg, protobuf","status":"error"}`},
+		{"/single_profile/view?ts=0&data_format=unknown", `{"message":"invalid param data_format value unknown, expected: svg, protobuf, jeprof, text","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap", `{"message":"need param component","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap&component=tidb", `{"message":"need param address","status":"error"}`},
 
