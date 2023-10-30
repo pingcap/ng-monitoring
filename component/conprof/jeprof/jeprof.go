@@ -15,16 +15,29 @@ var jeprof string
 func FetchRaw(url string) ([]byte, error) {
 	cmd := exec.Command("perl", "/dev/stdin", "--raw", url) //nolint:gosec
 	cmd.Stdin = strings.NewReader(jeprof)
-	stderr, _ := cmd.StderrPipe()
-	// use jeprof to fetch tikv heap profile
-	data, err := cmd.Output()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		if stderr != nil {
-			errMsg, _ := io.ReadAll(stderr)
-			return nil, fmt.Errorf("failed to fetch tikv heap profile: %s", errMsg)
-		} else {
-			return nil, fmt.Errorf("failed to fetch tikv heap profile: %s", err)
-		}
+		return nil, err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+	data, err := io.ReadAll(stdout)
+	if err != nil {
+		return nil, err
+	}
+	errMsg, err := io.ReadAll(stderr)
+	if err != nil {
+		return nil, err
+	}
+	err = cmd.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch tikv heap profile: %s", errMsg)
 	}
 	return data, nil
 }
