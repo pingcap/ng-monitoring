@@ -55,15 +55,14 @@ func TestAPI(t *testing.T) {
 	ts.setup(t)
 	defer ts.close(t)
 
+	httpAddr := setupHTTPService(t)
+	mockServer := testutil.CreateMockProfileServer(t)
+	defer mockServer.Stop(t)
+
 	topoSubScribe := make(topology.Subscriber)
 	err := conprof.Init(ts.db, topoSubScribe)
 	require.NoError(t, err)
 	defer conprof.Stop()
-
-	httpAddr := setupHTTPService(t)
-
-	mockServer := testutil.CreateMockProfileServer(t)
-	defer mockServer.Stop(t)
 
 	addr := mockServer.Addr
 	port := mockServer.Port
@@ -191,7 +190,11 @@ func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topol
 			buf := make([]byte, len(fields[0]))
 			n, _ := reader.Read(buf)
 			require.Equal(t, len(fields[0]), n)
-			require.Equal(t, fields[0], string(buf))
+			if fields[1] == "tikv" && fields[0] == "heap" {
+				require.Equal(t, "--- ", string(buf))
+			} else {
+				require.Equal(t, fields[0], string(buf))
+			}
 
 			if idx == len(urls)-1 {
 				// test for download single profile
@@ -249,7 +252,7 @@ func testAPIEstimateSize(t *testing.T, httpAddr string, components []topology.Co
 	err = json.Unmarshal(body, &estimateSize)
 	require.NoError(t, err)
 	require.Equal(t, len(components), estimateSize.InstanceCount, string(body))
-	require.Equal(t, 88915968000, estimateSize.ProfileSize)
+	require.Equal(t, 106610688000, estimateSize.ProfileSize)
 }
 
 func testErrorRequest(t *testing.T, httpAddr string) {
@@ -273,7 +276,7 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		{"/single_profile/view?ts=x", `{"message":"invalid param ts value, error: strconv.ParseInt: parsing \"x\": invalid syntax","status":"error"}`},
 		{"/single_profile/view?ts=0", `{"message":"need param profile_type","status":"error"}`},
 		{"/single_profile/view?ts=0&data_format=svg", `{"message":"need param profile_type","status":"error"}`},
-		{"/single_profile/view?ts=0&data_format=unknown", `{"message":"invalid param data_format value unknown, expected: svg, protobuf","status":"error"}`},
+		{"/single_profile/view?ts=0&data_format=unknown", `{"message":"invalid param data_format value unknown, expected: svg, protobuf, jeprof, text","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap", `{"message":"need param component","status":"error"}`},
 		{"/single_profile/view?ts=0&profile_type=heap&component=tidb", `{"message":"need param address","status":"error"}`},
 

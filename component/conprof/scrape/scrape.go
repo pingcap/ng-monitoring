@@ -11,8 +11,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/component/conprof/jeprof"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
+	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
 
 	"github.com/pingcap/log"
@@ -134,6 +136,16 @@ func (s *Scraper) scrape(ctx context.Context, w io.Writer) error {
 	cfg := config.GetGlobalConfig()
 	if !cfg.ContinueProfiling.Enable {
 		return nil
+	}
+
+	if s.target.Component == topology.ComponentTiKV && s.target.Kind == meta.ProfileKindHeap {
+		// use jeprof to fetch tikv heap profile
+		data, err := jeprof.FetchRaw(s.target.GetURLString())
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(data)
+		return err
 	}
 
 	if s.req == nil {

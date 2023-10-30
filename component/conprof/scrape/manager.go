@@ -193,6 +193,9 @@ func (m *Manager) startScrape(ctx context.Context, component topology.Component,
 		return nil
 	}
 	profilingConfig := m.getProfilingConfig(component)
+	if profilingConfig == nil {
+		return nil
+	}
 	httpCfg := m.config.Security.GetHTTPClientConfig()
 	addr := fmt.Sprintf("%v:%v", component.IP, component.Port)
 	scrapeAddr := fmt.Sprintf("%v:%v", component.IP, component.StatusPort)
@@ -235,8 +238,12 @@ func (m *Manager) getProfilingConfig(component topology.Component) *config.Profi
 	switch component.Name {
 	case topology.ComponentTiDB, topology.ComponentPD, topology.ComponentTiCDC:
 		return goAppProfilingConfig(m.config.ContinueProfiling)
+	case topology.ComponentTiKV:
+		return tikvProfilingConfig(m.config.ContinueProfiling)
+	case topology.ComponentTiFlash:
+		return tiflashProfilingConfig(m.config.ContinueProfiling)
 	default:
-		return nonGoAppProfilingConfig(m.config.ContinueProfiling)
+		return nil
 	}
 }
 
@@ -341,7 +348,22 @@ func goAppProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingC
 	}
 }
 
-func nonGoAppProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingConfig {
+func tikvProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingConfig {
+	return &config.ProfilingConfig{
+		PprofConfig: config.PprofConfig{
+			"profile": &config.PprofProfilingConfig{
+				Path:    "/debug/pprof/profile",
+				Seconds: cfg.ProfileSeconds,
+				Header:  map[string]string{"Content-Type": "application/protobuf"},
+			},
+			"heap": &config.PprofProfilingConfig{
+				Path: "/debug/pprof/heap",
+			},
+		},
+	}
+}
+
+func tiflashProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingConfig {
 	return &config.ProfilingConfig{
 		PprofConfig: config.PprofConfig{
 			"profile": &config.PprofProfilingConfig{
