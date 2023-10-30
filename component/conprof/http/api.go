@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/conprof"
+	"github.com/pingcap/ng-monitoring/component/conprof/jeprof"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
@@ -121,7 +122,8 @@ func getProfileEstimateSize(component topology.Component) int {
 			400*1024 + // heap size
 			30*1024 // mutex size
 	case topology.ComponentTiKV:
-		return 200 * 1024 // profile size
+		return 200*1024 + // profile size
+			200*1024 // heap size
 	case topology.ComponentTiFlash:
 		// TODO: remove this after TiFlash fix the profile bug.
 		return 0
@@ -307,7 +309,13 @@ func querySingleProfileView(c *gin.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if param.DataFormat == meta.ProfileDataFormatSVG {
+	if param.Targets[0].Component == topology.ComponentTiKV && param.Targets[0].Kind == meta.ProfileKindHeap {
+		if param.DataFormat == meta.ProfileDataFormatSVG {
+			return jeprof.ConvertToSVG(profileData)
+		} else if param.DataFormat == meta.ProfileDataFormatText {
+			return jeprof.ConvertToText(profileData)
+		}
+	} else if param.DataFormat == meta.ProfileDataFormatSVG {
 		if svg, err := ConvertToSVG(profileData); err == nil {
 			return svg, nil
 		}
@@ -341,6 +349,8 @@ func queryAndDownload(c *gin.Context) error {
 		fileName = strings.ReplaceAll(fileName, ":", "_")
 		if pt.Kind == meta.ProfileKindGoroutine {
 			fileName += ".txt"
+		} else if pt.Kind == meta.ProfileKindHeap && pt.Component == topology.ComponentTiKV {
+			fileName += ".prof"
 		} else {
 			fileName += ".proto"
 		}
@@ -380,9 +390,11 @@ func queryAndDownload(c *gin.Context) error {
 }
 
 const downloadReadme = `
-To review the profile data whose file name suffix is '.proto' interactively:
-
+To review the go profile data whose file name suffix is '.proto' interactively:
 $ go tool pprof --http=127.0.0.1:6060 profile_xxx.proto
+
+To review the jemalloc profile data whose file name suffix is '.prof' interactively:
+$ jeprof --web profile_xxx.prof
 `
 
 var (
@@ -454,11 +466,11 @@ func getParamFromRequest(r *http.Request, param *meta.BasicQueryParam, paramName
 		param.Limit = value
 	case dataFormatParamStr:
 		switch v {
-		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf:
+		case meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf, meta.ProfileDataFormatJeprof, meta.ProfileDataFormatText:
 			param.DataFormat = v
 		default:
-			return fmt.Errorf("invalid param %v value %v, expected: %v, %v",
-				dataFormatParamStr, v, meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf)
+			return fmt.Errorf("invalid param %v value %v, expected: %v, %v, %v, %v",
+				dataFormatParamStr, v, meta.ProfileDataFormatSVG, meta.ProfileDataFormatProtobuf, meta.ProfileDataFormatJeprof, meta.ProfileDataFormatText)
 		}
 	default:
 		return fmt.Errorf("unknow param %s", paramName)
