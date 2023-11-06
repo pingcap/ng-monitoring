@@ -1,12 +1,15 @@
 package jeprof
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+
+	graphviz "github.com/goccy/go-graphviz"
 )
 
 //go:embed jeprof.in
@@ -53,13 +56,32 @@ func ConvertToSVG(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("perl", "/dev/stdin", "--svg", f.Name()) //nolint:gosec
+	cmd := exec.Command("perl", "/dev/stdin", "--dot", f.Name()) //nolint:gosec
 	cmd.Stdin = strings.NewReader(jeprof)
-	svgContent, err := cmd.Output()
+	dotContent, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	svgContent, err := convertDotToSVG(dotContent)
 	if err != nil {
 		return nil, err
 	}
 	return svgContent, nil
+}
+
+func convertDotToSVG(dotData []byte) ([]byte, error) {
+	g := graphviz.New()
+	graph, err := graphviz.ParseBytes(dotData)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bytes.NewBuffer(nil)
+	err = g.Render(graph, graphviz.SVG, buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func ConvertToText(data []byte) ([]byte, error) {
