@@ -5,19 +5,33 @@ PACKAGES_TESTS ?= $$($(PACKAGE_LIST_TESTS))
 PACKAGE_DIRECTORIES := $(PACKAGE_LIST) | sed 's|github.com/pingcap/ng-monitoring/||'
 FILES     := $$(find $$($(PACKAGE_DIRECTORIES)) -name "*.go")
 FAIL_ON_STDOUT := awk '{ print } END { if (NR > 0) { exit 1 } }'
+BUILD_TS := $(shell date -u '+%Y-%m-%d %H:%M:%S')
+GIT_HASH := $(shell git rev-parse HEAD)
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-LDFLAGS += -X "github.com/pingcap/ng-monitoring/utils/printer.NGMBuildTS=$(shell date -u '+%Y-%m-%d %H:%M:%S')"
-LDFLAGS += -X "github.com/pingcap/ng-monitoring/utils/printer.NGMGitHash=$(shell git rev-parse HEAD)"
-LDFLAGS += -X "github.com/pingcap/ng-monitoring/utils/printer.NGMGitBranch=$(shell git rev-parse --abbrev-ref HEAD)"
+BUILD_GOEXPERIMENT ?=
+BUILD_CGO_ENABLED ?=
+BUILD_TAGS ?=
+ifeq ("${ENABLE_FIPS}", "1")
+	GIT_HASH := $(GIT_HASH) (with fips)
+	GIT_BRANCH := $(GIT_BRANCH) (with fips)
+	BUILD_TAGS += boringcrypto
+	BUILD_GOEXPERIMENT = GOEXPERIMENT=boringcrypto
+	BUILD_CGO_ENABLED = CGO_ENABLED=1
+endif
 
-GO              := GO111MODULE=on go
+LDFLAGS += -X "github.com/pingcap/ng-monitoring/utils/printer.NGMBuildTS=$(BUILD_TS)"
+LDFLAGS += -X "github.com/pingcap/ng-monitoring/utils/printer.NGMGitHash=$(GIT_HASH)"
+LDFLAGS += -X "github.com/pingcap/ng-monitoring/utils/printer.NGMGitBranch=$(GIT_BRANCH)"
+
+GO              := $(BUILD_GOEXPERIMENT) $(BUILD_CGO_ENABLED) GO111MODULE=on go
 GOBUILD         := $(GO) build
 GOTEST          := $(GO) test -p 8
 
 
 
 default:
-	$(GOBUILD) -ldflags '$(LDFLAGS)' -o bin/ng-monitoring-server ./main.go
+	$(GOBUILD) -ldflags '$(LDFLAGS)' -tags '${BUILD_TAGS}' -o bin/ng-monitoring-server ./main.go
 	@echo Build successfully!
 
 fmt:
