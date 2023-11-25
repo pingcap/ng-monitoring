@@ -327,8 +327,9 @@ func goAppProfilingConfig(cfg config.ContinueProfilingConfig) *config.ProfilingC
 				Path: "/debug/pprof/heap",
 			},
 			"goroutine": &config.PprofProfilingConfig{
-				Path:   "/debug/pprof/goroutine",
-				Params: map[string]string{"debug": "2"},
+				Path: "/debug/pprof/goroutine",
+				// debug=2 causes STW when collecting the stacks. See https://github.com/pingcap/tidb/issues/48695.
+				Params: map[string]string{"debug": "1"},
 			},
 			"mutex": &config.PprofProfilingConfig{
 				Path: "/debug/pprof/mutex",
