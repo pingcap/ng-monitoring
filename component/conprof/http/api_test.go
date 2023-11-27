@@ -59,6 +59,9 @@ func TestAPI(t *testing.T) {
 	mockServer := testutil.CreateMockProfileServer(t)
 	defer mockServer.Stop(t)
 
+	// wait for http server ready
+	time.Sleep(time.Second)
+
 	topoSubScribe := make(topology.Subscriber)
 	err := conprof.Init(ts.db, topoSubScribe)
 	require.NoError(t, err)
