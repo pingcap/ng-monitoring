@@ -2,6 +2,7 @@ package timeseries
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path"
 	"time"
@@ -14,14 +15,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/pingcap/log"
-	"github.com/spf13/pflag"
 	"go.uber.org/zap"
-)
-
-var (
-	retentionPeriod = pflag.String("retention-period", "1", "Data with timestamps outside the retentionPeriod is automatically deleted\nThe following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months")
 )
 
 func Init(cfg *config.Config) {
@@ -30,14 +25,14 @@ func Init(cfg *config.Config) {
 	}
 	initDataDir(path.Join(cfg.Storage.Path, "tsdb"))
 
-	_ = flag.Set("retentionPeriod", *retentionPeriod)
+	_ = flag.Set("retentionPeriod", cfg.TSDB.RetentionPeriod)
 	_ = flag.Set("search.maxStepForPointsAdjustment", "1s")
+	_ = flag.Set("search.maxUniqueTimeseries", fmt.Sprintf("%d", cfg.TSDB.SearchMaxUniqueTimeseries))
 
 	// Some components in VictoriaMetrics want parsed arguments, i.e. assert `flag.Parsed()`. Make them happy.
 	_ = flag.CommandLine.Parse(nil)
 
 	startTime := time.Now()
-	storage.SetMinScrapeIntervalForDeduplication(0)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
