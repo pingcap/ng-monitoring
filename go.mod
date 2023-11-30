@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/BurntSushi/toml v1.2.1
-	github.com/VictoriaMetrics/VictoriaMetrics v1.65.0
+	github.com/VictoriaMetrics/VictoriaMetrics v1.76.1
 	github.com/dgraph-io/badger/v3 v3.2103.1
 	github.com/genjidb/genji v0.13.0
 	github.com/genjidb/genji/engine/badgerengine v0.13.0
@@ -24,8 +24,13 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/common v0.39.0
 	github.com/spf13/pflag v1.0.5
+<<<<<<< HEAD
 	github.com/stretchr/testify v1.8.1
 	github.com/valyala/gozstd v1.14.2
+=======
+	github.com/stretchr/testify v1.8.3
+	github.com/valyala/gozstd v1.16.0
+>>>>>>> f223e14 (tsdb: update vm to v1.76.1; expose more params (#213))
 	github.com/wangjohn/quickselect v0.0.0-20161129230411-ed8402a42d5f
 	go.etcd.io/etcd/api/v3 v3.5.7
 	go.etcd.io/etcd/client/pkg/v3 v3.5.7
@@ -42,10 +47,10 @@ require (
 	cloud.google.com/go/compute v1.13.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	github.com/ReneKroon/ttlcache/v2 v2.3.0 // indirect
-	github.com/VictoriaMetrics/fastcache v1.6.0 // indirect
-	github.com/VictoriaMetrics/fasthttp v1.0.16 // indirect
-	github.com/VictoriaMetrics/metrics v1.17.3 // indirect
-	github.com/VictoriaMetrics/metricsql v0.21.0 // indirect
+	github.com/VictoriaMetrics/fastcache v1.10.0 // indirect
+	github.com/VictoriaMetrics/fasthttp v1.1.0 // indirect
+	github.com/VictoriaMetrics/metrics v1.18.1 // indirect
+	github.com/VictoriaMetrics/metricsql v0.41.0 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
@@ -130,10 +135,10 @@ require (
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fastjson v1.6.3 // indirect
-	github.com/valyala/fastrand v1.0.0 // indirect
+	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
-	github.com/valyala/histogram v1.1.2 // indirect
-	github.com/valyala/quicktemplate v1.6.3 // indirect
+	github.com/valyala/histogram v1.2.0 // indirect
+	github.com/valyala/quicktemplate v1.7.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 // indirect

@@ -32,6 +32,7 @@ const (
 	nmStoragePath      = "storage.path"
 	nmConfig           = "config"
 	nmAdvertiseAddress = "advertise-address"
+	nmRetentionPeriod  = "retention-period"
 )
 
 var (
@@ -42,6 +43,7 @@ var (
 	storagePath      = pflag.String(nmStoragePath, "", "Storage path of ng monitoring server")
 	configPath       = pflag.String(nmConfig, "", "config file path")
 	advertiseAddress = pflag.String(nmAdvertiseAddress, "", "ngm server advertise IP:PORT")
+	retentionPeriod  = pflag.String(nmRetentionPeriod, "", "Data with timestamps outside the retentionPeriod is automatically deleted\nThe following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months")
 )
 
 func main() {
@@ -121,6 +123,8 @@ func overrideConfig(config *config.Config) {
 			config.Storage.Path = *storagePath
 		case nmAdvertiseAddress:
 			config.AdvertiseAddress = *advertiseAddress
+		case nmRetentionPeriod:
+			config.TSDB.RetentionPeriod = *retentionPeriod
 		}
 	})
 }
