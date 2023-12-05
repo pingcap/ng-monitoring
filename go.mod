@@ -24,13 +24,8 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/common v0.39.0
 	github.com/spf13/pflag v1.0.5
-<<<<<<< HEAD
-	github.com/stretchr/testify v1.8.1
-	github.com/valyala/gozstd v1.14.2
-=======
 	github.com/stretchr/testify v1.8.3
 	github.com/valyala/gozstd v1.16.0
->>>>>>> f223e14 (tsdb: update vm to v1.76.1; expose more params (#213))
 	github.com/wangjohn/quickselect v0.0.0-20161129230411-ed8402a42d5f
 	go.etcd.io/etcd/api/v3 v3.5.7
 	go.etcd.io/etcd/client/pkg/v3 v3.5.7
