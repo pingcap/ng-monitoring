@@ -55,6 +55,9 @@ func TestAPI(t *testing.T) {
 	ts.setup(t)
 	defer ts.close(t)
 
+	// wait for http server ready
+	time.Sleep(time.Second)
+
 	topoSubScribe := make(topology.Subscriber)
 	err := conprof.Init(ts.db, topoSubScribe)
 	require.NoError(t, err)
