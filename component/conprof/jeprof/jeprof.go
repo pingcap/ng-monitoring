@@ -10,14 +10,23 @@ import (
 	"strings"
 
 	graphviz "github.com/goccy/go-graphviz"
+	"github.com/prometheus/common/config"
 )
 
 //go:embed jeprof.in
 var jeprof string
 
-func FetchRaw(url string) ([]byte, error) {
+func FetchRaw(url string, cfg config.HTTPClientConfig) ([]byte, error) {
 	cmd := exec.Command("perl", "/dev/stdin", "--raw", url) //nolint:gosec
 	cmd.Stdin = strings.NewReader(jeprof)
+	if len(cfg.TLSConfig.CertFile) != 0 && len(cfg.TLSConfig.KeyFile) != 0 {
+		cmd.Env = append(os.Environ(), fmt.Sprintf(
+			"URL_FETCHER=curl -s --cert %s --key %s --cacert %s",
+			cfg.TLSConfig.CertFile,
+			cfg.TLSConfig.KeyFile,
+			cfg.TLSConfig.CAFile,
+		))
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
