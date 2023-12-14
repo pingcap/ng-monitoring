@@ -140,7 +140,7 @@ func (s *Scraper) scrape(ctx context.Context, w io.Writer) error {
 
 	if s.target.Component == topology.ComponentTiKV && s.target.Kind == meta.ProfileKindHeap {
 		// use jeprof to fetch tikv heap profile
-		data, err := jeprof.FetchRaw(s.target.GetURLString())
+		data, err := jeprof.FetchRaw(s.target.GetURLString(), cfg.Security.GetHTTPClientConfig())
 		if err != nil {
 			return err
 		}
