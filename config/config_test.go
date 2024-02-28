@@ -85,7 +85,7 @@ key-path = "ngm.key"`
 <<<<<<< HEAD
 	data, err := json.Marshal(cfg)
 	require.NoError(t, err)
-	// TODO(mornyx): Rollback when tiflash#5687 is fixed.
+	// TODO(mornyx): Rollback when tiflash#5285 is fixed.
 	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"},"tsdb":{"retention_period":"1","search_max_unique_timeseries":300000}}`, string(data))
 =======
 	require.Equal(t, "0.0.0.0:12020", cfg.Address)
@@ -127,7 +127,7 @@ path = "data1"`
 <<<<<<< HEAD
 	data, err = json.Marshal(globalCfg)
 	require.NoError(t, err)
-	// TODO(mornyx): Rollback when tiflash#5687 is fixed.
+	// TODO(mornyx): Rollback when tiflash#5285 is fixed.
 	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2378","10.0.1.9:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"},"tsdb":{"retention_period":"1","search_max_unique_timeseries":300000}}`, string(data))
 =======
 	require.Equal(t, "0.0.0.0:12020", globalCfg.Address)
@@ -152,7 +152,7 @@ path = "data1"`
 <<<<<<< HEAD
 	data, err = json.Marshal(GetGlobalConfig())
 	require.NoError(t, err)
-	// TODO(mornyx): Rollback when tiflash#5687 is fixed.
+	// TODO(mornyx): Rollback when tiflash#5285 is fixed.
 	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2378","10.0.1.9:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"},"tsdb":{"retention_period":"1","search_max_unique_timeseries":300000}}`, string(data))
 =======
 	require.Equal(t, "0.0.0.0:12020", globalCfg.Address)
