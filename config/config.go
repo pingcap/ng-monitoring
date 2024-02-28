@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 )
 
+<<<<<<< HEAD
 const (
 	DefProfilingEnable               = false // TODO(mornyx): Enable when tiflash#5687 is fixed.
 	DefProfilingIntervalSeconds      = 60
@@ -33,6 +34,8 @@ const (
 	DefTSDBSearchMaxUniqueTimeseries = 300000
 )
 
+=======
+>>>>>>> f6f8b1f (docdb: expose almost all options to user (#231))
 type Config struct {
 	Address           string                  `toml:"address" json:"address"`
 	AdvertiseAddress  string                  `toml:"advertise-address" json:"advertise_address"`
@@ -42,6 +45,7 @@ type Config struct {
 	ContinueProfiling ContinueProfilingConfig `toml:"-" json:"continuous_profiling"`
 	Security          Security                `toml:"security" json:"security"`
 	TSDB              TSDB                    `toml:"tsdb" json:"tsdb"`
+	DocDB             DocDB                   `toml:"docdb" json:"docdb"`
 }
 
 var defaultConfig = Config{
@@ -57,15 +61,39 @@ var defaultConfig = Config{
 		Path: "data",
 	},
 	ContinueProfiling: ContinueProfilingConfig{
-		Enable:               DefProfilingEnable,
-		ProfileSeconds:       DefProfileSeconds,
-		IntervalSeconds:      DefProfilingIntervalSeconds,
-		TimeoutSeconds:       DefProfilingTimeoutSeconds,
-		DataRetentionSeconds: DefProfilingDataRetentionSeconds,
+		Enable:               false, // TODO(mornyx): Enable when tiflash#5285 is fixed.
+		ProfileSeconds:       10,
+		IntervalSeconds:      60,
+		TimeoutSeconds:       120,
+		DataRetentionSeconds: 3 * 24 * 60 * 60, // 3 days
 	},
 	TSDB: TSDB{
-		RetentionPeriod:           DefTSDBRetentionPeriod,
-		SearchMaxUniqueTimeseries: DefTSDBSearchMaxUniqueTimeseries,
+		RetentionPeriod:           "1", // 1 month
+		SearchMaxUniqueTimeseries: 300000,
+	},
+	DocDB: DocDB{
+		LSMOnly:                 false,
+		SyncWrites:              false,
+		NumVersionsToKeep:       1,
+		NumGoroutines:           8,
+		MemTableSize:            64 << 20,
+		BaseTableSize:           2 << 20,
+		BaseLevelSize:           10 << 20,
+		LevelSizeMultiplier:     10,
+		MaxLevels:               7,
+		VLogPercentile:          0.0,
+		ValueThreshold:          1 << 20,
+		NumMemtables:            5,
+		BlockSize:               4 * 1024,
+		BloomFalsePositive:      0.01,
+		BlockCacheSize:          256 << 20,
+		IndexCacheSize:          0,
+		NumLevelZeroTables:      5,
+		NumLevelZeroTablesStall: 15,
+		ValueLogFileSize:        1<<30 - 1,
+		ValueLogMaxEntries:      1000000,
+		NumCompactors:           4,
+		ZSTDCompressionLevel:    1,
 	},
 }
 
@@ -398,6 +426,31 @@ func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
 type TSDB struct {
 	RetentionPeriod           string `toml:"retention-period" json:"retention_period"`
 	SearchMaxUniqueTimeseries int64  `toml:"search-max-unique-timeseries" json:"search_max_unique_timeseries"`
+}
+
+type DocDB struct {
+	LSMOnly                 bool    `toml:"lsm-only" json:"lsm_only"`
+	SyncWrites              bool    `toml:"sync-writes" json:"sync_writes"`
+	NumVersionsToKeep       int     `toml:"num-versions-to-keep" json:"num_versions_to_keep"`
+	NumGoroutines           int     `toml:"num-goroutines" json:"num_goroutines"`
+	MemTableSize            int64   `toml:"mem-table-size" json:"mem_table_size"`
+	BaseTableSize           int64   `toml:"base-table-size" json:"base_table_size"`
+	BaseLevelSize           int64   `toml:"base-level-size" json:"base_level_size"`
+	LevelSizeMultiplier     int     `toml:"level-size-multiplier" json:"level_size_multiplier"`
+	MaxLevels               int     `toml:"max-levels" json:"max_levels"`
+	VLogPercentile          float64 `toml:"vlog-percentile" json:"vlog_percentile"`
+	ValueThreshold          int64   `toml:"value-threshold" json:"value_threshold"`
+	NumMemtables            int     `toml:"num-memtables" json:"num_memtables"`
+	BlockSize               int     `toml:"block-size" json:"block_size"`
+	BloomFalsePositive      float64 `toml:"bloom-false-positive" json:"bloom_false_positive"`
+	BlockCacheSize          int64   `toml:"block-cache-size" json:"block_cache_size"`
+	IndexCacheSize          int64   `toml:"index-cache-size" json:"index_cache_size"`
+	NumLevelZeroTables      int     `toml:"num-level-zero-tables" json:"num_level_zero_tables"`
+	NumLevelZeroTablesStall int     `toml:"num-level-zero-tables-stall" json:"num_level_zero_tables_stall"`
+	ValueLogFileSize        int64   `toml:"value-log-file-size" json:"value_log_file_size"`
+	ValueLogMaxEntries      uint32  `toml:"value-log-max-entries" json:"value_log_max_entries"`
+	NumCompactors           int     `toml:"num-compactors" json:"num_compactors"`
+	ZSTDCompressionLevel    int     `toml:"zstd-compression-level" json:"zstd_compression_level"`
 }
 
 type ContinueProfilingConfig struct {
