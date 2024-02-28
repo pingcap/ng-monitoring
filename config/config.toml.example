@@ -35,3 +35,6 @@ retention-period = "1"
 # and spends some CPU time for processing the found time series. This means that the maximum memory usage
 # and CPU usage a single query can use is proportional to `search-max-unique-timeseries`.
 search-max-unique-timeseries = 300000
+
+[docdb]
+lsm-only = false
