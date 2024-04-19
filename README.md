@@ -64,3 +64,5 @@ $ pkill -SIGHUP ng-monitoring-server
 ```
 
 <!-- VERSION_PLACEHOLDER: v8.1.0-alpha -->
+
+<!-- VERSION_PLACEHOLDER: v8.2.0-alpha -->
