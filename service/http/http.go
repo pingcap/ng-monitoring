@@ -7,6 +7,9 @@ import (
 	"path"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
@@ -63,13 +66,31 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 		promHandler.ServeHTTP(c.Writer, c.Request)
 	})
 
+	wh := &wrapHeander{ngHanlder: ng}
 	httpServer = &http.Server{
-		Handler:           ng,
+		Handler:           wh,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Warn("failed to serve http service", zap.Error(err))
 	}
+}
+
+type wrapHeander struct {
+	ngHanlder http.Handler
+}
+
+func (wrap *wrapHeander) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if vminsert.RequestHandler(w, r) {
+		return
+	}
+	if vmselect.RequestHandler(w, r) {
+		return
+	}
+	if vmstorage.RequestHandler(w, r) {
+		return
+	}
+	wrap.ngHanlder.ServeHTTP(w, r)
 }
 
 type Status struct {
