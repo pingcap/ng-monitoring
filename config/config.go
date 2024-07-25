@@ -29,6 +29,8 @@ const (
 	DefProfileSeconds                = 10
 	DefProfilingTimeoutSeconds       = 120
 	DefProfilingDataRetentionSeconds = 3 * 24 * 60 * 60 // 3 days
+	DefTSDBRetentionPeriod           = "1"              // 1 month
+	DefTSDBSearchMaxUniqueTimeseries = 300000
 )
 
 type Config struct {
@@ -39,6 +41,7 @@ type Config struct {
 	Storage           Storage                 `toml:"storage" json:"storage"`
 	ContinueProfiling ContinueProfilingConfig `toml:"-" json:"continuous_profiling"`
 	Security          Security                `toml:"security" json:"security"`
+	TSDB              TSDB                    `toml:"tsdb" json:"tsdb"`
 }
 
 var defaultConfig = Config{
@@ -59,6 +62,10 @@ var defaultConfig = Config{
 		IntervalSeconds:      DefProfilingIntervalSeconds,
 		TimeoutSeconds:       DefProfilingTimeoutSeconds,
 		DataRetentionSeconds: DefProfilingDataRetentionSeconds,
+	},
+	TSDB: TSDB{
+		RetentionPeriod:           DefTSDBRetentionPeriod,
+		SearchMaxUniqueTimeseries: DefTSDBSearchMaxUniqueTimeseries,
 	},
 }
 
@@ -386,6 +393,11 @@ func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
 		log.Fatal("Failed to load certificates", zap.Error(err))
 	}
 	return tlsConfig
+}
+
+type TSDB struct {
+	RetentionPeriod           string `toml:"retention-period" json:"retention_period"`
+	SearchMaxUniqueTimeseries int64  `toml:"search-max-unique-timeseries" json:"search_max_unique_timeseries"`
 }
 
 type ContinueProfilingConfig struct {
