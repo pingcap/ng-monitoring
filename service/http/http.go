@@ -65,10 +65,12 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	promGroup.Any("", func(c *gin.Context) {
 		promHandler.ServeHTTP(c.Writer, c.Request)
 	})
-
-	wh := &wrapHeander{ngHanlder: ng}
+	// compatible with victoria-metrics handlers
+	ng.NoRoute(func(c *gin.Context) {
+		handlerNoRouter(c)
+	})
 	httpServer = &http.Server{
-		Handler:           wh,
+		Handler:           ng,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
@@ -76,21 +78,23 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 	}
 }
 
-type wrapHeander struct {
-	ngHanlder http.Handler
-}
+// Try Victoria-Metrics' handlers first. If not handled, then return a 404 error.
+func handlerNoRouter(c *gin.Context) {
+	//reset to default
+	c.Writer.WriteHeader(http.StatusOK)
+	if vminsert.RequestHandler(c.Writer, c.Request) {
+		return
+	}
 
-func (wrap *wrapHeander) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if vminsert.RequestHandler(w, r) {
+	if vmselect.RequestHandler(c.Writer, c.Request) {
 		return
 	}
-	if vmselect.RequestHandler(w, r) {
+
+	if vmstorage.RequestHandler(c.Writer, c.Request) {
 		return
 	}
-	if vmstorage.RequestHandler(w, r) {
-		return
-	}
-	wrap.ngHanlder.ServeHTTP(w, r)
+
+	c.String(http.StatusNotFound, "404 page not found")
 }
 
 type Status struct {
