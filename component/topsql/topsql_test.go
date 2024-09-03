@@ -627,7 +627,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 					RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: &rsmetering.GroupTagRecord{
 						ResourceGroupTag: tagBytes,
 						Items:            items},
-					}}))
+					}}, nil))
 				s.NoError(s.ds.TopSQLRecord(instance, instanceType, &tipb.TopSQLRecord{
 					SqlDigest:  []byte(sqlDigest),
 					PlanDigest: []byte(planDigest),

@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"sync"
 
+	"github.com/pingcap/ng-monitoring/component/subscriber/model"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/codec/resource_group_tag"
 	"github.com/pingcap/ng-monitoring/utils"
@@ -71,8 +74,9 @@ func (ds *DefaultStore) TopSQLRecord(instance, instanceType string, record *tipb
 func (ds *DefaultStore) ResourceMeteringRecord(
 	instance, instanceType string,
 	record *rsmetering.ResourceUsageRecord,
+	schemaInfo *sync.Map,
 ) error {
-	ms, err := rsMeteringProtoToMetrics(instance, instanceType, record)
+	ms, err := rsMeteringProtoToMetrics(instance, instanceType, record, schemaInfo)
 	if err != nil {
 		return err
 	}
@@ -210,6 +214,7 @@ func topSQLProtoToMetrics(
 func rsMeteringProtoToMetrics(
 	instance, instanceType string,
 	record *rsmetering.ResourceUsageRecord,
+	schemaInfo *sync.Map,
 ) (ms []Metric, err error) {
 	var tag tipb.ResourceGroupTag
 	tag, err = resource_group_tag.Decode(record.GetRecord().ResourceGroupTag)
@@ -219,7 +224,18 @@ func rsMeteringProtoToMetrics(
 
 	sqlDigest := hex.EncodeToString(tag.SqlDigest)
 	planDigest := hex.EncodeToString(tag.PlanDigest)
-
+	tableId := tag.TableId
+	schemaName := "unknown"
+	tableName := strconv.FormatInt(tableId, 10)
+	if schemaInfo != nil {
+		v, ok := schemaInfo.Load(tableId)
+		if ok {
+			if val, ok := v.(*model.TableDetail); ok {
+				schemaName = val.DB
+				tableName = tableName + "-" + val.Name
+			}
+		}
+	}
 	mCpu := Metric{
 		Metric: recordTags{
 			Name:         MetricNameCPUTime,
@@ -227,6 +243,8 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
 		},
 	}
 	mReadRow := Metric{
@@ -236,6 +254,8 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
 		},
 	}
 	mReadIndex := Metric{
@@ -245,6 +265,8 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
 		},
 	}
 	mWriteRow := Metric{
@@ -254,6 +276,8 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
 		},
 	}
 	mWriteIndex := Metric{
@@ -263,6 +287,8 @@ func rsMeteringProtoToMetrics(
 			InstanceType: instanceType,
 			SQLDigest:    sqlDigest,
 			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
 		},
 	}
 

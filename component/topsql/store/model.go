@@ -30,6 +30,8 @@ type recordTags struct {
 	InstanceType string `json:"instance_type"`
 	SQLDigest    string `json:"sql_digest"`
 	PlanDigest   string `json:"plan_digest"`
+	DB           string `json:"db"`
+	Table        string `json:"table"`
 }
 
 type instanceTags struct {
