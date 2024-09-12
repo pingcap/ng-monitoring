@@ -42,10 +42,7 @@ func (m *MockSubscribeController) EXPECT() *MockSubscribeControllerMockRecorder 
 }
 
 func (m *MockSubscribeController) NewHTTPClient() *http.Client {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewHTTPClient")
-	ret0, _ := ret[0].(*http.Client)
-	return ret0
+	return nil
 }
 
 // IsEnabled mocks base method.

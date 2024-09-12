@@ -301,7 +301,6 @@ func rsMeteringProtoToMetrics(
 		appendMetricRowIndex(tsMillis, item.ReadKeys, &mReadRow, &mReadIndex, tag.Label)
 		appendMetricRowIndex(tsMillis, item.WriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
 	}
-
 	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex)
 	return
 }
@@ -334,7 +333,6 @@ func (ds *DefaultStore) writeTimeseriesDB(metrics []Metric) error {
 	defer bytesP.Put(bufReq)
 	defer bytesP.Put(bufResp)
 	defer headerP.Put(header)
-
 	if err := encodeMetric(bufReq, metrics); err != nil {
 		return err
 	}
