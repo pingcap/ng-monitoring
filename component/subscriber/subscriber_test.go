@@ -24,7 +24,7 @@ func newTestSuite(controller subscriber.SubscribeController) *testSuite {
 		topoSubscriber: make(topology.Subscriber),
 		cfgSubscriber:  make(config.Subscriber),
 	}
-	ts.subscriber = subscriber.NewSubscriber(ts.topoSubscriber, ts.varSubscriber, ts.cfgSubscriber, controller)
+	ts.subscriber = subscriber.NewSubscriber(nil, ts.topoSubscriber, ts.varSubscriber, ts.cfgSubscriber, controller)
 	return ts
 }
 

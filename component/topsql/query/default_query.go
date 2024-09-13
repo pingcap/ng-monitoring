@@ -81,7 +81,6 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, &recordsResponse); err != nil {
 		return err
 	}
-
 	if len(recordsResponse.Data.Results) == 0 {
 		return nil
 	}

@@ -40,7 +40,7 @@ func newTestSuite() *testSuite {
 	ts.store = mock.NewMemStore()
 
 	controller := sub.NewSubscriberController(ts.store)
-	ts.subscriber = subscriber.NewSubscriber(ts.topoSubscriber, ts.varSubscriber, ts.cfgSubscriber, controller)
+	ts.subscriber = subscriber.NewSubscriber(nil, ts.topoSubscriber, ts.varSubscriber, ts.cfgSubscriber, controller)
 
 	ts.service = mock.NewMockPubSub()
 	ts.ip, ts.port, _ = ts.service.Listen("127.0.0.1:0", nil)

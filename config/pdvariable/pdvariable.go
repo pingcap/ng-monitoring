@@ -77,6 +77,10 @@ func Stop() {
 	}
 }
 
+func (l *variableLoader) GetEtcdClient() (*clientv3.Client, error) {
+	return l.do.GetEtcdClient()
+}
+
 func (l *variableLoader) loadGlobalConfigLoop(ctx context.Context) {
 	etcdCli, err := l.do.GetEtcdClient()
 	if err != nil {

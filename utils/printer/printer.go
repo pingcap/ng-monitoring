@@ -2,12 +2,12 @@ package printer
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
 
-	_ "runtime" // import link package
-	_ "unsafe"  // required by go:linkname
+	_ "unsafe" // required by go:linkname
 )
 
 // Version information.
@@ -17,8 +17,11 @@ var (
 	NGMGitBranch = "None"
 )
 
-//go:linkname buildVersion runtime.buildVersion
 var buildVersion string
+
+func init() {
+	buildVersion = runtime.Version()
+}
 
 // PrintNGMInfo prints the NGM version information.
 func PrintNGMInfo() {

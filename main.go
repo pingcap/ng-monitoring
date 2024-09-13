@@ -87,7 +87,7 @@ func main() {
 	pdvariable.Init(do)
 	defer pdvariable.Stop()
 
-	err = topsql.Init(config.Subscribe(), document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe())
+	err = topsql.Init(do, config.Subscribe(), document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe())
 	if err != nil {
 		log.Fatal("Failed to initialize topsql", zap.Error(err))
 	}

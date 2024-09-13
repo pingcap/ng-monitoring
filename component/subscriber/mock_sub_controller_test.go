@@ -5,6 +5,9 @@
 package subscriber_test
 
 import (
+	"net/http"
+	"sync"
+
 	context "context"
 	reflect "reflect"
 
@@ -38,6 +41,10 @@ func (m *MockSubscribeController) EXPECT() *MockSubscribeControllerMockRecorder 
 	return m.recorder
 }
 
+func (m *MockSubscribeController) NewHTTPClient() *http.Client {
+	return nil
+}
+
 // IsEnabled mocks base method.
 func (m *MockSubscribeController) IsEnabled() bool {
 	m.ctrl.T.Helper()
@@ -67,7 +74,7 @@ func (mr *MockSubscribeControllerMockRecorder) Name() *gomock.Call {
 }
 
 // NewScraper mocks base method.
-func (m *MockSubscribeController) NewScraper(arg0 context.Context, arg1 topology.Component) subscriber.Scraper {
+func (m *MockSubscribeController) NewScraper(arg0 context.Context, arg1 topology.Component, _ *sync.Map) subscriber.Scraper {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewScraper", arg0, arg1)
 	ret0, _ := ret[0].(subscriber.Scraper)

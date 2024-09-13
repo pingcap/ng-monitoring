@@ -497,7 +497,8 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 	type tikvTestData map[string]map[string]tikvTestPlan
 
 	instance := "127.0.0.1:20180"
-	instanceType := "tikv"
+	tikvInstanceType := "tikv"
+	tidbInstanceType := "tidb"
 
 	// sql-0:
 	//  <unknown>: ts:      testBaseTs+0, testBaseTs+10, testBaseTs+20, testBaseTs+30, testBaseTs+40
@@ -623,12 +624,12 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 				tagBytes, err := tag.Marshal()
 				s.NoError(err)
-				s.NoError(s.ds.ResourceMeteringRecord(instance, instanceType, &rsmetering.ResourceUsageRecord{
+				s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, &rsmetering.ResourceUsageRecord{
 					RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: &rsmetering.GroupTagRecord{
 						ResourceGroupTag: tagBytes,
 						Items:            items},
-					}}))
-				s.NoError(s.ds.TopSQLRecord(instance, instanceType, &tipb.TopSQLRecord{
+					}}, nil))
+				s.NoError(s.ds.TopSQLRecord(instance, tidbInstanceType, &tipb.TopSQLRecord{
 					SqlDigest:  []byte(sqlDigest),
 					PlanDigest: []byte(planDigest),
 					Items:      tidbItems,
@@ -641,7 +642,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// normal case
 	var res []query.SummaryItem
-	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -706,7 +707,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// top 1
 	res = nil
-	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -785,13 +786,13 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// no data
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.Equal(len(res), 0)
 
 	// one point
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 40}
@@ -869,7 +870,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// two points
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
