@@ -14,7 +14,8 @@ import (
 
 var (
 	recordsP       = recordsPool{}
-	summaryP       = summaryPool{}
+	summaryBySqlP  = summarySQLPool{}
+	summaryByItemP = summaryByItemPool{}
 	instanceItemsP = InstanceItemsPool{}
 
 	metricNames = []string{
@@ -79,7 +80,7 @@ func (s *Service) metricHandler(name string) gin.HandlerFunc {
 }
 
 func (s *Service) summaryHandler(c *gin.Context) {
-	start, end, windowSecs, top, instance, instanceType, err := parseAllParams(c)
+	start, end, windowSecs, top, instance, instanceType, groupBy, err := parseAllParams(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
@@ -87,26 +88,71 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		})
 		return
 	}
-
-	items := summaryP.Get()
-	defer summaryP.Put(items)
-	err = s.query.Summary(start, end, windowSecs, top, instance, instanceType, items)
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status":  "error",
-			"message": err.Error(),
+	switch groupBy {
+	case query.AggLevelTable:
+		if instanceType == "tidb" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": "table summary is not supported for tidb",
+			})
+			return
+		}
+		items := summaryByItemP.Get()
+		defer summaryByItemP.Put(items)
+		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggLevelTable, items)
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "ok",
+			"data_by": items,
 		})
-		return
+	case query.AggLevelDB:
+		if instanceType == "tidb" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": "db summary is not supported for tidb",
+			})
+			return
+		}
+		items := summaryByItemP.Get()
+		defer summaryByItemP.Put(items)
+		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggLevelDB, items)
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "ok",
+			"data_by": items,
+		})
+	default:
+		items := summaryBySqlP.Get()
+		defer summaryBySqlP.Put(items)
+		err = s.query.Summary(start, end, windowSecs, top, instance, instanceType, items)
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+			"data":   items,
+		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"data":   items,
-	})
 }
-
 func (s *Service) queryMetric(c *gin.Context, name string) {
-	start, end, windowSecs, top, instance, instanceType, err := parseAllParams(c)
+	start, end, windowSecs, top, instance, instanceType, _, err := parseAllParams(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
@@ -132,7 +178,7 @@ func (s *Service) queryMetric(c *gin.Context, name string) {
 	})
 }
 
-func parseAllParams(c *gin.Context) (start, end, windowSecs, top int, instance, instanceType string, err error) {
+func parseAllParams(c *gin.Context) (start, end, windowSecs, top int, instance, instanceType string, groupBy string, err error) {
 	instance = c.Query("instance")
 	if len(instance) == 0 {
 		err = errors.New("no instance")
@@ -174,6 +220,7 @@ func parseAllParams(c *gin.Context) (start, end, windowSecs, top int, instance, 
 	}
 	windowSecs = int(duration.Seconds())
 
+	groupBy = c.Query("group_by")
 	return
 }
 
