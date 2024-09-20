@@ -63,4 +63,4 @@ $ bin/ng-monitoring-server --config config/config.toml.example
 $ pkill -SIGHUP ng-monitoring-server
 ```
 
-<!-- VERSION_PLACEHOLDER: v6.5.11 -->
+<!-- VERSION_PLACEHOLDER: v6.5.12 -->
