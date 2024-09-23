@@ -77,11 +77,11 @@ func (tip *recordsPool) Put(ti *[]query.RecordItem) {
 	tip.p.Put(ti)
 }
 
-type summaryPool struct {
+type summarySQLPool struct {
 	p sync.Pool
 }
 
-func (sp *summaryPool) Get() *[]query.SummaryItem {
+func (sp *summarySQLPool) Get() *[]query.SummaryItem {
 	sv := sp.p.Get()
 	if sv == nil {
 		return &[]query.SummaryItem{}
@@ -89,9 +89,26 @@ func (sp *summaryPool) Get() *[]query.SummaryItem {
 	return sv.(*[]query.SummaryItem)
 }
 
-func (sp *summaryPool) Put(s *[]query.SummaryItem) {
+func (sp *summarySQLPool) Put(s *[]query.SummaryItem) {
 	*s = (*s)[:0]
 	sp.p.Put(s)
+}
+
+type summaryByItemPool struct {
+	p sync.Pool
+}
+
+func (tp *summaryByItemPool) Get() *[]query.SummaryByItem {
+	tv := tp.p.Get()
+	if tv == nil {
+		return &[]query.SummaryByItem{}
+	}
+	return tv.(*[]query.SummaryByItem)
+}
+
+func (tp *summaryByItemPool) Put(t *[]query.SummaryByItem) {
+	*t = (*t)[:0]
+	tp.p.Put(t)
 }
 
 type InstanceItemsPool struct {

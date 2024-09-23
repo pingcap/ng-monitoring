@@ -26,6 +26,14 @@ type RecordPlanItem struct {
 	SQLDurationCount []uint64 `json:"sql_duration_count,omitempty"`
 }
 
+type SummaryByItem struct {
+	Text         string   `json:"text"`
+	TimestampSec []uint64 `json:"timestamp_sec"`
+	CPUTimeMs    []uint64 `json:"cpu_time_ms,omitempty"`
+	CPUTimeMsSum uint64   `json:"cpu_time_ms_sum"`
+	IsOther      bool     `json:"is_other"`
+}
+
 type SummaryItem struct {
 	SQLDigest         string            `json:"sql_digest"`
 	SQLText           string            `json:"sql_text"`
@@ -74,6 +82,21 @@ type recordsMetricRespDataResultMetric struct {
 	InstanceType string `json:"instance_type"`
 	SQLDigest    string `json:"sql_digest"`
 	PlanDigest   string `json:"plan_digest"`
+}
+
+type recordsMetricRespV2 struct {
+	Status string                  `json:"status"`
+	Data   recordsMetricRespDataV2 `json:"data"`
+}
+
+type recordsMetricRespDataV2 struct {
+	ResultType string                          `json:"resultType"`
+	Results    []recordsMetricRespDataResultV2 `json:"result"`
+}
+
+type recordsMetricRespDataResultV2 struct {
+	Metric map[string]interface{}             `json:"metric"`
+	Values []recordsMetricRespDataResultValue `json:"values"`
 }
 
 type recordsMetricRespDataResultValue = []interface{}

@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -486,6 +488,126 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 	}})
 }
 
+func (s *testTopSQLSuite) TestTiKVSummaryBy() {
+	type tikvItem struct {
+		ts    []uint64
+		cpu   []uint64
+		reads []uint64
+	}
+	type tikvTestPlan map[string]tikvItem
+	type tikvTestData map[string]map[string]tikvTestPlan // sql -> table -> data
+
+	instance := "127.0.0.3:20180"
+	tikvInstanceType := "tikv"
+
+	data := tikvTestData{
+		"sql-0": {
+			"table-0": {
+				"index": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{85, 64, 43, 19, 31},
+					reads: []uint64{11, 69, 58, 21, 56},
+				},
+			},
+			"table-1": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{67, 19, 54, 53, 71},
+					reads: []uint64{97, 82, 24, 44, 88},
+				},
+				"index": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{49, 93, 12, 43, 95},
+					reads: []uint64{80, 44, 12, 10, 40},
+				},
+			},
+		},
+		"sql-1": {
+			"table-0": {
+				"index": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{97, 46, 29, 22, 35},
+					reads: []uint64{90, 59, 46, 80, 16},
+				},
+			},
+			"table-1": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{51, 99, 14, 65, 27},
+					reads: []uint64{22, 11, 77, 84, 33},
+				},
+			},
+			"table-2": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{61, 64, 83, 99, 43},
+					reads: []uint64{51, 93, 42, 27, 21},
+				},
+			},
+		},
+		"sql-2": {
+			"table-2": {
+				"record": {
+					ts:    []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40},
+					cpu:   []uint64{61, 87, 37, 55, 53},
+					reads: []uint64{50, 46, 19, 63, 81},
+				},
+			},
+		},
+	}
+	for sql, ndata := range data {
+		for table, rawdata := range ndata {
+			for typ, item := range rawdata {
+				tag := tipb.ResourceGroupTag{
+					SqlDigest:  []byte(sql),
+					PlanDigest: []byte(sql),
+				}
+				if typ == "record" {
+					tag.Label = tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow.Enum()
+				} else if typ == "index" {
+					tag.Label = tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex.Enum()
+				}
+				tid, err := strconv.Atoi(strings.Split(table, "-")[1])
+				s.NoError(err)
+				tag.TableId = int64(tid)
+				var items []*rsmetering.GroupTagRecordItem
+				for i := range item.ts {
+					items = append(items, &rsmetering.GroupTagRecordItem{
+						TimestampSec: item.ts[i],
+						CpuTimeMs:    uint32(item.cpu[i]),
+						ReadKeys:     uint32(item.reads[i]),
+					})
+				}
+
+				tagBytes, err := tag.Marshal()
+				s.NoError(err)
+				s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, &rsmetering.ResourceUsageRecord{
+					RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: &rsmetering.GroupTagRecord{
+						ResourceGroupTag: tagBytes,
+						Items:            items},
+					}}, nil))
+			}
+		}
+	}
+	vmstorage.Storage.DebugFlush()
+
+	// normal case
+	var res []query.SummaryByItem
+	err := s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, query.AggLevelTable, &res)
+	s.NoError(err)
+	sortListSeq := []int{1, 2, 0}
+	resList := make([]int, 0, len(res))
+	for _, item := range res {
+		tid, err := strconv.Atoi(item.Text)
+		s.NoError(err)
+		resList = append(resList, tid)
+	}
+	s.Equal(sortListSeq, resList)
+	res = res[:0]
+	err = s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, query.AggLevelDB, &res)
+	s.NoError(err)
+	s.Assert().Len(res, 1)
+}
 func (s *testTopSQLSuite) TestTiKVSummary() {
 	type tikvPlanItem struct {
 		ts    []uint64
