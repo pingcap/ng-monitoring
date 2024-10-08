@@ -29,6 +29,15 @@ var (
 	sumMapP        = sumMapPool{}
 )
 
+const (
+	// AggLevelQuery is the query level aggregation
+	AggLevelQuery = "query"
+	// AggLevelTable is the table level aggregation
+	AggLevelTable = "table"
+	// AggLevelDB is the db level aggregation
+	AggLevelDB = "db"
+)
+
 type DefaultQuery struct {
 	vmselectHandler http.HandlerFunc
 	documentDB      *genji.DB
@@ -67,6 +76,52 @@ func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top
 	return dq.fillText(name, sqlGroups, func(item RecordItem) {
 		*fill = append(*fill, item)
 	})
+}
+
+func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, instance, instanceType, aggBy string, fill *[]SummaryByItem) error {
+	if startSecs > endSecs {
+		return nil
+	}
+
+	// adjust start to make result align to end
+	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
+
+	var recordsResponse recordsMetricRespV2
+	if err := dq.fetchRecordsFromTSDBBy(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, aggBy, top, &recordsResponse); err != nil {
+		return err
+	}
+	if len(recordsResponse.Data.Results) == 0 {
+		return nil
+	}
+
+	for _, result := range recordsResponse.Data.Results {
+		text := result.Metric[aggBy].(string)
+		sumItem := SummaryByItem{
+			Text: text,
+		}
+		if text == "other" {
+			sumItem.IsOther = true
+		}
+		valueSum := uint64(0)
+		for _, value := range result.Values {
+			if len(value) != 2 {
+				continue
+			}
+
+			ts := uint64(value[0].(float64))
+			v, err := strconv.ParseUint(value[1].(string), 10, 64)
+			if err != nil {
+				continue
+			}
+
+			valueSum += v
+			sumItem.TimestampSec = append(sumItem.TimestampSec, ts)
+			sumItem.CPUTimeMs = append(sumItem.CPUTimeMs, v)
+		}
+		sumItem.CPUTimeMsSum = valueSum
+		*fill = append(*fill, sumItem)
+	}
+	return nil
 }
 
 func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
@@ -285,6 +340,41 @@ func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs
 	}
 	reqQuery := req.URL.Query()
 	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", name, instance, instanceType, windowSecs))
+	reqQuery.Set("start", strconv.Itoa(startSecs))
+	reqQuery.Set("end", strconv.Itoa(endSecs))
+	reqQuery.Set("step", strconv.Itoa(windowSecs))
+	reqQuery.Set("nocache", "1")
+	req.URL.RawQuery = reqQuery.Encode()
+	req.Header.Set("Accept", "application/json")
+
+	respR := utils.NewRespWriter(bufResp, header)
+	dq.vmselectHandler(&respR, req)
+
+	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
+		errStr := respR.Body.String()
+		log.Warn("failed to fetch timeseries db", zap.String("error", errStr))
+		return errors.New(errStr)
+	}
+	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
+}
+
+func (dq *DefaultQuery) fetchRecordsFromTSDBBy(name string, startSecs int, endSecs int, windowSecs int, instance, instanceType, by string, top int, metricResponse *recordsMetricRespV2) error {
+	if dq.vmselectHandler == nil {
+		return fmt.Errorf("empty query handler")
+	}
+
+	bufResp := bytesP.Get()
+	header := headerP.Get()
+
+	defer bytesP.Put(bufResp)
+	defer headerP.Put(header)
+
+	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
+	if err != nil {
+		return err
+	}
+	reqQuery := req.URL.Query()
+	reqQuery.Set("query", fmt.Sprintf("topk_avg(%d, sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s), \"%s=other\")", top, name, instance, instanceType, windowSecs, by, by))
 	reqQuery.Set("start", strconv.Itoa(startSecs))
 	reqQuery.Set("end", strconv.Itoa(endSecs))
 	reqQuery.Set("step", strconv.Itoa(windowSecs))
