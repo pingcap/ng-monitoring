@@ -22,14 +22,37 @@ func Init(cfg *config.Config) {
 
 	dataPath := path.Join(cfg.Storage.Path, "docdb")
 	l, _ := initLogger(cfg)
-	opts := badger.DefaultOptions(dataPath).
-		WithZSTDCompressionLevel(3).
-		WithBlockSize(8 * 1024).
-		WithValueThreshold(128 * 1024).
-		WithValueLogFileSize(64 * 1024 * 1024).
-		WithBlockCacheSize(16 * 1024 * 1024).
-		WithMemTableSize(16 * 1024 * 1024).
-		WithLogger(l)
+	var opts badger.Options
+	if cfg.DocDB.LSMOnly {
+		opts = badger.LSMOnlyOptions(dataPath)
+	} else {
+		opts = badger.DefaultOptions(dataPath)
+	}
+	if !cfg.DocDB.LSMOnly {
+		opts = opts.WithValueThreshold(cfg.DocDB.ValueThreshold)
+	}
+	opts = opts.
+		WithLogger(l).
+		WithSyncWrites(cfg.DocDB.SyncWrites).
+		WithNumVersionsToKeep(cfg.DocDB.NumVersionsToKeep).
+		WithNumGoroutines(cfg.DocDB.NumGoroutines).
+		WithMemTableSize(cfg.DocDB.MemTableSize).
+		WithBaseTableSize(cfg.DocDB.BaseTableSize).
+		WithBaseLevelSize(cfg.DocDB.BaseLevelSize).
+		WithLevelSizeMultiplier(cfg.DocDB.LevelSizeMultiplier).
+		WithMaxLevels(cfg.DocDB.MaxLevels).
+		WithVLogPercentile(cfg.DocDB.VLogPercentile).
+		WithNumMemtables(cfg.DocDB.NumMemtables).
+		WithBlockSize(cfg.DocDB.BlockSize).
+		WithBloomFalsePositive(cfg.DocDB.BloomFalsePositive).
+		WithBlockCacheSize(cfg.DocDB.BlockCacheSize).
+		WithIndexCacheSize(cfg.DocDB.IndexCacheSize).
+		WithNumLevelZeroTables(cfg.DocDB.NumLevelZeroTables).
+		WithNumLevelZeroTablesStall(cfg.DocDB.NumLevelZeroTablesStall).
+		WithValueLogFileSize(cfg.DocDB.ValueLogFileSize).
+		WithValueLogMaxEntries(cfg.DocDB.ValueLogMaxEntries).
+		WithNumCompactors(cfg.DocDB.NumCompactors).
+		WithZSTDCompressionLevel(cfg.DocDB.ZSTDCompressionLevel)
 
 	engine, err := badgerengine.NewEngine(opts)
 	if err != nil {
