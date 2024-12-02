@@ -82,12 +82,6 @@ key-path = "ngm.key"`
 	cfg, err := InitConfig(cfgFileName, func(config *Config) {})
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-<<<<<<< HEAD
-	data, err := json.Marshal(cfg)
-	require.NoError(t, err)
-	// TODO(mornyx): Rollback when tiflash#5687 is fixed.
-	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"},"tsdb":{"retention_period":"1","search_max_unique_timeseries":300000}}`, string(data))
-=======
 	require.Equal(t, "0.0.0.0:12020", cfg.Address)
 	require.Equal(t, "10.0.1.8:12020", cfg.AdvertiseAddress)
 	require.Equal(t, "log", cfg.Log.Path)
@@ -99,7 +93,6 @@ key-path = "ngm.key"`
 	require.Equal(t, "ngm.ca", cfg.Security.SSLCA)
 	require.Equal(t, "ngm.cert", cfg.Security.SSLCert)
 	require.Equal(t, "ngm.key", cfg.Security.SSLKey)
->>>>>>> f6f8b1f (docdb: expose almost all options to user (#231))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -124,37 +117,17 @@ path = "data1"`
 	getCfg := <-cfgSub
 	globalCfg := GetGlobalConfig()
 	require.Equal(t, getCfg(), globalCfg)
-<<<<<<< HEAD
-	data, err = json.Marshal(globalCfg)
-	require.NoError(t, err)
-	// TODO(mornyx): Rollback when tiflash#5687 is fixed.
-	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2378","10.0.1.9:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"},"tsdb":{"retention_period":"1","search_max_unique_timeseries":300000}}`, string(data))
-=======
 	require.Equal(t, "0.0.0.0:12020", globalCfg.Address)
-	require.Equal(t, "10.0.1.8:12020", globalCfg.AdvertiseAddress)
-	require.Equal(t, "log", globalCfg.Log.Path)
-	require.Equal(t, "INFO", globalCfg.Log.Level)
-	require.Len(t, globalCfg.PD.Endpoints, 2)
-	require.Equal(t, "10.0.1.8:2378", globalCfg.PD.Endpoints[0])
-	require.Equal(t, "10.0.1.9:2379", globalCfg.PD.Endpoints[1])
 	require.Equal(t, "data", globalCfg.Storage.Path)
 	require.Equal(t, "ngm.ca", globalCfg.Security.SSLCA)
 	require.Equal(t, "ngm.cert", globalCfg.Security.SSLCert)
 	require.Equal(t, "ngm.key", globalCfg.Security.SSLKey)
->>>>>>> f6f8b1f (docdb: expose almost all options to user (#231))
 
 	cfgData = ``
 	err = ioutil.WriteFile(cfgFileName, []byte(cfgData), 0666)
 	require.NoError(t, err)
 	procutil.SelfSIGHUP()
 	// wait reload
-	time.Sleep(time.Millisecond * 10)
-<<<<<<< HEAD
-	data, err = json.Marshal(GetGlobalConfig())
-	require.NoError(t, err)
-	// TODO(mornyx): Rollback when tiflash#5687 is fixed.
-	require.Equal(t, `{"address":"0.0.0.0:12020","advertise_address":"10.0.1.8:12020","pd":{"endpoints":["10.0.1.8:2378","10.0.1.9:2379"]},"log":{"path":"log","level":"INFO"},"storage":{"path":"data"},"continuous_profiling":{"enable":false,"profile_seconds":10,"interval_seconds":60,"timeout_seconds":120,"data_retention_seconds":259200},"security":{"ca_path":"ngm.ca","cert_path":"ngm.cert","key_path":"ngm.key"},"tsdb":{"retention_period":"1","search_max_unique_timeseries":300000}}`, string(data))
-=======
 	require.Equal(t, "0.0.0.0:12020", globalCfg.Address)
 	require.Equal(t, "10.0.1.8:12020", globalCfg.AdvertiseAddress)
 	require.Equal(t, "log", globalCfg.Log.Path)
@@ -166,7 +139,6 @@ path = "data1"`
 	require.Equal(t, "ngm.ca", globalCfg.Security.SSLCA)
 	require.Equal(t, "ngm.cert", globalCfg.Security.SSLCert)
 	require.Equal(t, "ngm.key", globalCfg.Security.SSLKey)
->>>>>>> f6f8b1f (docdb: expose almost all options to user (#231))
 }
 
 func TestConfigValid(t *testing.T) {
