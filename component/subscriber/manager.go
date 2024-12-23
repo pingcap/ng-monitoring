@@ -22,6 +22,8 @@ import (
 	"github.com/pingcap/log"
 )
 
+const schemaCheckInterval = 2 * time.Second
+
 type Manager struct {
 	ctx context.Context
 	wg  *sync.WaitGroup
@@ -71,7 +73,7 @@ func NewManager(
 
 func (m *Manager) Run() {
 	defer m.clearScrapers()
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(schemaCheckInterval)
 	for {
 		select {
 		case getCfg := <-m.cfgSubscriber:
