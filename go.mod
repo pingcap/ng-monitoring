@@ -1,6 +1,8 @@
 module github.com/pingcap/ng-monitoring
 
-go 1.21
+go 1.21.0
+
+toolchain go1.21.13
 
 require (
 	github.com/BurntSushi/toml v1.2.1
