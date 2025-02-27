@@ -15,6 +15,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy v0.0.4
 	github.com/google/pprof v0.0.0-20240117000934-35fc243c5815
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/pingcap/kvproto v0.0.0-20240227073058-929ab83f9754
 	github.com/pingcap/log v1.1.1-0.20240314023424-862ccc32f18d
 	github.com/pingcap/tidb v1.1.0-beta.0.20240409103151-ec8e27a7ed23
