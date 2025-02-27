@@ -31,7 +31,7 @@ func TestConfig(t *testing.T) {
 	require.Equal(t, config.Address, "0.0.0.0:12020")
 	require.Equal(t, config.PD, PD{Endpoints: []string{"0.0.0.0:2379"}})
 	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO"})
-	require.Equal(t, config.Storage, Storage{Path: "data"})
+	require.Equal(t, config.Storage, Storage{Path: "data", DocDBBackend: "sqlite", MetaRetentionSecs: 0})
 }
 
 func TestContinueProfilingConfig(t *testing.T) {
