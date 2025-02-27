@@ -11,8 +11,8 @@ import (
 	sub "github.com/pingcap/ng-monitoring/component/topsql/subscriber"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 
-	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,11 +25,13 @@ var (
 
 func Init(
 	cfgSub config.Subscriber,
-	gj *genji.DB,
+	docDB docdb.DocDB,
 	insertHdr, selectHdr http.HandlerFunc,
 	topSub topology.Subscriber,
 	varSub pdvariable.Subscriber,
+	metaRetentionSecs int64,
 ) (err error) {
+<<<<<<< HEAD
 	defStore, err = store.NewDefaultStore(insertHdr, gj)
 	if err != nil {
 		return err
@@ -37,8 +39,12 @@ func Init(
 
 	defQuery = query.NewDefaultQuery(selectHdr, gj)
 	defSubscriber = sub.NewSubscriber(topSub, varSub, cfgSub, defStore)
+=======
+	defStore = store.NewDefaultStore(insertHdr, docDB, metaRetentionSecs)
+	defQuery = query.NewDefaultQuery(selectHdr, docDB)
+	defSubscriber = sub.NewSubscriber(topSub, varSub, cfgSub, do, defStore)
+>>>>>>> 4cb0065 (docdb: introduce sqlite backend (#287))
 	defService = service.NewService(defQuery)
-
 	return nil
 }
 

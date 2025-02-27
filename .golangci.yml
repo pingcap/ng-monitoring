@@ -18,7 +18,12 @@ linters:
     - gosec
     - asciicheck
     - bodyclose
+<<<<<<< HEAD
     - exportloopref
+=======
+    # - exportloopref
+    # - copyloopvar
+>>>>>>> 4cb0065 (docdb: introduce sqlite backend (#287))
     - rowserrcheck
     - unconvert
     - makezero

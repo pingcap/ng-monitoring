@@ -14,10 +14,18 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
+<<<<<<< HEAD
 	github.com/google/pprof v0.0.0-20211122183932-1daafda22083
 	github.com/pingcap/kvproto v0.0.0-20230201112839-2b853bed8125
 	github.com/pingcap/log v1.1.1-0.20221116035753-734d527bc87c
 	github.com/pingcap/tidb v1.1.0-beta.0.20230228104109-c78e413b4ed0
+=======
+	github.com/google/pprof v0.0.0-20240117000934-35fc243c5815
+	github.com/mattn/go-sqlite3 v1.14.24
+	github.com/pingcap/kvproto v0.0.0-20240227073058-929ab83f9754
+	github.com/pingcap/log v1.1.1-0.20240314023424-862ccc32f18d
+	github.com/pingcap/tidb v1.1.0-beta.0.20240409103151-ec8e27a7ed23
+>>>>>>> 4cb0065 (docdb: introduce sqlite backend (#287))
 	github.com/pingcap/tidb-dashboard v0.0.0-20230222090907-5530ca41768d
 	github.com/pingcap/tipb v0.0.0-20230119054146-c6b7a5a1623b
 	github.com/pkg/errors v0.9.1

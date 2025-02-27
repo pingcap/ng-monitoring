@@ -10,6 +10,7 @@ import (
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,7 @@ var (
 	httpServer *http.Server = nil
 )
 
-func ServeHTTP(l *config.Log, listener net.Listener) {
+func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 	gin.SetMode(gin.ReleaseMode)
 	ng := gin.New()
 
@@ -48,7 +49,7 @@ func ServeHTTP(l *config.Log, listener net.Listener) {
 
 	// route
 	configGroup := ng.Group("/config")
-	config.HTTPService(configGroup)
+	config.HTTPService(configGroup, docDB)
 	topSQLGroup := ng.Group("/topsql")
 	topsql.HTTPService(topSQLGroup)
 	// register pprof http api
