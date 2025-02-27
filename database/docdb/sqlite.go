@@ -73,6 +73,9 @@ func (d *sqliteDB) LoadConfig(ctx context.Context) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
 	defer res.Close()
 	cfgMap := make(map[string]string)
 	for res.Next() {
@@ -143,8 +146,8 @@ func (d *sqliteDB) DeletePlanMetaBeforeTs(ctx context.Context, ts int64) error {
 
 func (d *sqliteDB) ConprofCreateProfileTables(ctx context.Context, id int64) error {
 	stmts := []string{
-		fmt.Sprintf("CREATE TABLE IF NOT EXISTS conprof_%v_data (ts INTEGER PRIMARY KEY, data BLOB)", id),
-		fmt.Sprintf("CREATE TABLE IF NOT EXISTS conprof_%v_meta (ts INTEGER PRIMARY KEY, error TEXT)", id),
+		fmt.Sprintf("CREATE TABLE IF NOT EXISTS conprof_%d_data (ts INTEGER PRIMARY KEY, data BLOB)", id),
+		fmt.Sprintf("CREATE TABLE IF NOT EXISTS conprof_%d_meta (ts INTEGER PRIMARY KEY, error TEXT)", id),
 	}
 	for _, stmt := range stmts {
 		if _, err := d.db.ExecContext(ctx, stmt); err != nil {
@@ -158,10 +161,10 @@ func (d *sqliteDB) ConprofDeleteProfileTables(ctx context.Context, id int64) err
 	if _, err := d.db.ExecContext(ctx, "DELETE FROM conprof_targets_meta WHERE id = ?", id); err != nil {
 		return err
 	}
-	if _, err := d.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS conprof_%v_data", id)); err != nil {
+	if _, err := d.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS conprof_%d_data", id)); err != nil {
 		return err
 	}
-	if _, err := d.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS conprof_%v_meta", id)); err != nil {
+	if _, err := d.db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS conprof_%d_meta", id)); err != nil {
 		return err
 	}
 	return nil
@@ -184,6 +187,9 @@ func (d *sqliteDB) ConprofQueryTargetInfo(ctx context.Context, target meta.Profi
 	if err != nil {
 		return err
 	}
+	if res.Err() != nil {
+		return res.Err()
+	}
 	defer res.Close()
 	for res.Next() {
 		info := meta.TargetInfo{}
@@ -204,6 +210,9 @@ func (d *sqliteDB) ConprofQueryAllProfileTargets(ctx context.Context, f func(tar
 	if err != nil {
 		return err
 	}
+	if res.Err() != nil {
+		return res.Err()
+	}
 	defer res.Close()
 	for res.Next() {
 		info := meta.TargetInfo{}
@@ -220,16 +229,19 @@ func (d *sqliteDB) ConprofQueryAllProfileTargets(ctx context.Context, f func(tar
 }
 
 func (d *sqliteDB) ConprofWriteProfileData(ctx context.Context, id, ts int64, data []byte) error {
-	sql := fmt.Sprintf("INSERT INTO conprof_%v_data (ts, data) VALUES (?, ?)", id)
+	sql := fmt.Sprintf("INSERT INTO conprof_%d_data (ts, data) VALUES (?, ?)", id)
 	_, err := d.db.ExecContext(ctx, sql, ts, data)
 	return err
 }
 
 func (d *sqliteDB) ConprofQueryProfileData(ctx context.Context, id, begin, end int64, f func(ts int64, data []byte) error) error {
-	sql := fmt.Sprintf("SELECT ts, data FROM conprof_%v_data WHERE ts >= ? and ts <= ? ORDER BY ts DESC", id)
+	sql := fmt.Sprintf("SELECT ts, data FROM conprof_%d_data WHERE ts >= ? and ts <= ? ORDER BY ts DESC", id)
 	res, err := d.db.QueryContext(ctx, sql, begin, end)
 	if err != nil {
 		return err
+	}
+	if res.Err() != nil {
+		return res.Err()
 	}
 	defer res.Close()
 	for res.Next() {
@@ -247,22 +259,25 @@ func (d *sqliteDB) ConprofQueryProfileData(ctx context.Context, id, begin, end i
 }
 
 func (d *sqliteDB) ConprofDeleteProfileDataBeforeTs(ctx context.Context, id, ts int64) error {
-	sql := fmt.Sprintf("DELETE FROM conprof_%v_data WHERE ts <= ?", id)
+	sql := fmt.Sprintf("DELETE FROM conprof_%d_data WHERE ts <= ?", id)
 	_, err := d.db.ExecContext(ctx, sql, ts)
 	return err
 }
 
 func (d *sqliteDB) ConprofWriteProfileMeta(ctx context.Context, id, ts int64, verr string) error {
-	sql := fmt.Sprintf("INSERT INTO conprof_%v_meta (ts, error) VALUES (?, ?)", id)
+	sql := fmt.Sprintf("INSERT INTO conprof_%d_meta (ts, error) VALUES (?, ?)", id)
 	_, err := d.db.ExecContext(ctx, sql, ts, verr)
 	return err
 }
 
 func (d *sqliteDB) ConprofQueryProfileMeta(ctx context.Context, id, begin, end int64, f func(ts int64, verr string) error) error {
-	sql := fmt.Sprintf("SELECT ts, error FROM conprof_%v_meta WHERE ts >= ? and ts <= ? ORDER BY ts DESC", id)
+	sql := fmt.Sprintf("SELECT ts, error FROM conprof_%d_meta WHERE ts >= ? and ts <= ? ORDER BY ts DESC", id)
 	res, err := d.db.QueryContext(ctx, sql, begin, end)
 	if err != nil {
 		return err
+	}
+	if res.Err() != nil {
+		return res.Err()
 	}
 	defer res.Close()
 	for res.Next() {
@@ -280,7 +295,7 @@ func (d *sqliteDB) ConprofQueryProfileMeta(ctx context.Context, id, begin, end i
 }
 
 func (d *sqliteDB) ConprofDeleteProfileMetaBeforeTs(ctx context.Context, id, ts int64) error {
-	sql := fmt.Sprintf("DELETE FROM conprof_%v_meta WHERE ts <= ?", id)
+	sql := fmt.Sprintf("DELETE FROM conprof_%d_meta WHERE ts <= ?", id)
 	_, err := d.db.ExecContext(ctx, sql, ts)
 	return err
 }
