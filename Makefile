@@ -34,8 +34,4 @@ lint: tools/bin/golangci-lint
 	GO111MODULE=on tools/bin/golangci-lint run -v $$($(PACKAGE_DIRECTORIES)) --config .golangci.yml
 
 tools/bin/golangci-lint:
-<<<<<<< HEAD
 	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ./tools/bin v1.55.2
-=======
-	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ./tools/bin v1.64.5
->>>>>>> 4cb0065 (docdb: introduce sqlite backend (#287))

@@ -114,11 +114,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 	s.topCh = make(topology.Subscriber)
 	s.varCh = make(pdvariable.Subscriber)
 	s.cfgCh = make(config.Subscriber)
-<<<<<<< HEAD
-	err = topsql.Init(s.cfgCh, document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
-=======
-	err = topsql.Init(nil, s.cfgCh, s.docDB, timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh, 0)
->>>>>>> 4cb0065 (docdb: introduce sqlite backend (#287))
+	err = topsql.Init(s.cfgCh, s.docDB, timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh, 0)
 	s.NoError(err)
 	s.varCh <- enable
 	time.Sleep(100 * time.Millisecond)

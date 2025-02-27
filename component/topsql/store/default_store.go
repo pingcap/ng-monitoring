@@ -6,12 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-<<<<<<< HEAD
-=======
-	"strconv"
-	"sync"
 	"time"
->>>>>>> 4cb0065 (docdb: introduce sqlite backend (#287))
 
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/component/topsql/codec/resource_group_tag"

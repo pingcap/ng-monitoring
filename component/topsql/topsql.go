@@ -31,19 +31,9 @@ func Init(
 	varSub pdvariable.Subscriber,
 	metaRetentionSecs int64,
 ) (err error) {
-<<<<<<< HEAD
-	defStore, err = store.NewDefaultStore(insertHdr, gj)
-	if err != nil {
-		return err
-	}
-
-	defQuery = query.NewDefaultQuery(selectHdr, gj)
-	defSubscriber = sub.NewSubscriber(topSub, varSub, cfgSub, defStore)
-=======
 	defStore = store.NewDefaultStore(insertHdr, docDB, metaRetentionSecs)
 	defQuery = query.NewDefaultQuery(selectHdr, docDB)
-	defSubscriber = sub.NewSubscriber(topSub, varSub, cfgSub, do, defStore)
->>>>>>> 4cb0065 (docdb: introduce sqlite backend (#287))
+	defSubscriber = sub.NewSubscriber(topSub, varSub, cfgSub, defStore)
 	defService = service.NewService(defQuery)
 	return nil
 }
