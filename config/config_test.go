@@ -2,18 +2,17 @@ package config
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/utils"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/genjidb/genji"
 	"github.com/stretchr/testify/require"
 )
 
@@ -75,7 +74,7 @@ path = "data"
 ca-path = "ngm.ca"
 cert-path = "ngm.cert"
 key-path = "ngm.key"`
-	err := ioutil.WriteFile(cfgFileName, []byte(cfgData), 0666)
+	err := os.WriteFile(cfgFileName, []byte(cfgData), 0666)
 	require.NoError(t, err)
 	defer os.Remove(cfgFileName)
 
@@ -109,7 +108,7 @@ endpoints = ["10.0.1.8:2378", "10.0.1.9:2379"]
 [storage]
 path = "data1"`
 	cfgSub := Subscribe()
-	err = ioutil.WriteFile(cfgFileName, []byte(cfgData), 0666)
+	err = os.WriteFile(cfgFileName, []byte(cfgData), 0666)
 	require.NoError(t, err)
 
 	procutil.SelfSIGHUP()
@@ -130,7 +129,7 @@ path = "data1"`
 	require.Equal(t, "ngm.key", globalCfg.Security.SSLKey)
 
 	cfgData = ``
-	err = ioutil.WriteFile(cfgFileName, []byte(cfgData), 0666)
+	err = os.WriteFile(cfgFileName, []byte(cfgData), 0666)
 	require.NoError(t, err)
 	procutil.SelfSIGHUP()
 	// wait reload
@@ -189,7 +188,7 @@ func TestTLS(t *testing.T) {
 	caFile := "ca.crt"
 	certFile := "ng.crt"
 	pemFile := "ng.pem"
-	err := ioutil.WriteFile(caFile, []byte(`-----BEGIN CERTIFICATE-----
+	err := os.WriteFile(caFile, []byte(`-----BEGIN CERTIFICATE-----
 MIIDMDCCAhigAwIBAgIRAMe2loaMmf+umFBmQ9OKWBswDQYJKoZIhvcNAQELBQAw
 ITEQMA4GA1UEChMHUGluZ0NBUDENMAsGA1UECxMEVGlVUDAgFw0yMTExMzAwNDQ5
 MjZaGA8yMDcxMTExODA0NDkyNlowITEQMA4GA1UEChMHUGluZ0NBUDENMAsGA1UE
@@ -211,7 +210,7 @@ OFk8KA==
 -----END CERTIFICATE-----`), 0666)
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(certFile, []byte(`-----BEGIN CERTIFICATE-----
+	err = os.WriteFile(certFile, []byte(`-----BEGIN CERTIFICATE-----
 MIIDaTCCAlGgAwIBAgIRANt69n9jMGq75NskvBIbG98wDQYJKoZIhvcNAQELBQAw
 ITEQMA4GA1UEChMHUGluZ0NBUDENMAsGA1UECxMEVGlVUDAeFw0yMTExMzAwNDUw
 MjhaFw0zMTExMjgwNDUwMjhaMEkxEDAOBgNVBAoTB1BpbmdDQVAxIDALBgNVBAsT
@@ -234,7 +233,7 @@ mNGLnQMjURirpbLNCR9+IAsXk99VfCL0dVzZxo/pIz0fPqpwQfxj9ku8+yUJ4KqS
 -----END CERTIFICATE-----`), 0666)
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(pemFile, []byte(`-----BEGIN RSA PRIVATE KEY-----
+	err = os.WriteFile(pemFile, []byte(`-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA0St0F7BIM9FFBXYyx2b/5yXGSoaFWEgqcoHXw0Fj6qdmaO4Z
 OsQIkHQjA8deNHSjzkEvsZd4sTYaHbGe6qCsdu5ZrVl1/zlIvN9juwcHAQPZfNKr
 frBvE78IXnGc0xb1ibxwwGxjKahDMNTlFF/+Pb26Sg5LVJL2EXlXSlF9pgURzW35
@@ -281,18 +280,17 @@ Kv2FPAw7FhnHGC8nFubb4XtyPhFzNNv/J17pBsZNdGQuFawkyhpbCQ==
 }
 
 func TestConfigPersist(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "ngm-test-.*")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)
 		require.NoError(t, err)
 	}()
-	db := testutil.NewGenjiDB(t, tmpDir)
+	db, err := docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(t, tmpDir))
+	require.NoError(t, err)
 	defer db.Close()
 
-	err = LoadConfigFromStorage(func() *genji.DB {
-		return db
-	})
+	err = LoadConfigFromStorage(context.Background(), db)
 	require.NoError(t, err)
 
 	oldCfg := GetGlobalConfig()
@@ -300,14 +298,12 @@ func TestConfigPersist(t *testing.T) {
 	cfg.ContinueProfiling.Enable = true
 	cfg.ContinueProfiling.IntervalSeconds = 100
 	StoreGlobalConfig(cfg)
-	err = saveConfigIntoStorage()
+	err = saveConfigIntoStorage(db)
 	require.NoError(t, err)
 
 	defCfg := GetDefaultConfig()
 	StoreGlobalConfig(defCfg)
-	err = LoadConfigFromStorage(func() *genji.DB {
-		return db
-	})
+	err = LoadConfigFromStorage(context.Background(), db)
 	require.NoError(t, err)
 	curCfg := GetGlobalConfig()
 	require.Equal(t, true, curCfg.ContinueProfiling.Enable)

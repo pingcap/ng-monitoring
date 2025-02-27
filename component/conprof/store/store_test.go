@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"runtime"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
 
 	"github.com/dgraph-io/badger/v3"
@@ -23,7 +23,7 @@ import (
 )
 
 func TestProfileStorage(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "ngm-test-.*")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)
@@ -38,9 +38,10 @@ func TestProfileStorage(t *testing.T) {
 }
 
 func testProfileStorageGC(t *testing.T, tmpDir string, baseTs int64) {
-	genjiDB := testutil.NewGenjiDB(t, tmpDir)
-	defer genjiDB.Close()
-	storage, err := NewProfileStorage(genjiDB)
+	db, err := docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(t, tmpDir))
+	require.NoError(t, err)
+	defer db.Close()
+	storage, err := NewProfileStorage(db)
 	require.NoError(t, err)
 	defer storage.Close()
 
@@ -55,9 +56,10 @@ func testProfileStorageGC(t *testing.T, tmpDir string, baseTs int64) {
 }
 
 func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bool) {
-	genjiDB := testutil.NewGenjiDB(t, tmpDir)
-	defer genjiDB.Close()
-	storage, err := NewProfileStorage(genjiDB)
+	db, err := docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(t, tmpDir))
+	require.NoError(t, err)
+	defer db.Close()
+	storage, err := NewProfileStorage(db)
 	require.NoError(t, err)
 	defer storage.Close()
 
@@ -153,16 +155,17 @@ func testProfileStorage(t *testing.T, tmpDir string, baseTs int64, cleanCache bo
 }
 
 func TestStoreProfileStatus(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "ngm-test-.*")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)
 		require.NoError(t, err)
 	}()
 
-	genjiDB := testutil.NewGenjiDB(t, tmpDir)
-	defer genjiDB.Close()
-	storage, err := NewProfileStorage(genjiDB)
+	db, err := docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(t, tmpDir))
+	require.NoError(t, err)
+	defer db.Close()
+	storage, err := NewProfileStorage(db)
 	require.NoError(t, err)
 	defer storage.Close()
 
@@ -196,7 +199,7 @@ func TestStoreProfileStatus(t *testing.T) {
 }
 
 func TestGenjiDBAddColumn(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-genjidb.*")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "ngm-test-genjidb.*")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)
@@ -246,7 +249,7 @@ func TestGenjiDBAddColumn(t *testing.T) {
 
 func TestGenjiDBGCBug(t *testing.T) {
 	// related issue: https://github.com/genjidb/genji/issues/454
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-genjidb-gc.*")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "ngm-test-genjidb-gc.*")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)
