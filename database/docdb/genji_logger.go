@@ -1,11 +1,9 @@
-package document
+package docdb
 
 import (
 	stdlog "log"
 	"os"
 	"path"
-
-	"github.com/pingcap/ng-monitoring/config"
 
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
@@ -20,24 +18,30 @@ const (
 	ERROR
 )
 
+const (
+	LevelDebug = "DEBUG"
+	LevelInfo  = "INFO"
+	LevelWarn  = "WARN"
+	LevelError = "ERROR"
+)
+
 type logger struct {
 	*stdlog.Logger
 	level loggingLevel
 }
 
-func initLogger(cfg *config.Config) (*logger, error) {
+func initLogger(logPath, logLevel string) (*logger, error) {
 	var err error
 	var logDir string
-	if cfg.Log.Path != "" {
-		logDir = cfg.Log.Path
+	if logPath != "" {
+		logDir = logPath
 	} else {
-		logDir = path.Join(cfg.Storage.Path, "docdb-log")
+		logDir = path.Join(logPath, "docdb-log")
 		err := os.MkdirAll(logDir, os.ModePerm)
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	logFileName := path.Join(logDir, "docdb.log")
 	logFile, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
@@ -45,21 +49,19 @@ func initLogger(cfg *config.Config) (*logger, error) {
 		log.Warn("Failed to init logger", zap.String("filename", logFileName))
 		return nil, err
 	}
-
 	var level loggingLevel
-	switch cfg.Log.Level {
-	case config.LevelDebug:
+	switch logLevel {
+	case LevelDebug:
 		level = DEBUG
-	case config.LevelInfo:
+	case LevelInfo:
 		level = INFO
-	case config.LevelWarn:
+	case LevelWarn:
 		level = WARN
-	case config.LevelError:
+	case LevelError:
 		level = ERROR
 	default:
-		log.Fatal("Unsupported log level", zap.String("level", cfg.Log.Level))
+		log.Fatal("Unsupported log level", zap.String("level", logLevel))
 	}
-
 	return &logger{Logger: stdlog.New(logFile, "badger ", stdlog.LstdFlags), level: level}, nil
 }
 

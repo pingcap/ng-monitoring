@@ -2,7 +2,6 @@ package scrape
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
 
 	"github.com/pingcap/log"
@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestManager(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "ngm-test-.*")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)
@@ -43,7 +43,8 @@ func TestManager(t *testing.T) {
 	cfg.ContinueProfiling.IntervalSeconds = 1
 	config.StoreGlobalConfig(cfg)
 
-	db := testutil.NewGenjiDB(t, tmpDir)
+	db, err := docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(t, tmpDir))
+	require.NoError(t, err)
 	defer db.Close()
 	storage, err := store.NewProfileStorage(db)
 	require.NoError(t, err)

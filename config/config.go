@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/utils"
 
 	"github.com/BurntSushi/toml"
@@ -32,7 +33,7 @@ type Config struct {
 	ContinueProfiling ContinueProfilingConfig `toml:"-" json:"continuous_profiling"`
 	Security          Security                `toml:"security" json:"security"`
 	TSDB              TSDB                    `toml:"tsdb" json:"tsdb"`
-	DocDB             DocDB                   `toml:"docdb" json:"docdb"`
+	DocDB             docdb.BadgerConfig      `toml:"docdb" json:"docdb"`
 }
 
 var defaultConfig = Config{
@@ -58,7 +59,7 @@ var defaultConfig = Config{
 		RetentionPeriod:           "1", // 1 month
 		SearchMaxUniqueTimeseries: 300000,
 	},
-	DocDB: DocDB{
+	DocDB: docdb.BadgerConfig{
 		LSMOnly:                 false,
 		SyncWrites:              false,
 		NumVersionsToKeep:       1,
@@ -275,7 +276,9 @@ func (p *PD) Equal(other PD) bool {
 }
 
 type Storage struct {
-	Path string `toml:"path" json:"path"`
+	Path              string `toml:"path" json:"path"`
+	DocDBBackend      string `toml:"docdb-backend" json:"docdb_backend"`
+	MetaRetentionSecs int64  `toml:"meta-retention-secs" json:"meta_retention_secs"`
 }
 
 func (s *Storage) valid() error {
@@ -413,31 +416,6 @@ func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
 type TSDB struct {
 	RetentionPeriod           string `toml:"retention-period" json:"retention_period"`
 	SearchMaxUniqueTimeseries int64  `toml:"search-max-unique-timeseries" json:"search_max_unique_timeseries"`
-}
-
-type DocDB struct {
-	LSMOnly                 bool    `toml:"lsm-only" json:"lsm_only"`
-	SyncWrites              bool    `toml:"sync-writes" json:"sync_writes"`
-	NumVersionsToKeep       int     `toml:"num-versions-to-keep" json:"num_versions_to_keep"`
-	NumGoroutines           int     `toml:"num-goroutines" json:"num_goroutines"`
-	MemTableSize            int64   `toml:"mem-table-size" json:"mem_table_size"`
-	BaseTableSize           int64   `toml:"base-table-size" json:"base_table_size"`
-	BaseLevelSize           int64   `toml:"base-level-size" json:"base_level_size"`
-	LevelSizeMultiplier     int     `toml:"level-size-multiplier" json:"level_size_multiplier"`
-	MaxLevels               int     `toml:"max-levels" json:"max_levels"`
-	VLogPercentile          float64 `toml:"vlog-percentile" json:"vlog_percentile"`
-	ValueThreshold          int64   `toml:"value-threshold" json:"value_threshold"`
-	NumMemtables            int     `toml:"num-memtables" json:"num_memtables"`
-	BlockSize               int     `toml:"block-size" json:"block_size"`
-	BloomFalsePositive      float64 `toml:"bloom-false-positive" json:"bloom_false_positive"`
-	BlockCacheSize          int64   `toml:"block-cache-size" json:"block_cache_size"`
-	IndexCacheSize          int64   `toml:"index-cache-size" json:"index_cache_size"`
-	NumLevelZeroTables      int     `toml:"num-level-zero-tables" json:"num_level_zero_tables"`
-	NumLevelZeroTablesStall int     `toml:"num-level-zero-tables-stall" json:"num_level_zero_tables_stall"`
-	ValueLogFileSize        int64   `toml:"value-log-file-size" json:"value_log_file_size"`
-	ValueLogMaxEntries      uint32  `toml:"value-log-max-entries" json:"value_log_max_entries"`
-	NumCompactors           int     `toml:"num-compactors" json:"num_compactors"`
-	ZSTDCompressionLevel    int     `toml:"zstd-compression-level" json:"zstd_compression_level"`
 }
 
 type ContinueProfilingConfig struct {
