@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -16,13 +15,6 @@ import (
 	"github.com/valyala/gozstd"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-)
-
-const (
-	tableNamePrefix = "conprof"
-	metaTableSuffix = "meta"
-	dataTableSuffix = "data"
-	metaTableName   = tableNamePrefix + "_targets_meta"
 )
 
 var ErrStoreIsClosed = errors.New("storage is closed")
@@ -420,14 +412,6 @@ func (s *ProfileStorage) dropProfileTableIfStaled(pt meta.ProfileTarget, info me
 		zap.String("address", pt.Address),
 		zap.String("kind", pt.Kind))
 	return nil
-}
-
-func (s *ProfileStorage) getProfileMetaTableName(info *meta.TargetInfo) string {
-	return fmt.Sprintf("`%v_%v_%v`", tableNamePrefix, info.ID, metaTableSuffix)
-}
-
-func (s *ProfileStorage) getProfileDataTableName(info *meta.TargetInfo) string {
-	return fmt.Sprintf("`%v_%v_%v`", tableNamePrefix, info.ID, dataTableSuffix)
 }
 
 func (s *ProfileStorage) rebaseID(id int64) {
