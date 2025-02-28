@@ -1,9 +1,9 @@
 package tests
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,7 +19,7 @@ import (
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/database"
-	"github.com/pingcap/ng-monitoring/database/document"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
 
 	"github.com/gin-gonic/gin"
@@ -62,10 +62,11 @@ type testTopSQLSuite struct {
 	varCh      pdvariable.Subscriber
 	cfgCh      config.Subscriber
 	ng         *gin.Engine
+	docDB      docdb.DocDB
 }
 
 func (s *testTopSQLSuite) SetupSuite() {
-	dir, err := ioutil.TempDir("", "topsql-test")
+	dir, err := os.MkdirTemp("", "topsql-test")
 	s.NoError(err)
 	s.dir = dir
 
@@ -101,12 +102,19 @@ func (s *testTopSQLSuite) SetupSuite() {
 	time.Sleep(time.Second) // wait for grpc server ready (ugly code)
 
 	database.Init(&cfg)
+	s.docDB, err = docdb.NewGenjiDB(context.Background(), &docdb.GenjiConfig{
+		Path:         cfg.Storage.Path,
+		LogPath:      cfg.Log.Path,
+		LogLevel:     cfg.Log.Level,
+		BadgerConfig: cfg.DocDB,
+	})
+	s.NoError(err)
 
 	// init topsql
 	s.topCh = make(topology.Subscriber)
 	s.varCh = make(pdvariable.Subscriber)
 	s.cfgCh = make(config.Subscriber)
-	err = topsql.Init(s.cfgCh, document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh)
+	err = topsql.Init(s.cfgCh, s.docDB, timeseries.InsertHandler, timeseries.SelectHandler, s.topCh, s.varCh, 0)
 	s.NoError(err)
 	s.varCh <- enable
 	time.Sleep(100 * time.Millisecond)
@@ -302,6 +310,7 @@ func (s *testTopSQLSuite) TearDownSuite() {
 	s.tikvServer.Stop()
 	topsql.Stop()
 	database.Stop()
+	s.docDB.Close()
 	s.NoError(os.RemoveAll(s.dir))
 }
 

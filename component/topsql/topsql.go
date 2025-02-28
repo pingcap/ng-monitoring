@@ -11,8 +11,8 @@ import (
 	sub "github.com/pingcap/ng-monitoring/component/topsql/subscriber"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 
-	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,20 +25,16 @@ var (
 
 func Init(
 	cfgSub config.Subscriber,
-	gj *genji.DB,
+	docDB docdb.DocDB,
 	insertHdr, selectHdr http.HandlerFunc,
 	topSub topology.Subscriber,
 	varSub pdvariable.Subscriber,
+	metaRetentionSecs int64,
 ) (err error) {
-	defStore, err = store.NewDefaultStore(insertHdr, gj)
-	if err != nil {
-		return err
-	}
-
-	defQuery = query.NewDefaultQuery(selectHdr, gj)
+	defStore = store.NewDefaultStore(insertHdr, docDB, metaRetentionSecs)
+	defQuery = query.NewDefaultQuery(selectHdr, docDB)
 	defSubscriber = sub.NewSubscriber(topSub, varSub, cfgSub, defStore)
 	defService = service.NewService(defQuery)
-
 	return nil
 }
 

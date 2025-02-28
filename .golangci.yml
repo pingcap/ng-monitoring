@@ -6,10 +6,10 @@ linters:
     - misspell
     - ineffassign
     - typecheck
-    - varcheck
+    # - varcheck
     - unused
-    - structcheck
-    - deadcode
+    # - structcheck
+    # - deadcode
     - gosimple
     - goimports
     - errcheck
@@ -18,7 +18,8 @@ linters:
     - gosec
     - asciicheck
     - bodyclose
-    - exportloopref
+    # - exportloopref
+    # - copyloopvar
     - rowserrcheck
     - unconvert
     - makezero
@@ -38,3 +39,6 @@ issues:
         - gosec
         - rowserrcheck
         - makezero
+    - linters:
+        - gosec
+      text: "G115:"

@@ -13,7 +13,7 @@ import (
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/config/pdvariable"
 	"github.com/pingcap/ng-monitoring/database"
-	"github.com/pingcap/ng-monitoring/database/document"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
 	"github.com/pingcap/ng-monitoring/service"
 	"github.com/pingcap/ng-monitoring/utils/printer"
@@ -70,7 +70,28 @@ func main() {
 	database.Init(cfg)
 	defer database.Stop()
 
-	err = config.LoadConfigFromStorage(document.Get)
+	var docDB docdb.DocDB
+	switch cfg.Storage.DocDBBackend {
+	case "sqlite":
+		docDB, err = docdb.NewSQLiteDB(cfg.Storage.Path)
+	default:
+		docDB, err = docdb.NewGenjiDB(context.Background(), &docdb.GenjiConfig{
+			Path:         cfg.Storage.Path,
+			LogPath:      cfg.Log.Path,
+			LogLevel:     cfg.Log.Level,
+			BadgerConfig: cfg.DocDB,
+		})
+	}
+	if err != nil {
+		stdlog.Fatalf("Failed to create docdb err: %s", err.Error())
+	}
+	defer func() {
+		if err := docDB.Close(); err != nil {
+			stdlog.Fatalf("Failed to close docdb err: %s", err.Error())
+		}
+	}()
+
+	err = config.LoadConfigFromStorage(context.Background(), docDB)
 	if err != nil {
 		stdlog.Fatalf("Failed to load config from storage, err: %s", err.Error())
 	}
@@ -87,19 +108,19 @@ func main() {
 	pdvariable.Init(do)
 	defer pdvariable.Stop()
 
-	err = topsql.Init(config.Subscribe(), document.Get(), timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe())
+	err = topsql.Init(config.Subscribe(), docDB, timeseries.InsertHandler, timeseries.SelectHandler, topology.Subscribe(), pdvariable.Subscribe(), cfg.Storage.MetaRetentionSecs)
 	if err != nil {
 		log.Fatal("Failed to initialize topsql", zap.Error(err))
 	}
 	defer topsql.Stop()
 
-	err = conprof.Init(document.Get(), topology.Subscribe())
+	err = conprof.Init(docDB, topology.Subscribe())
 	if err != nil {
 		log.Fatal("Failed to initialize continuous profiling", zap.Error(err))
 	}
 	defer conprof.Stop()
 
-	service.Init(cfg)
+	service.Init(cfg, docDB)
 	defer service.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())
