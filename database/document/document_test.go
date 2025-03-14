@@ -11,6 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGenji(t *testing.T) {
+	dir, err := os.MkdirTemp(os.TempDir(), "ngm-test-.*")
+	require.NoError(t, err)
+	db, err := NewGenjiDBFromGenji(testutil.NewGenjiDB(t, dir))
+	require.NoError(t, err)
+	testDocDB(t, db)
+}
+
 func TestGC(t *testing.T) {
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
 	require.NoError(t, err)
