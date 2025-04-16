@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -19,23 +19,24 @@ import (
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
 	"github.com/pingcap/ng-monitoring/component/topology"
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/utils/testutil"
 
-	"github.com/genjidb/genji"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
 type testSuite struct {
 	tmpDir string
-	db     *genji.DB
+	db     docdb.DocDB
 }
 
 func (ts *testSuite) setup(t *testing.T) {
 	var err error
-	ts.tmpDir, err = ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	ts.tmpDir, err = os.MkdirTemp(os.TempDir(), "ngm-test-.*")
 	require.NoError(t, err)
-	ts.db = testutil.NewGenjiDB(t, ts.tmpDir)
+	ts.db, err = docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(t, ts.tmpDir))
+	require.NoError(t, err)
 	cfg := config.GetDefaultConfig()
 	cfg.ContinueProfiling.Enable = true
 	cfg.ContinueProfiling.ProfileSeconds = 1
@@ -96,7 +97,7 @@ func testAPIGroupProfiles(t *testing.T, httpAddr string) int64 {
 	resp, err := http.Get(fmt.Sprintf("http://%v/continuous_profiling/group_profiles?begin_time=%v&end_time=%v", httpAddr, ts-2*60*60, ts))
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	err = resp.Body.Close()
 	require.NoError(t, err)
@@ -116,7 +117,7 @@ func testAPIGroupProfileDetail(t *testing.T, httpAddr string, ts int64, componen
 	resp, err := http.Get("http://" + httpAddr + "/continuous_profiling/group_profile/detail?ts=" + strconv.Itoa(int(ts)))
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	err = resp.Body.Close()
 	require.NoError(t, err)
@@ -146,7 +147,7 @@ func testAPISingleProfileView(t *testing.T, httpAddr string, ts int64, component
 		resp, err := http.Get(url)
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.StatusCode)
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, "profile", string(body))
 		err = resp.Body.Close()
@@ -165,7 +166,7 @@ func testAPIDownload(t *testing.T, httpAddr string, ts int64, components []topol
 		resp, err := http.Get(url)
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.StatusCode)
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		err = resp.Body.Close()
 		require.NoError(t, err)
@@ -221,7 +222,7 @@ func testAPIComponent(t *testing.T, httpAddr string, components []topology.Compo
 	resp, err := http.Get("http://" + httpAddr + "/continuous_profiling/components")
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	err = resp.Body.Close()
 	require.NoError(t, err)
@@ -246,7 +247,7 @@ func testAPIEstimateSize(t *testing.T, httpAddr string, components []topology.Co
 	resp, err := http.Get("http://" + httpAddr + "/continuous_profiling/estimate_size")
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	err = resp.Body.Close()
 	require.NoError(t, err)
@@ -294,7 +295,7 @@ func testErrorRequest(t *testing.T, httpAddr string) {
 		resp, err := http.Get("http://" + httpAddr + "/continuous_profiling" + ca.api)
 		require.NoError(t, err)
 		require.Equal(t, 503, resp.StatusCode, ca.api)
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		require.Equal(t, ca.body, string(body), ca.api)
 		err = resp.Body.Close()
@@ -371,7 +372,7 @@ func TestQueryStatus(t *testing.T) {
 	resp, err := http.Get(fmt.Sprintf("http://%v/continuous_profiling/group_profiles?begin_time=%v&end_time=%v", httpAddr, t0.Unix(), t2.Unix()))
 	require.NoError(t, err)
 	require.Equal(t, 200, resp.StatusCode)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	err = resp.Body.Close()
 	require.NoError(t, err)
@@ -393,7 +394,7 @@ func TestQueryStatus(t *testing.T) {
 		resp, err = http.Get("http://" + httpAddr + "/continuous_profiling/group_profile/detail?ts=" + strconv.Itoa(int(ts)))
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.StatusCode)
-		body, err = ioutil.ReadAll(resp.Body)
+		body, err = io.ReadAll(resp.Body)
 		require.NoError(t, err)
 		err = resp.Body.Close()
 		require.NoError(t, err)

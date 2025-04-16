@@ -1,7 +1,6 @@
-package document
+package docdb
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -20,7 +19,7 @@ func TestGenji(t *testing.T) {
 }
 
 func TestGC(t *testing.T) {
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "ngm-test-.*")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "ngm-test-.*")
 	require.NoError(t, err)
 	defer func() {
 		err := os.RemoveAll(tmpDir)

@@ -4,8 +4,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/conprof/scrape"
 	"github.com/pingcap/ng-monitoring/component/conprof/store"
 	"github.com/pingcap/ng-monitoring/component/topology"
-
-	"github.com/genjidb/genji"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 )
 
 var (
@@ -13,7 +12,7 @@ var (
 	manager *scrape.Manager
 )
 
-func Init(db *genji.DB, subscriber topology.Subscriber) error {
+func Init(db docdb.DocDB, subscriber topology.Subscriber) error {
 	var err error
 	storage, err = store.NewProfileStorage(db)
 	if err != nil {
