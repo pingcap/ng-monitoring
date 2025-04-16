@@ -19,7 +19,7 @@ linters:
     - asciicheck
     - bodyclose
     # - exportloopref
-    - copyloopvar
+    # - copyloopvar
     - rowserrcheck
     - unconvert
     - makezero

@@ -19,6 +19,7 @@ endpoints = ["0.0.0.0:2379"]
 [storage]
 # Storage path of ng monitoring server
 path = "data"
+docdb-backend = "sqlite"
 
 [security]
 ca-path = ""

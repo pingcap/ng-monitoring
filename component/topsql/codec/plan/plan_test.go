@@ -1,7 +1,7 @@
 package plan_test
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/codec/plan"
@@ -12,13 +12,13 @@ import (
 func TestBigPlan(t *testing.T) {
 	t.Parallel()
 
-	bigEncodedPlan, err := ioutil.ReadFile("testdata/big_encoded_plan.txt")
+	bigEncodedPlan, err := os.ReadFile("testdata/big_encoded_plan.txt")
 	require.NoError(t, err)
 
 	planText, err := plan.Decode(string(bigEncodedPlan))
 	require.NoError(t, err)
 
-	bigDecodedPlan, err := ioutil.ReadFile("testdata/big_decoded_plan.txt")
+	bigDecodedPlan, err := os.ReadFile("testdata/big_decoded_plan.txt")
 	require.NoError(t, err)
 	require.Equal(t, planText, string(bigDecodedPlan))
 }

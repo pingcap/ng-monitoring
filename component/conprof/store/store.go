@@ -3,28 +3,18 @@ package store
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
+	"github.com/pingcap/ng-monitoring/database/docdb"
 	"github.com/pingcap/ng-monitoring/utils"
 
-	"github.com/genjidb/genji"
-	"github.com/genjidb/genji/document"
-	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
 	"github.com/valyala/gozstd"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-)
-
-const (
-	tableNamePrefix = "conprof"
-	metaTableSuffix = "meta"
-	dataTableSuffix = "data"
-	metaTableName   = tableNamePrefix + "_targets_meta"
 )
 
 var ErrStoreIsClosed = errors.New("storage is closed")
@@ -34,12 +24,12 @@ type ProfileStorage struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	sync.Mutex
-	db          *genji.DB
+	db          docdb.DocDB
 	metaCache   map[meta.ProfileTarget]*meta.TargetInfo
 	idAllocator int64
 }
 
-func NewProfileStorage(db *genji.DB) (*ProfileStorage, error) {
+func NewProfileStorage(db docdb.DocDB) (*ProfileStorage, error) {
 	store := &ProfileStorage{
 		db:        db,
 		metaCache: make(map[meta.ProfileTarget]*meta.TargetInfo),
@@ -56,10 +46,6 @@ func NewProfileStorage(db *genji.DB) (*ProfileStorage, error) {
 }
 
 func (s *ProfileStorage) init() error {
-	err := s.initMetaTable()
-	if err != nil {
-		return err
-	}
 	allTargets, allInfos, err := s.loadAllTargetsFromTable()
 	if err != nil {
 		return err
@@ -71,40 +57,18 @@ func (s *ProfileStorage) init() error {
 	return nil
 }
 
-func (s *ProfileStorage) initMetaTable() error {
-	// create meta table if not exists.
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (id INTEGER primary key, kind TEXT, component TEXT, address TEXT, last_scrape_ts INTEGER)", metaTableName)
-	return s.db.Exec(sql)
-}
-
 func (s *ProfileStorage) loadMetaIntoCache(target meta.ProfileTarget) error {
-	query := fmt.Sprintf("SELECT id, last_scrape_ts FROM %v WHERE kind = ? AND component = ? AND address = ?", metaTableName)
-	res, err := s.db.Query(query, target.Kind, target.Component, target.Address)
-	if err != nil {
-		return err
-	}
-	defer res.Close()
-
-	err = res.Iterate(func(d types.Document) error {
-		var id, ts int64
-		err = document.Scan(d, &id, &ts)
-		if err != nil {
-			return err
-		}
-		s.rebaseID(id)
-		s.metaCache[target] = &meta.TargetInfo{
-			ID:           id,
-			LastScrapeTs: ts,
-		}
+	return s.db.ConprofQueryTargetInfo(s.ctx, target, func(info meta.TargetInfo) error {
+		s.rebaseID(info.ID)
+		s.metaCache[target] = &info
 		log.Info("load target info into cache",
 			zap.String("component", target.Component),
 			zap.String("address", target.Address),
 			zap.String("kind", target.Kind),
-			zap.Int64("id", id),
-			zap.Int64("ts", ts))
+			zap.Int64("id", info.ID),
+			zap.Int64("ts", info.LastScrapeTs))
 		return nil
 	})
-	return err
 }
 
 func (s *ProfileStorage) UpdateProfileTargetInfo(pt meta.ProfileTarget, ts int64) (bool, error) {
@@ -118,8 +82,7 @@ func (s *ProfileStorage) UpdateProfileTargetInfo(pt meta.ProfileTarget, ts int64
 		return false, nil
 	}
 	info.LastScrapeTs = ts
-	sql := fmt.Sprintf("UPDATE %v set last_scrape_ts = ? where id = ?", metaTableName)
-	err := s.db.Exec(sql, ts, info.ID)
+	err := s.db.ConprofUpdateTargetInfo(s.ctx, *info)
 	if err != nil {
 		return false, err
 	}
@@ -141,21 +104,14 @@ func (s *ProfileStorage) AddProfile(pt meta.ProfileTarget, t time.Time, profileD
 		if pt.Kind == meta.ProfileKindGoroutine {
 			profileData = gozstd.Compress(nil, profileData)
 		}
-		sql := fmt.Sprintf("INSERT INTO %v (ts, data) VALUES (?, ?)", s.getProfileDataTableName(info))
-		err = s.db.Exec(sql, ts, profileData)
+		err = s.db.ConprofWriteProfileData(s.ctx, info.ID, ts, profileData)
 		if err != nil {
 			return err
 		}
 	} else {
 		errStr = profileErr.Error()
 	}
-
-	sql := fmt.Sprintf("INSERT INTO %v (ts, error) VALUES (?, ?)", s.getProfileMetaTableName(info))
-	err = s.db.Exec(sql, ts, errStr)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.db.ConprofWriteProfileMeta(s.ctx, info.ID, ts, errStr)
 }
 
 type QueryLimiter struct {
@@ -253,22 +209,9 @@ func (s *ProfileStorage) QueryGroupProfiles(param *meta.BasicQueryParam) ([]meta
 func (s *ProfileStorage) QueryTargetProfiles(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam) (meta.ProfileList, error) {
 	queryLimiter := newQueryLimiter(param.Limit)
 	result := meta.ProfileList{Target: pt}
-	args := []interface{}{param.Begin, param.End}
-	query := fmt.Sprintf("SELECT ts, error FROM %v WHERE ts >= ? and ts <= ? ORDER BY ts DESC", s.getProfileMetaTableName(ptInfo))
-	res, err := s.db.Query(query, args...)
-	if err != nil {
-		return result, err
-	}
-	defer res.Close()
-	err = res.Iterate(func(d types.Document) error {
-		var ts int64
-		var errStr string
-		err = document.Scan(d, &ts, &errStr)
-		if err != nil {
-			return err
-		}
+	err := s.db.ConprofQueryProfileMeta(s.ctx, ptInfo.ID, param.Begin, param.End, func(ts int64, verr string) error {
 		result.TsList = append(result.TsList, ts)
-		result.ErrorList = append(result.ErrorList, errStr)
+		result.ErrorList = append(result.ErrorList, verr)
 		queryLimiter.Add(1)
 		if queryLimiter.IsFull() {
 			return errResultFull
@@ -339,28 +282,14 @@ func (s *ProfileStorage) QueryProfileData(param *meta.BasicQueryParam, handleFn 
 
 func (s *ProfileStorage) QueryTargetProfileData(pt meta.ProfileTarget, ptInfo *meta.TargetInfo, param *meta.BasicQueryParam, handleFn func(meta.ProfileTarget, int64, []byte) error) error {
 	queryLimiter := newQueryLimiter(param.Limit)
-	args := []interface{}{param.Begin, param.End}
-	query := fmt.Sprintf("SELECT ts, data FROM %v WHERE ts >= ? and ts <= ? ORDER BY ts DESC", s.getProfileDataTableName(ptInfo))
-	res, err := s.db.Query(query, args...)
-	if err != nil {
-		return err
-	}
-	defer res.Close()
-	err = res.Iterate(func(d types.Document) error {
-		var ts int64
-		var data []byte
-		err = document.Scan(d, &ts, &data)
-		if err != nil {
-			return err
-		}
-
+	err := s.db.ConprofQueryProfileData(s.ctx, ptInfo.ID, param.Begin, param.End, func(ts int64, data []byte) error {
+		var err error
 		if pt.Kind == meta.ProfileKindGoroutine {
 			data, err = gozstd.Decompress(nil, data)
 			if err != nil {
 				return err
 			}
 		}
-
 		err = handleFn(pt, ts, data)
 		if err != nil {
 			return err
@@ -437,21 +366,10 @@ func (s *ProfileStorage) createProfileTable(pt meta.ProfileTarget, ts int64) (*m
 		ID:           s.allocID(),
 		LastScrapeTs: ts,
 	}
-	tbName := s.getProfileMetaTableName(info)
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY, error TEXT)", tbName)
-	err := s.db.Exec(sql)
-	if err != nil {
-		return info, err
+	if err := s.db.ConprofCreateProfileTables(s.ctx, info.ID); err != nil {
+		return nil, err
 	}
-	tbName = s.getProfileDataTableName(info)
-	sql = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %v (ts INTEGER PRIMARY KEY, data BLOB)", tbName)
-	err = s.db.Exec(sql)
-	if err != nil {
-		return info, err
-	}
-	sql = fmt.Sprintf("INSERT INTO %v (id, kind, component, address, last_scrape_ts) VALUES (?, ?, ?, ?, ?)", metaTableName)
-	err = s.db.Exec(sql, info.ID, pt.Kind, pt.Component, pt.Address, info.LastScrapeTs)
-	if err != nil {
+	if err := s.db.ConprofCreateTargetInfo(s.ctx, pt, *info); err != nil {
 		return nil, err
 	}
 	log.Info("create profile target table",
@@ -482,41 +400,18 @@ func (s *ProfileStorage) dropProfileTableIfStaled(pt meta.ProfileTarget, info me
 	if lastScrapeTs >= safePointTs {
 		return nil
 	}
-	// remove in meta table.
-	sql := fmt.Sprintf("DELETE FROM %v WHERE id = ?", metaTableName)
-	err := s.db.Exec(sql, info.ID)
-	if err != nil {
+
+	if err := s.db.ConprofDeleteProfileTables(s.ctx, info.ID); err != nil {
 		return err
 	}
-
-	// update cache
 	delete(s.metaCache, pt)
 
-	// drop the table
-	sql = fmt.Sprintf("DROP TABLE IF EXISTS %v", s.getProfileDataTableName(&info))
-	err = s.db.Exec(sql)
-	if err != nil {
-		return err
-	}
-	sql = fmt.Sprintf("DROP TABLE IF EXISTS %v", s.getProfileMetaTableName(&info))
-	err = s.db.Exec(sql)
-	if err != nil {
-		return err
-	}
 	log.Info("drop profile target table",
 		zap.Int64("id", info.ID),
 		zap.String("component", pt.Component),
 		zap.String("address", pt.Address),
 		zap.String("kind", pt.Kind))
 	return nil
-}
-
-func (s *ProfileStorage) getProfileMetaTableName(info *meta.TargetInfo) string {
-	return fmt.Sprintf("`%v_%v_%v`", tableNamePrefix, info.ID, metaTableSuffix)
-}
-
-func (s *ProfileStorage) getProfileDataTableName(info *meta.TargetInfo) string {
-	return fmt.Sprintf("`%v_%v_%v`", tableNamePrefix, info.ID, dataTableSuffix)
 }
 
 func (s *ProfileStorage) rebaseID(id int64) {
