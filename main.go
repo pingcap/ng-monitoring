@@ -5,6 +5,7 @@ import (
 	"fmt"
 	stdlog "log"
 	"os"
+	"runtime/debug"
 
 	"github.com/pingcap/ng-monitoring/component/conprof"
 	"github.com/pingcap/ng-monitoring/component/domain"
@@ -61,6 +62,13 @@ func main() {
 		stdlog.Fatalf("Failed to initialize config, err: %s", err.Error())
 	}
 
+	if cfg.Go.GCPercent > 0 {
+		debug.SetGCPercent(cfg.Go.GCPercent)
+	}
+	if cfg.Go.MemoryLimit > 0 {
+		debug.SetMemoryLimit(cfg.Go.MemoryLimit)
+	}
+
 	cfg.Log.InitDefaultLogger()
 	printer.PrintNGMInfo()
 	log.Info("config", zap.Any("config", cfg))
@@ -73,7 +81,7 @@ func main() {
 	var docDB docdb.DocDB
 	switch cfg.Storage.DocDBBackend {
 	case "sqlite":
-		docDB, err = docdb.NewSQLiteDB(cfg.Storage.Path)
+		docDB, err = docdb.NewSQLiteDB(cfg.Storage.Path, cfg.Storage.SQLiteUseWAL)
 	default:
 		docDB, err = docdb.NewGenjiDB(context.Background(), &docdb.GenjiConfig{
 			Path:         cfg.Storage.Path,

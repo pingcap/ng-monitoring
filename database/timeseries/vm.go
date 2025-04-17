@@ -28,6 +28,30 @@ func Init(cfg *config.Config) {
 	_ = flag.Set("retentionPeriod", cfg.TSDB.RetentionPeriod)
 	_ = flag.Set("search.maxStepForPointsAdjustment", "1s")
 	_ = flag.Set("search.maxUniqueTimeseries", fmt.Sprintf("%d", cfg.TSDB.SearchMaxUniqueTimeseries))
+	if cfg.TSDB.MemoryAllowedBytes > 0 {
+		_ = flag.Set("memory.allowedBytes", fmt.Sprintf("%d", cfg.TSDB.MemoryAllowedBytes))
+	}
+	if cfg.TSDB.MemoryAllowedPercent > 0 {
+		_ = flag.Set("memory.allowedPercent", fmt.Sprintf("%f", cfg.TSDB.MemoryAllowedPercent))
+	}
+	if cfg.TSDB.CacheSizeIndexDBDataBlocks != "" {
+		_ = flag.Set("storage.cacheSizeIndexDBDataBlocks", cfg.TSDB.CacheSizeIndexDBDataBlocks)
+	}
+	if cfg.TSDB.CacheSizeIndexDBDataBlocksSparse != "" {
+		_ = flag.Set("storage.cacheSizeIndexDBDataBlocksSparse", cfg.TSDB.CacheSizeIndexDBDataBlocksSparse)
+	}
+	if cfg.TSDB.CacheSizeIndexDBIndexBlocks != "" {
+		_ = flag.Set("storage.cacheSizeIndexDBIndexBlocks", cfg.TSDB.CacheSizeIndexDBIndexBlocks)
+	}
+	if cfg.TSDB.CacheSizeIndexDBTagFilters != "" {
+		_ = flag.Set("storage.cacheSizeIndexDBTagFilters", cfg.TSDB.CacheSizeIndexDBTagFilters)
+	}
+	if cfg.TSDB.CacheSizeMetricNamesStats != "" {
+		_ = flag.Set("storage.cacheSizeMetricNamesStats", cfg.TSDB.CacheSizeMetricNamesStats)
+	}
+	if cfg.TSDB.CacheSizeStorageTSID != "" {
+		_ = flag.Set("storage.cacheSizeStorageTSID", cfg.TSDB.CacheSizeStorageTSID)
+	}
 
 	// Some components in VictoriaMetrics want parsed arguments, i.e. assert `flag.Parsed()`. Make them happy.
 	_ = flag.CommandLine.Parse(nil)

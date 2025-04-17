@@ -27,6 +27,7 @@ import (
 type Config struct {
 	Address           string                  `toml:"address" json:"address"`
 	AdvertiseAddress  string                  `toml:"advertise-address" json:"advertise_address"`
+	Go                Go                      `toml:"go" json:"go"`
 	PD                PD                      `toml:"pd" json:"pd"`
 	Log               Log                     `toml:"log" json:"log"`
 	Storage           Storage                 `toml:"storage" json:"storage"`
@@ -46,7 +47,8 @@ var defaultConfig = Config{
 		Level: "INFO",
 	},
 	Storage: Storage{
-		Path: "data",
+		Path:         "data",
+		SQLiteUseWAL: true,
 	},
 	ContinueProfiling: ContinueProfilingConfig{
 		Enable:               false, // TODO(mornyx): Enable when tiflash#5285 is fixed.
@@ -248,6 +250,11 @@ func validateAddress(address, name string) error {
 	return nil
 }
 
+type Go struct {
+	GCPercent   int   `toml:"gc-percent" json:"gc_percent"`
+	MemoryLimit int64 `toml:"memory-limit" json:"memory_limit"`
+}
+
 type PD struct {
 	Endpoints []string `toml:"endpoints" json:"endpoints"`
 }
@@ -278,6 +285,7 @@ func (p *PD) Equal(other PD) bool {
 type Storage struct {
 	Path              string `toml:"path" json:"path"`
 	DocDBBackend      string `toml:"docdb-backend" json:"docdb_backend"`
+	SQLiteUseWAL      bool   `toml:"sqlite-use-wal" json:"sqlite_use_wal"`
 	MetaRetentionSecs int64  `toml:"meta-retention-secs" json:"meta_retention_secs"`
 }
 
@@ -414,8 +422,16 @@ func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
 }
 
 type TSDB struct {
-	RetentionPeriod           string `toml:"retention-period" json:"retention_period"`
-	SearchMaxUniqueTimeseries int64  `toml:"search-max-unique-timeseries" json:"search_max_unique_timeseries"`
+	RetentionPeriod                  string  `toml:"retention-period" json:"retention_period"`
+	SearchMaxUniqueTimeseries        int64   `toml:"search-max-unique-timeseries" json:"search_max_unique_timeseries"`
+	MemoryAllowedBytes               int64   `toml:"memory-allowed-bytes" json:"memory_allowed_bytes"`
+	MemoryAllowedPercent             float64 `toml:"memory-allowed-percent" json:"memory_allowed_percent"`
+	CacheSizeIndexDBDataBlocks       string  `toml:"cache-size-indexdb-data-blocks" json:"cache_size_indexdb_data_blocks"`
+	CacheSizeIndexDBDataBlocksSparse string  `toml:"cache-size-indexdb-data-blocks-sparse" json:"cache_size_indexdb_data_blocks_sparse"`
+	CacheSizeIndexDBIndexBlocks      string  `toml:"cache-size-indexdb-index-blocks" json:"cache_size_indexdb_index_blocks"`
+	CacheSizeIndexDBTagFilters       string  `toml:"cache-size-indexdb-tag-filters" json:"cache_size_indexdb_tag_filters"`
+	CacheSizeMetricNamesStats        string  `toml:"cache-size-metric-names-stats" json:"cache_size_metric_names_stats"`
+	CacheSizeStorageTSID             string  `toml:"cache-size-storage-tsid" json:"cache_size_storage_tsid"`
 }
 
 type ContinueProfilingConfig struct {
