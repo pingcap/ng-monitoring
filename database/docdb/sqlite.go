@@ -17,16 +17,35 @@ import (
 
 type sqliteDB struct {
 	db *sql.DB
+
+	writeSQLMetaStmt  *sql.Stmt
+	writePlanMetaStmt *sql.Stmt
 }
 
-func NewSQLiteDB(dbPath string) (DocDB, error) {
+func NewSQLiteDB(dbPath string, useWAL bool) (DocDB, error) {
 	dbPath = path.Join(dbPath, "ng-sqlite.db")
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatal("failed to open sqlite db", zap.String("path", dbPath), zap.Error(err))
 	}
+	if useWAL {
+		_, err := db.Exec("PRAGMA journal_mode=WAL")
+		if err != nil {
+			return nil, err
+		}
+	}
 	d := &sqliteDB{db: db}
 	if err := d.tryInitTables(); err != nil {
+		return nil, err
+	}
+	writeSQLMetaSQL := `INSERT OR REPLACE INTO sql_digest (digest, sql_text, is_internal, created_at_ts) VALUES (?, ?, ?, ?)`
+	d.writeSQLMetaStmt, err = d.db.Prepare(writeSQLMetaSQL)
+	if err != nil {
+		return nil, err
+	}
+	writePlanMetaSQL := `INSERT OR REPLACE INTO plan_digest (digest, plan_text, encoded_plan, created_at_ts) VALUES (?, ?, ?, ?)`
+	d.writePlanMetaStmt, err = d.db.Prepare(writePlanMetaSQL)
+	if err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -89,13 +108,8 @@ func (d *sqliteDB) LoadConfig(ctx context.Context) (map[string]string, error) {
 }
 
 func (d *sqliteDB) WriteSQLMeta(ctx context.Context, meta *tipb.SQLMeta) error {
-	sql := `INSERT OR REPLACE INTO sql_digest (digest, sql_text, is_internal, created_at_ts) VALUES (?, ?, ?, ?)`
-	stmt, err := d.db.PrepareContext(ctx, sql)
-	if err != nil {
-		return err
-	}
 	now := time.Now().Unix()
-	_, err = stmt.ExecContext(ctx, hex.EncodeToString(meta.SqlDigest), meta.NormalizedSql, meta.IsInternalSql, now)
+	_, err := d.writeSQLMetaStmt.ExecContext(ctx, hex.EncodeToString(meta.SqlDigest), meta.NormalizedSql, meta.IsInternalSql, now)
 	return err
 }
 
@@ -117,13 +131,8 @@ func (d *sqliteDB) DeleteSQLMetaBeforeTs(ctx context.Context, ts int64) error {
 }
 
 func (d *sqliteDB) WritePlanMeta(ctx context.Context, meta *tipb.PlanMeta) error {
-	sql := `INSERT OR REPLACE INTO plan_digest (digest, plan_text, encoded_plan, created_at_ts) VALUES (?, ?, ?, ?)`
-	stmt, err := d.db.PrepareContext(ctx, sql)
-	if err != nil {
-		return err
-	}
 	now := time.Now().Unix()
-	_, err = stmt.ExecContext(ctx, hex.EncodeToString(meta.PlanDigest), meta.NormalizedPlan, meta.EncodedNormalizedPlan, now)
+	_, err := d.writePlanMetaStmt.ExecContext(ctx, hex.EncodeToString(meta.PlanDigest), meta.NormalizedPlan, meta.EncodedNormalizedPlan, now)
 	return err
 }
 
