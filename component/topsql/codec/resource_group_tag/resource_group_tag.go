@@ -9,6 +9,7 @@ import (
 func Decode(encoded []byte) (tipb.ResourceGroupTag, error) {
 	tag := tipb.ResourceGroupTag{}
 	err := tag.Unmarshal(encoded)
-	log.Warn("xxx-------------------------------------------- tag", zap.ByteString("keyspace name", tag.KeyspaceName), zap.Int64("tid", tag.TableId))
+	log.Warn("xxx-------------------------------------------- tag",
+		zap.ByteString("keyspace name", tag.KeyspaceName), zap.Int64("tid", tag.TableId))
 	return tag, err
 }

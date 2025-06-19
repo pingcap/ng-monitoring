@@ -234,6 +234,9 @@ func rsMeteringProtoToMetrics(
 			}
 		}
 	}
+	log.Warn("xxx-------------------------------------------- tag",
+		zap.ByteString("keyspace name", tag.KeyspaceName), zap.String("instance", instance),
+		zap.String("sql", sqlDigest), zap.String("tbl", tableName))
 	mCpu := Metric{
 		Metric: recordTags{
 			Name:         MetricNameCPUTime,
