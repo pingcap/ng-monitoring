@@ -303,7 +303,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 			},
 		},
 	}})
-	time.Sleep(3 * time.Second)
+	time.Sleep(10 * time.Second)
 }
 
 func (s *testTopSQLSuite) TearDownSuite() {
