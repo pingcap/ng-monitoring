@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 
 	"github.com/golang/snappy"
-	"github.com/pingcap/tidb/util/plancodec"
+	"github.com/pingcap/tidb/pkg/util/plancodec"
 )
 
 func Decode(planString string) (string, error) {
