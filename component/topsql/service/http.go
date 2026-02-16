@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
@@ -88,6 +89,33 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		})
 		return
 	}
+
+	// Keep backward/forward compatibility:
+	// - old clients may use `orderBy`
+	// - some clients (including the UI) use `order_by`
+	rawOrderBy := c.Query("orderBy")
+	if rawOrderBy == "" {
+		rawOrderBy = c.Query("order_by")
+	}
+	if rawOrderBy == "" {
+		rawOrderBy = query.OrderByCPU
+	}
+	orderBy := strings.ToLower(strings.TrimSpace(rawOrderBy))
+	if orderBy == "" {
+		orderBy = query.OrderByCPU
+	}
+	if orderBy == "logicalio" {
+		orderBy = query.OrderByLogicalIO
+	}
+	switch orderBy {
+	case query.OrderByCPU, query.OrderByNetwork, query.OrderByLogicalIO:
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "error",
+			"message": "invalid orderBy, allowed: cpu, network, logical_io",
+		})
+		return
+	}
 	switch groupBy {
 	case query.AggLevelTable:
 		if instanceType == "tidb" {
@@ -99,7 +127,7 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		}
 		items := summaryByItemP.Get()
 		defer summaryByItemP.Put(items)
-		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggLevelTable, items)
+		err = s.query.SummaryBy(orderBy, start, end, windowSecs, top, instance, instanceType, query.AggLevelTable, items)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",
@@ -121,7 +149,29 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		}
 		items := summaryByItemP.Get()
 		defer summaryByItemP.Put(items)
-		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggLevelDB, items)
+		err = s.query.SummaryBy(orderBy, start, end, windowSecs, top, instance, instanceType, query.AggLevelDB, items)
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "ok",
+			"data_by": items,
+		})
+	case query.AggLevelRegion:
+		if instanceType == "tidb" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": "region summary is not supported for tidb",
+			})
+			return
+		}
+		items := summaryByItemP.Get()
+		defer summaryByItemP.Put(items)
+		err = s.query.SummaryBy(orderBy, start, end, windowSecs, top, instance, instanceType, query.AggByRegionID, items)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",
@@ -136,7 +186,7 @@ func (s *Service) summaryHandler(c *gin.Context) {
 	default:
 		items := summaryBySqlP.Get()
 		defer summaryBySqlP.Put(items)
-		err = s.query.Summary(start, end, windowSecs, top, instance, instanceType, items)
+		err = s.query.Summary(orderBy, start, end, windowSecs, top, instance, instanceType, items)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/codec/plan"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
@@ -36,6 +37,11 @@ const (
 	AggLevelTable = "table"
 	// AggLevelDB is the db level aggregation
 	AggLevelDB = "db"
+	// AggLevelRegion is the region level aggregation (request parameter value)
+	AggLevelRegion = "region"
+
+	// AggByRegionID is the label key for region aggregation in timeseries DB.
+	AggByRegionID = "region_id"
 )
 
 type DefaultQuery struct {
@@ -78,7 +84,7 @@ func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top
 	})
 }
 
-func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, instance, instanceType, aggBy string, fill *[]SummaryByItem) error {
+func (dq *DefaultQuery) SummaryBy(orderBy string, startSecs, endSecs, windowSecs, top int, instance, instanceType, aggBy string, fill *[]SummaryByItem) error {
 	if startSecs > endSecs {
 		return nil
 	}
@@ -86,8 +92,54 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 	// adjust start to make result align to end
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
+	orderBy = normalizeOrderBy(orderBy)
+	if orderBy == "" || orderBy == OrderByCPU {
+		metricName := store.MetricNameCPUTime
+		if aggBy == AggByRegionID {
+			metricName = store.MetricNameRegionCPUTime
+		}
+		var recordsResponse recordsMetricRespV2
+		if err := dq.fetchRecordsFromTSDBBy(metricName, alignStartSecs, endSecs, windowSecs, instance, instanceType, aggBy, top, &recordsResponse); err != nil {
+			return err
+		}
+		if len(recordsResponse.Data.Results) == 0 {
+			return nil
+		}
+
+		for _, result := range recordsResponse.Data.Results {
+			text := result.Metric[aggBy].(string)
+			sumItem := SummaryByItem{
+				Text: text,
+			}
+			valueSum := uint64(0)
+			for _, value := range result.Values {
+				if len(value) != 2 {
+					continue
+				}
+
+				ts := uint64(value[0].(float64))
+				v, err := strconv.ParseUint(value[1].(string), 10, 64)
+				if err != nil {
+					continue
+				}
+
+				valueSum += v
+				sumItem.TimestampSec = append(sumItem.TimestampSec, ts)
+				sumItem.CPUTimeMs = append(sumItem.CPUTimeMs, v)
+			}
+			sumItem.CPUTimeMsSum = valueSum
+			*fill = append(*fill, sumItem)
+		}
+		return nil
+	}
+
+	// Non-CPU orderBy: query and fill the orderBy metric only.
+	queryStr, err := buildOrderBySummaryByTopQuery(orderBy, top, windowSecs, instance, instanceType, aggBy)
+	if err != nil {
+		return err
+	}
 	var recordsResponse recordsMetricRespV2
-	if err := dq.fetchRecordsFromTSDBBy(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, aggBy, top, &recordsResponse); err != nil {
+	if err := dq.fetchQueryRange(queryStr, alignStartSecs, endSecs, windowSecs, &recordsResponse); err != nil {
 		return err
 	}
 	if len(recordsResponse.Data.Results) == 0 {
@@ -95,13 +147,8 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 	}
 
 	for _, result := range recordsResponse.Data.Results {
-		text := result.Metric[aggBy].(string)
-		sumItem := SummaryByItem{
-			Text: text,
-		}
-		if text == "other" {
-			sumItem.IsOther = true
-		}
+		text, _ := result.Metric[aggBy].(string)
+		sumItem := SummaryByItem{Text: text}
 		valueSum := uint64(0)
 		for _, value := range result.Values {
 			if len(value) != 2 {
@@ -116,15 +163,25 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 
 			valueSum += v
 			sumItem.TimestampSec = append(sumItem.TimestampSec, ts)
-			sumItem.CPUTimeMs = append(sumItem.CPUTimeMs, v)
+			switch orderBy {
+			case OrderByNetwork:
+				sumItem.NetworkBytes = append(sumItem.NetworkBytes, v)
+			case OrderByLogicalIO:
+				sumItem.LogicalIoBytes = append(sumItem.LogicalIoBytes, v)
+			}
 		}
-		sumItem.CPUTimeMsSum = valueSum
+		switch orderBy {
+		case OrderByNetwork:
+			sumItem.NetworkBytesSum = valueSum
+		case OrderByLogicalIO:
+			sumItem.LogicalIoBytesSum = valueSum
+		}
 		*fill = append(*fill, sumItem)
 	}
 	return nil
 }
 
-func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
+func (dq *DefaultQuery) Summary(orderBy string, startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
 	if startSecs > endSecs {
 		return nil
 	}
@@ -132,8 +189,63 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 	// adjust start to make result align to end
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
+	orderBy = normalizeOrderBy(orderBy)
+	if orderBy == "" || orderBy == OrderByCPU {
+		var recordsResponse recordsMetricResp
+		if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, &recordsResponse); err != nil {
+			return err
+		}
+		if len(recordsResponse.Data.Results) == 0 {
+			return nil
+		}
+
+		sqlGroups := sqlGroupSliceP.Get()
+		defer sqlGroupSliceP.Put(sqlGroups)
+		topK(recordsResponse.Data.Results, top, sqlGroups)
+
+		if err := dq.fillText(store.MetricNameCPUTime, sqlGroups, func(item RecordItem) {
+			sumItem := SummaryItem{
+				SQLDigest: item.SQLDigest,
+				SQLText:   item.SQLText,
+				IsOther:   item.IsOther,
+			}
+
+			for _, p := range item.Plans {
+				sumItem.Plans = append(sumItem.Plans, SummaryPlanItem{
+					PlanDigest:   p.PlanDigest,
+					PlanText:     p.PlanText,
+					TimestampSec: p.TimestampSec,
+					CPUTimeMs:    p.CPUTimeMs,
+				})
+
+				for _, cpu := range p.CPUTimeMs {
+					sumItem.CPUTimeMs += cpu
+				}
+			}
+
+			*fill = append(*fill, sumItem)
+		}); err != nil {
+			return err
+		}
+
+		return dq.fillSummaryExtraFields(startSecs, endSecs, instance, instanceType, fill)
+	}
+
+	queryStr, err := buildOrderBySummaryQuery(orderBy, windowSecs, instance, instanceType)
+	if err != nil {
+		return err
+	}
+
+	fillName := ""
+	switch orderBy {
+	case OrderByNetwork:
+		fillName = metricNameNetworkBytes
+	case OrderByLogicalIO:
+		fillName = metricNameLogicalIoBytes
+	}
+
 	var recordsResponse recordsMetricResp
-	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, &recordsResponse); err != nil {
+	if err := dq.fetchQueryRange(queryStr, alignStartSecs, endSecs, windowSecs, &recordsResponse); err != nil {
 		return err
 	}
 	if len(recordsResponse.Data.Results) == 0 {
@@ -144,7 +256,7 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 	defer sqlGroupSliceP.Put(sqlGroups)
 	topK(recordsResponse.Data.Results, top, sqlGroups)
 
-	if err := dq.fillText(store.MetricNameCPUTime, sqlGroups, func(item RecordItem) {
+	if err := dq.fillText(fillName, sqlGroups, func(item RecordItem) {
 		sumItem := SummaryItem{
 			SQLDigest: item.SQLDigest,
 			SQLText:   item.SQLText,
@@ -152,16 +264,24 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		}
 
 		for _, p := range item.Plans {
-			sumItem.Plans = append(sumItem.Plans, SummaryPlanItem{
+			plan := SummaryPlanItem{
 				PlanDigest:   p.PlanDigest,
 				PlanText:     p.PlanText,
 				TimestampSec: p.TimestampSec,
-				CPUTimeMs:    p.CPUTimeMs,
-			})
-
-			for _, cpu := range p.CPUTimeMs {
-				sumItem.CPUTimeMs += cpu
 			}
+			switch orderBy {
+			case OrderByNetwork:
+				plan.NetworkBytes = p.NetworkBytes
+				for _, v := range p.NetworkBytes {
+					sumItem.NetworkBytes += v
+				}
+			case OrderByLogicalIO:
+				plan.LogicalIoBytes = p.LogicalIoBytes
+				for _, v := range p.LogicalIoBytes {
+					sumItem.LogicalIoBytes += v
+				}
+			}
+			sumItem.Plans = append(sumItem.Plans, plan)
 		}
 
 		*fill = append(*fill, sumItem)
@@ -169,137 +289,7 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		return err
 	}
 
-	// rangeSecs never to be 0 because startSecs <= endSecs
-	rangeSecs := float64(endSecs - startSecs + 1)
-
-	sumDurationMap := sumMapP.Get()
-	defer sumMapP.Put(sumDurationMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationSum, startSecs, endSecs, instance, instanceType, sumDurationMap); err != nil {
-		return err
-	}
-
-	sumDurationCountMap := sumMapP.Get()
-	defer sumMapP.Put(sumDurationCountMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationCount, startSecs, endSecs, instance, instanceType, sumDurationCountMap); err != nil {
-		return err
-	}
-
-	sumExecMap := sumMapP.Get()
-	defer sumMapP.Put(sumExecMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameSQLExecCount, startSecs, endSecs, instance, instanceType, sumExecMap); err != nil {
-		return err
-	}
-
-	sumReadRowMap := sumMapP.Get()
-	defer sumMapP.Put(sumReadRowMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameReadRow, startSecs, endSecs, instance, instanceType, sumReadRowMap); err != nil {
-		return err
-	}
-
-	sumReadIndexMap := sumMapP.Get()
-	defer sumMapP.Put(sumReadIndexMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameReadIndex, startSecs, endSecs, instance, instanceType, sumReadIndexMap); err != nil {
-		return err
-	}
-
-	var othersItem *SummaryItem
-	for i, item := range *fill {
-		if item.IsOther {
-			// don't know how it can happen, but we'd better be pessimists
-			if len(item.Plans) == 0 {
-				item.Plans = append(item.Plans, SummaryPlanItem{})
-			}
-
-			othersItem = &(*fill)[i]
-			continue
-		}
-
-		overallDurationNs := 0.0
-		overallDurationCount := 0.0
-		overallExecCount := 0.0
-		overallReadRows := 0.0
-		overallReadIndexes := 0.0
-		for i, p := range item.Plans {
-			durationNs := sumDurationMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumDurationMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			durationCount := sumDurationCountMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumDurationCountMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			execCount := sumExecMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumExecMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			readRow := sumReadRowMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumReadRowMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			readIndex := sumReadIndexMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumReadIndexMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-
-			if durationCount == 0.0 {
-				item.Plans[i].DurationPerExecMs = 0
-			} else {
-				item.Plans[i].DurationPerExecMs = durationNs / 1000000.0 / durationCount
-			}
-			item.Plans[i].ExecCountPerSec = execCount / rangeSecs
-			item.Plans[i].ScanRecordsPerSec = readRow / rangeSecs
-			item.Plans[i].ScanIndexesPerSec = readIndex / rangeSecs
-
-			overallDurationNs += durationNs
-			overallDurationCount += durationCount
-			overallExecCount += execCount
-			overallReadRows += readRow
-			overallReadIndexes += readIndex
-		}
-
-		if overallDurationCount == 0.0 {
-			(*fill)[i].DurationPerExecMs = 0
-		} else {
-			(*fill)[i].DurationPerExecMs = overallDurationNs / 1000000.0 / overallDurationCount
-		}
-		(*fill)[i].ExecCountPerSec = overallExecCount / rangeSecs
-		(*fill)[i].ScanRecordsPerSec = overallReadRows / rangeSecs
-		(*fill)[i].ScanIndexesPerSec = overallReadIndexes / rangeSecs
-	}
-
-	if othersItem != nil {
-		planItem := &(*othersItem).Plans[0]
-
-		othersDurationNs := 0.0
-		othersDurationCount := 0.0
-		othersExecCount := 0.0
-		othersReadRow := 0.0
-		othersReadIndex := 0.0
-		for _, s := range sumDurationMap {
-			othersDurationNs += s
-		}
-		for _, s := range sumDurationCountMap {
-			othersDurationCount += s
-		}
-		for _, s := range sumExecMap {
-			othersExecCount += s
-		}
-		for _, s := range sumReadRowMap {
-			othersReadRow += s
-		}
-		for _, s := range sumReadIndexMap {
-			othersReadIndex += s
-		}
-
-		if othersDurationCount == 0.0 {
-			othersItem.DurationPerExecMs = 0
-			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
-		} else {
-			othersItem.DurationPerExecMs = othersDurationNs / 1000000.0 / othersDurationCount
-			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
-		}
-
-		othersItem.ExecCountPerSec = othersExecCount / rangeSecs
-		planItem.ExecCountPerSec = othersItem.ExecCountPerSec
-
-		othersItem.ScanRecordsPerSec = othersReadRow / rangeSecs
-		planItem.ScanRecordsPerSec = othersItem.ScanRecordsPerSec
-
-		othersItem.ScanIndexesPerSec = othersReadIndex / rangeSecs
-		planItem.ScanIndexesPerSec = othersItem.ScanIndexesPerSec
-	}
-
-	return nil
+	return dq.fillSummaryExtraFields(startSecs, endSecs, instance, instanceType, fill)
 }
 
 func (dq *DefaultQuery) Instances(startSecs, endSecs int, fill *[]InstanceItem) error {
@@ -324,6 +314,11 @@ type sqlGroup struct {
 }
 
 func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs int, windowSecs int, instance, instanceType string, metricResponse *recordsMetricResp) error {
+	queryStr := fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", name, instance, instanceType, windowSecs)
+	return dq.fetchQueryRange(queryStr, startSecs, endSecs, windowSecs, metricResponse)
+}
+
+func (dq *DefaultQuery) fetchQueryRange(queryStr string, startSecs int, endSecs int, stepSecs int, metricResponse interface{}) error {
 	if dq.vmselectHandler == nil {
 		return fmt.Errorf("empty query handler")
 	}
@@ -339,10 +334,10 @@ func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs
 		return err
 	}
 	reqQuery := req.URL.Query()
-	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", name, instance, instanceType, windowSecs))
+	reqQuery.Set("query", queryStr)
 	reqQuery.Set("start", strconv.Itoa(startSecs))
 	reqQuery.Set("end", strconv.Itoa(endSecs))
-	reqQuery.Set("step", strconv.Itoa(windowSecs))
+	reqQuery.Set("step", strconv.Itoa(stepSecs))
 	reqQuery.Set("nocache", "1")
 	req.URL.RawQuery = reqQuery.Encode()
 	req.Header.Set("Accept", "application/json")
@@ -355,7 +350,11 @@ func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs
 		log.Warn("failed to fetch timeseries db", zap.String("error", errStr))
 		return errors.New(errStr)
 	}
-	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
+	if err := json.Unmarshal(respR.Body.Bytes(), metricResponse); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (dq *DefaultQuery) fetchRecordsFromTSDBBy(name string, startSecs int, endSecs int, windowSecs int, instance, instanceType, by string, top int, metricResponse *recordsMetricRespV2) error {
@@ -542,7 +541,8 @@ func groupBySQLDigest(resp []recordsMetricRespDataResult, target *[]sqlGroup) (o
 	defer sqlDigestMapP.Put(m)
 
 	for _, r := range resp {
-		group := m[r.Metric.SQLDigest]
+		groupKey := r.Metric.SQLDigest
+		group := m[groupKey]
 		group.sqlDigest = r.Metric.SQLDigest
 
 		var ps *planSeries
@@ -566,8 +566,18 @@ func groupBySQLDigest(resp []recordsMetricRespDataResult, target *[]sqlGroup) (o
 				continue
 			}
 
-			ts := uint64(value[0].(float64))
-			v, err := strconv.ParseUint(value[1].(string), 10, 64)
+			tsF, ok := value[0].(float64)
+			if !ok {
+				continue
+			}
+
+			rawV, ok := value[1].(string)
+			if !ok {
+				continue
+			}
+
+			ts := uint64(tsF)
+			v, err := strconv.ParseUint(rawV, 10, 64)
 			if err != nil {
 				continue
 			}
@@ -577,7 +587,7 @@ func groupBySQLDigest(resp []recordsMetricRespDataResult, target *[]sqlGroup) (o
 			ps.values = append(ps.values, v)
 		}
 
-		m[r.Metric.SQLDigest] = group
+		m[groupKey] = group
 	}
 
 	for _, group := range m {
@@ -707,6 +717,10 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill func(R
 			switch name {
 			case store.MetricNameCPUTime:
 				planItem.CPUTimeMs = series.values
+			case metricNameNetworkBytes:
+				planItem.NetworkBytes = series.values
+			case metricNameLogicalIoBytes:
+				planItem.LogicalIoBytes = series.values
 			case store.MetricNameReadRow:
 				planItem.ReadRows = series.values
 			case store.MetricNameReadIndex:
@@ -776,4 +790,237 @@ func (t *tsHeap) Pop() interface{} {
 	x := old[n-1]
 	*t = old[0 : n-1]
 	return x
+}
+
+func normalizeOrderBy(orderBy string) string {
+	orderBy = strings.ToLower(strings.TrimSpace(orderBy))
+	if orderBy == "logicalio" {
+		return OrderByLogicalIO
+	}
+	return orderBy
+}
+
+func buildOrderBySummaryQuery(orderBy string, windowSecs int, instance, instanceType string) (string, error) {
+	switch normalizeOrderBy(orderBy) {
+	case "", OrderByCPU:
+		return fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", store.MetricNameCPUTime, instance, instanceType, windowSecs), nil
+	case OrderByNetwork:
+		in, out := store.MetricNameNetworkInBytes, store.MetricNameNetworkOutBytes
+		if instanceType == "tidb" {
+			in, out = store.MetricNameSQLNetworkIn, store.MetricNameSQLNetworkOut
+		}
+		return fmt.Sprintf(
+			"sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])",
+			in, instance, instanceType, windowSecs, out, instance, instanceType, windowSecs,
+		), nil
+	case OrderByLogicalIO:
+		return fmt.Sprintf(
+			"sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])",
+			store.MetricNameLogicalReadBytes, instance, instanceType, windowSecs,
+			store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs,
+		), nil
+	default:
+		return "", fmt.Errorf("unknown orderBy: %s", orderBy)
+	}
+}
+
+func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instanceType, aggBy string) (string, error) {
+	if aggBy == AggByRegionID {
+		switch normalizeOrderBy(orderBy) {
+		case "", OrderByCPU:
+			return fmt.Sprintf(
+				"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
+				store.MetricNameRegionCPUTime, instance, instanceType, windowSecs, aggBy,
+			), nil
+		case OrderByNetwork:
+			return fmt.Sprintf(
+				"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
+				store.MetricNameRegionNetworkInBytes, instance, instanceType, windowSecs,
+				store.MetricNameRegionNetworkOutBytes, instance, instanceType, windowSecs,
+				aggBy,
+			), nil
+		case OrderByLogicalIO:
+			return fmt.Sprintf(
+				"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
+				store.MetricNameRegionLogicalReadBytes, instance, instanceType, windowSecs,
+				store.MetricNameRegionLogicalWriteBytes, instance, instanceType, windowSecs,
+				aggBy,
+			), nil
+		default:
+			return "", fmt.Errorf("unknown orderBy: %s", orderBy)
+		}
+	}
+	switch normalizeOrderBy(orderBy) {
+	case "", OrderByCPU:
+		return fmt.Sprintf(
+			"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
+			store.MetricNameCPUTime, instance, instanceType, windowSecs, aggBy,
+		), nil
+	case OrderByNetwork:
+		in, out := store.MetricNameNetworkInBytes, store.MetricNameNetworkOutBytes
+		if instanceType == "tidb" {
+			in, out = store.MetricNameSQLNetworkIn, store.MetricNameSQLNetworkOut
+		}
+		return fmt.Sprintf(
+			"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
+			in, instance, instanceType, windowSecs,
+			out, instance, instanceType, windowSecs,
+			aggBy,
+		), nil
+	case OrderByLogicalIO:
+		return fmt.Sprintf(
+			"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
+			store.MetricNameLogicalReadBytes, instance, instanceType, windowSecs,
+			store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs,
+			aggBy,
+		), nil
+	default:
+		return "", fmt.Errorf("unknown orderBy: %s", orderBy)
+	}
+}
+
+func buildOrderBySummaryByTopQuery(orderBy string, top int, windowSecs int, instance, instanceType, aggBy string) (string, error) {
+	if top <= 0 {
+		return buildOrderBySummaryByQuery(orderBy, windowSecs, instance, instanceType, aggBy)
+	}
+	base, err := buildOrderBySummaryByQuery(orderBy, windowSecs, instance, instanceType, aggBy)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("topk_avg(%d, %s, \"%s=other\")", top, base, aggBy), nil
+}
+
+func (dq *DefaultQuery) fillSummaryExtraFields(startSecs, endSecs int, instance, instanceType string, fill *[]SummaryItem) error {
+	// rangeSecs never to be 0 because startSecs <= endSecs
+	rangeSecs := float64(endSecs - startSecs + 1)
+
+	sumDurationMap := sumMapP.Get()
+	defer sumMapP.Put(sumDurationMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationSum, startSecs, endSecs, instance, instanceType, sumDurationMap); err != nil {
+		return err
+	}
+
+	sumDurationCountMap := sumMapP.Get()
+	defer sumMapP.Put(sumDurationCountMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationCount, startSecs, endSecs, instance, instanceType, sumDurationCountMap); err != nil {
+		return err
+	}
+
+	sumExecMap := sumMapP.Get()
+	defer sumMapP.Put(sumExecMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameSQLExecCount, startSecs, endSecs, instance, instanceType, sumExecMap); err != nil {
+		return err
+	}
+
+	sumReadRowMap := sumMapP.Get()
+	defer sumMapP.Put(sumReadRowMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameReadRow, startSecs, endSecs, instance, instanceType, sumReadRowMap); err != nil {
+		return err
+	}
+
+	sumReadIndexMap := sumMapP.Get()
+	defer sumMapP.Put(sumReadIndexMap)
+	if err := dq.fetchSumFromTSDB(store.MetricNameReadIndex, startSecs, endSecs, instance, instanceType, sumReadIndexMap); err != nil {
+		return err
+	}
+
+	var othersItem *SummaryItem
+	for i, item := range *fill {
+		if item.IsOther {
+			// don't know how it can happen, but we'd better be pessimists
+			if len(item.Plans) == 0 {
+				item.Plans = append(item.Plans, SummaryPlanItem{})
+			}
+
+			othersItem = &(*fill)[i]
+			continue
+		}
+
+		overallDurationNs := 0.0
+		overallDurationCount := 0.0
+		overallExecCount := 0.0
+		overallReadRows := 0.0
+		overallReadIndexes := 0.0
+		for j, p := range item.Plans {
+			k := RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}
+			durationNs := sumDurationMap[k]
+			delete(sumDurationMap, k)
+			durationCount := sumDurationCountMap[k]
+			delete(sumDurationCountMap, k)
+			execCount := sumExecMap[k]
+			delete(sumExecMap, k)
+			readRow := sumReadRowMap[k]
+			delete(sumReadRowMap, k)
+			readIndex := sumReadIndexMap[k]
+			delete(sumReadIndexMap, k)
+
+			if durationCount == 0.0 {
+				item.Plans[j].DurationPerExecMs = 0
+			} else {
+				item.Plans[j].DurationPerExecMs = durationNs / 1000000.0 / durationCount
+			}
+			item.Plans[j].ExecCountPerSec = execCount / rangeSecs
+			item.Plans[j].ScanRecordsPerSec = readRow / rangeSecs
+			item.Plans[j].ScanIndexesPerSec = readIndex / rangeSecs
+
+			overallDurationNs += durationNs
+			overallDurationCount += durationCount
+			overallExecCount += execCount
+			overallReadRows += readRow
+			overallReadIndexes += readIndex
+		}
+
+		if overallDurationCount == 0.0 {
+			(*fill)[i].DurationPerExecMs = 0
+		} else {
+			(*fill)[i].DurationPerExecMs = overallDurationNs / 1000000.0 / overallDurationCount
+		}
+		(*fill)[i].ExecCountPerSec = overallExecCount / rangeSecs
+		(*fill)[i].ScanRecordsPerSec = overallReadRows / rangeSecs
+		(*fill)[i].ScanIndexesPerSec = overallReadIndexes / rangeSecs
+	}
+
+	if othersItem != nil {
+		planItem := &(*othersItem).Plans[0]
+
+		othersDurationNs := 0.0
+		othersDurationCount := 0.0
+		othersExecCount := 0.0
+		othersReadRow := 0.0
+		othersReadIndex := 0.0
+		for _, s := range sumDurationMap {
+			othersDurationNs += s
+		}
+		for _, s := range sumDurationCountMap {
+			othersDurationCount += s
+		}
+		for _, s := range sumExecMap {
+			othersExecCount += s
+		}
+		for _, s := range sumReadRowMap {
+			othersReadRow += s
+		}
+		for _, s := range sumReadIndexMap {
+			othersReadIndex += s
+		}
+
+		if othersDurationCount == 0.0 {
+			othersItem.DurationPerExecMs = 0
+			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
+		} else {
+			othersItem.DurationPerExecMs = othersDurationNs / 1000000.0 / othersDurationCount
+			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
+		}
+
+		othersItem.ExecCountPerSec = othersExecCount / rangeSecs
+		planItem.ExecCountPerSec = othersItem.ExecCountPerSec
+
+		othersItem.ScanRecordsPerSec = othersReadRow / rangeSecs
+		planItem.ScanRecordsPerSec = othersItem.ScanRecordsPerSec
+
+		othersItem.ScanIndexesPerSec = othersReadIndex / rangeSecs
+		planItem.ScanIndexesPerSec = othersItem.ScanIndexesPerSec
+	}
+
+	return nil
 }

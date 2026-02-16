@@ -17,6 +17,8 @@ type RecordPlanItem struct {
 	PlanText         string   `json:"plan_text"`
 	TimestampSec     []uint64 `json:"timestamp_sec"`
 	CPUTimeMs        []uint64 `json:"cpu_time_ms,omitempty"`
+	NetworkBytes     []uint64 `json:"network_bytes,omitempty"`
+	LogicalIoBytes   []uint64 `json:"logical_io_bytes,omitempty"`
 	ReadRows         []uint64 `json:"read_rows,omitempty"`
 	ReadIndexes      []uint64 `json:"read_indexes,omitempty"`
 	WriteRows        []uint64 `json:"write_rows,omitempty"`
@@ -24,14 +26,6 @@ type RecordPlanItem struct {
 	SQLExecCount     []uint64 `json:"sql_exec_count,omitempty"`
 	SQLDurationSum   []uint64 `json:"sql_duration_sum,omitempty"`
 	SQLDurationCount []uint64 `json:"sql_duration_count,omitempty"`
-}
-
-type SummaryByItem struct {
-	Text         string   `json:"text"`
-	TimestampSec []uint64 `json:"timestamp_sec"`
-	CPUTimeMs    []uint64 `json:"cpu_time_ms,omitempty"`
-	CPUTimeMsSum uint64   `json:"cpu_time_ms_sum"`
-	IsOther      bool     `json:"is_other"`
 }
 
 type SummaryItem struct {
@@ -43,7 +37,20 @@ type SummaryItem struct {
 	DurationPerExecMs float64           `json:"duration_per_exec_ms"`
 	ScanRecordsPerSec float64           `json:"scan_records_per_sec"`
 	ScanIndexesPerSec float64           `json:"scan_indexes_per_sec"`
+	NetworkBytes      uint64            `json:"network_bytes"`
+	LogicalIoBytes    uint64            `json:"logical_io_bytes"`
 	Plans             []SummaryPlanItem `json:"plans"`
+}
+
+type SummaryByItem struct {
+	Text              string   `json:"text"`
+	TimestampSec      []uint64 `json:"timestamp_sec"`
+	CPUTimeMs         []uint64 `json:"cpu_time_ms,omitempty"`
+	CPUTimeMsSum      uint64   `json:"cpu_time_ms_sum"`
+	NetworkBytes      []uint64 `json:"network_bytes,omitempty"`
+	NetworkBytesSum   uint64   `json:"network_bytes_sum"`
+	LogicalIoBytes    []uint64 `json:"logical_io_bytes,omitempty"`
+	LogicalIoBytesSum uint64   `json:"logical_io_bytes_sum"`
 }
 
 type SummaryPlanItem struct {
@@ -55,6 +62,8 @@ type SummaryPlanItem struct {
 	DurationPerExecMs float64  `json:"duration_per_exec_ms"`
 	ScanRecordsPerSec float64  `json:"scan_records_per_sec"`
 	ScanIndexesPerSec float64  `json:"scan_indexes_per_sec"`
+	NetworkBytes      []uint64 `json:"network_bytes"`
+	LogicalIoBytes    []uint64 `json:"logical_io_bytes"`
 }
 
 type InstanceItem struct {
