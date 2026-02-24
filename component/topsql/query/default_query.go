@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/codec/plan"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
@@ -84,7 +83,7 @@ func (dq *DefaultQuery) Records(name string, startSecs, endSecs, windowSecs, top
 	})
 }
 
-func (dq *DefaultQuery) SummaryBy(orderBy string, startSecs, endSecs, windowSecs, top int, instance, instanceType, aggBy string, fill *[]SummaryByItem) error {
+func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, instance, instanceType, aggBy string, fill *[]SummaryByItem, orderBy string) error {
 	if startSecs > endSecs {
 		return nil
 	}
@@ -92,52 +91,12 @@ func (dq *DefaultQuery) SummaryBy(orderBy string, startSecs, endSecs, windowSecs
 	// adjust start to make result align to end
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
-	orderBy = normalizeOrderBy(orderBy)
-	if orderBy == "" || orderBy == OrderByCPU {
-		metricName := store.MetricNameCPUTime
-		if aggBy == AggByRegionID {
-			metricName = store.MetricNameRegionCPUTime
-		}
-		var recordsResponse recordsMetricRespV2
-		if err := dq.fetchRecordsFromTSDBBy(metricName, alignStartSecs, endSecs, windowSecs, instance, instanceType, aggBy, top, &recordsResponse); err != nil {
-			return err
-		}
-		if len(recordsResponse.Data.Results) == 0 {
-			return nil
-		}
-
-		for _, result := range recordsResponse.Data.Results {
-			text := result.Metric[aggBy].(string)
-			sumItem := SummaryByItem{
-				Text: text,
-			}
-			valueSum := uint64(0)
-			for _, value := range result.Values {
-				if len(value) != 2 {
-					continue
-				}
-
-				ts := uint64(value[0].(float64))
-				v, err := strconv.ParseUint(value[1].(string), 10, 64)
-				if err != nil {
-					continue
-				}
-
-				valueSum += v
-				sumItem.TimestampSec = append(sumItem.TimestampSec, ts)
-				sumItem.CPUTimeMs = append(sumItem.CPUTimeMs, v)
-			}
-			sumItem.CPUTimeMsSum = valueSum
-			*fill = append(*fill, sumItem)
-		}
-		return nil
-	}
-
-	// Non-CPU orderBy: query and fill the orderBy metric only.
-	queryStr, err := buildOrderBySummaryByTopQuery(orderBy, top, windowSecs, instance, instanceType, aggBy)
+	orderBy = NormalizeOrderBy(orderBy)
+	queryStr, err := buildOrderBySummaryByTopQuery(orderBy, windowSecs, instance, instanceType, aggBy, top)
 	if err != nil {
 		return err
 	}
+
 	var recordsResponse recordsMetricRespV2
 	if err := dq.fetchQueryRange(queryStr, alignStartSecs, endSecs, windowSecs, &recordsResponse); err != nil {
 		return err
@@ -146,42 +105,62 @@ func (dq *DefaultQuery) SummaryBy(orderBy string, startSecs, endSecs, windowSecs
 		return nil
 	}
 
+	appendMetric := func(item *SummaryByItem, v uint64) {
+		switch orderBy {
+		case "", OrderByCPU:
+			item.CPUTimeMs = append(item.CPUTimeMs, v)
+		case OrderByNetwork:
+			item.NetworkBytes = append(item.NetworkBytes, v)
+		case OrderByLogicalIO:
+			item.LogicalIoBytes = append(item.LogicalIoBytes, v)
+		}
+	}
+	setSum := func(item *SummaryByItem, sum uint64) {
+		switch orderBy {
+		case "", OrderByCPU:
+			item.CPUTimeMsSum = sum
+		case OrderByNetwork:
+			item.NetworkBytesSum = sum
+		case OrderByLogicalIO:
+			item.LogicalIoBytesSum = sum
+		}
+	}
+
 	for _, result := range recordsResponse.Data.Results {
 		text, _ := result.Metric[aggBy].(string)
 		sumItem := SummaryByItem{Text: text}
-		valueSum := uint64(0)
+
+		var valueSum uint64
 		for _, value := range result.Values {
 			if len(value) != 2 {
 				continue
 			}
 
-			ts := uint64(value[0].(float64))
-			v, err := strconv.ParseUint(value[1].(string), 10, 64)
+			tsF, ok := value[0].(float64)
+			if !ok {
+				continue
+			}
+			rawV, ok := value[1].(string)
+			if !ok {
+				continue
+			}
+			v, err := strconv.ParseUint(rawV, 10, 64)
 			if err != nil {
 				continue
 			}
 
 			valueSum += v
-			sumItem.TimestampSec = append(sumItem.TimestampSec, ts)
-			switch orderBy {
-			case OrderByNetwork:
-				sumItem.NetworkBytes = append(sumItem.NetworkBytes, v)
-			case OrderByLogicalIO:
-				sumItem.LogicalIoBytes = append(sumItem.LogicalIoBytes, v)
-			}
+			sumItem.TimestampSec = append(sumItem.TimestampSec, uint64(tsF))
+			appendMetric(&sumItem, v)
 		}
-		switch orderBy {
-		case OrderByNetwork:
-			sumItem.NetworkBytesSum = valueSum
-		case OrderByLogicalIO:
-			sumItem.LogicalIoBytesSum = valueSum
-		}
+
+		setSum(&sumItem, valueSum)
 		*fill = append(*fill, sumItem)
 	}
 	return nil
 }
 
-func (dq *DefaultQuery) Summary(orderBy string, startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
+func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem, orderBy string) error {
 	if startSecs > endSecs {
 		return nil
 	}
@@ -189,55 +168,16 @@ func (dq *DefaultQuery) Summary(orderBy string, startSecs, endSecs, windowSecs, 
 	// adjust start to make result align to end
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
-	orderBy = normalizeOrderBy(orderBy)
-	if orderBy == "" || orderBy == OrderByCPU {
-		var recordsResponse recordsMetricResp
-		if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, &recordsResponse); err != nil {
-			return err
-		}
-		if len(recordsResponse.Data.Results) == 0 {
-			return nil
-		}
-
-		sqlGroups := sqlGroupSliceP.Get()
-		defer sqlGroupSliceP.Put(sqlGroups)
-		topK(recordsResponse.Data.Results, top, sqlGroups)
-
-		if err := dq.fillText(store.MetricNameCPUTime, sqlGroups, func(item RecordItem) {
-			sumItem := SummaryItem{
-				SQLDigest: item.SQLDigest,
-				SQLText:   item.SQLText,
-				IsOther:   item.IsOther,
-			}
-
-			for _, p := range item.Plans {
-				sumItem.Plans = append(sumItem.Plans, SummaryPlanItem{
-					PlanDigest:   p.PlanDigest,
-					PlanText:     p.PlanText,
-					TimestampSec: p.TimestampSec,
-					CPUTimeMs:    p.CPUTimeMs,
-				})
-
-				for _, cpu := range p.CPUTimeMs {
-					sumItem.CPUTimeMs += cpu
-				}
-			}
-
-			*fill = append(*fill, sumItem)
-		}); err != nil {
-			return err
-		}
-
-		return dq.fillSummaryExtraFields(startSecs, endSecs, instance, instanceType, fill)
-	}
-
+	orderBy = NormalizeOrderBy(orderBy)
 	queryStr, err := buildOrderBySummaryQuery(orderBy, windowSecs, instance, instanceType)
 	if err != nil {
 		return err
 	}
 
-	fillName := ""
+	fillName := store.MetricNameCPUTime
 	switch orderBy {
+	case "", OrderByCPU:
+		// already set
 	case OrderByNetwork:
 		fillName = metricNameNetworkBytes
 	case OrderByLogicalIO:
@@ -270,6 +210,11 @@ func (dq *DefaultQuery) Summary(orderBy string, startSecs, endSecs, windowSecs, 
 				TimestampSec: p.TimestampSec,
 			}
 			switch orderBy {
+			case "", OrderByCPU:
+				plan.CPUTimeMs = p.CPUTimeMs
+				for _, v := range p.CPUTimeMs {
+					sumItem.CPUTimeMs += v
+				}
 			case OrderByNetwork:
 				plan.NetworkBytes = p.NetworkBytes
 				for _, v := range p.NetworkBytes {
@@ -355,41 +300,6 @@ func (dq *DefaultQuery) fetchQueryRange(queryStr string, startSecs int, endSecs 
 	}
 
 	return nil
-}
-
-func (dq *DefaultQuery) fetchRecordsFromTSDBBy(name string, startSecs int, endSecs int, windowSecs int, instance, instanceType, by string, top int, metricResponse *recordsMetricRespV2) error {
-	if dq.vmselectHandler == nil {
-		return fmt.Errorf("empty query handler")
-	}
-
-	bufResp := bytesP.Get()
-	header := headerP.Get()
-
-	defer bytesP.Put(bufResp)
-	defer headerP.Put(header)
-
-	req, err := http.NewRequest("GET", "/api/v1/query_range", nil)
-	if err != nil {
-		return err
-	}
-	reqQuery := req.URL.Query()
-	reqQuery.Set("query", fmt.Sprintf("topk_avg(%d, sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s), \"%s=other\")", top, name, instance, instanceType, windowSecs, by, by))
-	reqQuery.Set("start", strconv.Itoa(startSecs))
-	reqQuery.Set("end", strconv.Itoa(endSecs))
-	reqQuery.Set("step", strconv.Itoa(windowSecs))
-	reqQuery.Set("nocache", "1")
-	req.URL.RawQuery = reqQuery.Encode()
-	req.Header.Set("Accept", "application/json")
-
-	respR := utils.NewRespWriter(bufResp, header)
-	dq.vmselectHandler(&respR, req)
-
-	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
-		errStr := respR.Body.String()
-		log.Warn("failed to fetch timeseries db", zap.String("error", errStr))
-		return errors.New(errStr)
-	}
-	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
 }
 
 func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]InstanceItem) error {
@@ -792,16 +702,8 @@ func (t *tsHeap) Pop() interface{} {
 	return x
 }
 
-func normalizeOrderBy(orderBy string) string {
-	orderBy = strings.ToLower(strings.TrimSpace(orderBy))
-	if orderBy == "logicalio" {
-		return OrderByLogicalIO
-	}
-	return orderBy
-}
-
 func buildOrderBySummaryQuery(orderBy string, windowSecs int, instance, instanceType string) (string, error) {
-	switch normalizeOrderBy(orderBy) {
+	switch NormalizeOrderBy(orderBy) {
 	case "", OrderByCPU:
 		return fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", store.MetricNameCPUTime, instance, instanceType, windowSecs), nil
 	case OrderByNetwork:
@@ -826,7 +728,7 @@ func buildOrderBySummaryQuery(orderBy string, windowSecs int, instance, instance
 
 func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instanceType, aggBy string) (string, error) {
 	if aggBy == AggByRegionID {
-		switch normalizeOrderBy(orderBy) {
+		switch NormalizeOrderBy(orderBy) {
 		case "", OrderByCPU:
 			return fmt.Sprintf(
 				"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
@@ -850,7 +752,7 @@ func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instan
 			return "", fmt.Errorf("unknown orderBy: %s", orderBy)
 		}
 	}
-	switch normalizeOrderBy(orderBy) {
+	switch NormalizeOrderBy(orderBy) {
 	case "", OrderByCPU:
 		return fmt.Sprintf(
 			"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
@@ -879,7 +781,7 @@ func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instan
 	}
 }
 
-func buildOrderBySummaryByTopQuery(orderBy string, top int, windowSecs int, instance, instanceType, aggBy string) (string, error) {
+func buildOrderBySummaryByTopQuery(orderBy string, windowSecs int, instance, instanceType, aggBy string, top int) (string, error) {
 	if top <= 0 {
 		return buildOrderBySummaryByQuery(orderBy, windowSecs, instance, instanceType, aggBy)
 	}

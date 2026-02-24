@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
@@ -97,15 +96,9 @@ func (s *Service) summaryHandler(c *gin.Context) {
 	if rawOrderBy == "" {
 		rawOrderBy = c.Query("order_by")
 	}
-	if rawOrderBy == "" {
-		rawOrderBy = query.OrderByCPU
-	}
-	orderBy := strings.ToLower(strings.TrimSpace(rawOrderBy))
+	orderBy := query.NormalizeOrderBy(rawOrderBy)
 	if orderBy == "" {
 		orderBy = query.OrderByCPU
-	}
-	if orderBy == "logicalio" {
-		orderBy = query.OrderByLogicalIO
 	}
 	switch orderBy {
 	case query.OrderByCPU, query.OrderByNetwork, query.OrderByLogicalIO:
@@ -127,7 +120,7 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		}
 		items := summaryByItemP.Get()
 		defer summaryByItemP.Put(items)
-		err = s.query.SummaryBy(orderBy, start, end, windowSecs, top, instance, instanceType, query.AggLevelTable, items)
+		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggLevelTable, items, orderBy)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",
@@ -149,7 +142,7 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		}
 		items := summaryByItemP.Get()
 		defer summaryByItemP.Put(items)
-		err = s.query.SummaryBy(orderBy, start, end, windowSecs, top, instance, instanceType, query.AggLevelDB, items)
+		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggLevelDB, items, orderBy)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",
@@ -171,7 +164,7 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		}
 		items := summaryByItemP.Get()
 		defer summaryByItemP.Put(items)
-		err = s.query.SummaryBy(orderBy, start, end, windowSecs, top, instance, instanceType, query.AggByRegionID, items)
+		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggByRegionID, items, orderBy)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",
@@ -186,7 +179,7 @@ func (s *Service) summaryHandler(c *gin.Context) {
 	default:
 		items := summaryBySqlP.Get()
 		defer summaryBySqlP.Put(items)
-		err = s.query.Summary(orderBy, start, end, windowSecs, top, instance, instanceType, items)
+		err = s.query.Summary(start, end, windowSecs, top, instance, instanceType, items, orderBy)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",

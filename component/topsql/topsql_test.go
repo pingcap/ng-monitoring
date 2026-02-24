@@ -277,7 +277,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// normal case
 	var res []query.SummaryItem
-	err := s.dq.Summary(query.OrderByCPU, int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -333,7 +333,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// top 1
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -370,13 +370,13 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// no data
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.Equal(len(res), 0)
 
 	// one point
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 40}
@@ -432,7 +432,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// two points
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
@@ -592,7 +592,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryBy() {
 
 	// normal case
 	var res []query.SummaryByItem
-	err := s.dq.SummaryBy(query.OrderByCPU, int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, query.AggLevelTable, &res)
+	err := s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, query.AggLevelTable, &res, query.OrderByCPU)
 	s.NoError(err)
 	sortListSeq := []int{1, 2, 0}
 	resList := make([]int, 0, len(res))
@@ -603,7 +603,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryBy() {
 	}
 	s.Equal(sortListSeq, resList)
 	res = res[:0]
-	err = s.dq.SummaryBy(query.OrderByCPU, int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, query.AggLevelDB, &res)
+	err = s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, query.AggLevelDB, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.Assert().Len(res, 1)
 }
@@ -763,7 +763,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// normal case
 	var res []query.SummaryItem
-	err := s.dq.Summary(query.OrderByCPU, int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
+	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -828,7 +828,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// top 1
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs), int(testBaseTs+40), 10, 1, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -907,13 +907,13 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// no data
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.Equal(len(res), 0)
 
 	// one point
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 40}
@@ -991,7 +991,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// two points
 	res = nil
-	err = s.dq.Summary(query.OrderByCPU, int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
@@ -1107,7 +1107,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByNetwork() {
 	vmstorage.Storage.DebugFlush()
 
 	var res []query.SummaryItem
-	err := s.dq.Summary(query.OrderByNetwork, int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res)
+	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByNetwork)
 	s.NoError(err)
 	s.Require().Len(res, 2)
 	var top, other *query.SummaryItem
@@ -1163,7 +1163,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByLogicalIO() {
 	vmstorage.Storage.DebugFlush()
 
 	var res []query.SummaryItem
-	err := s.dq.Summary(query.OrderByLogicalIO, int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res)
+	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByLogicalIO)
 	s.NoError(err)
 	s.Require().Len(res, 2)
 	var top, other *query.SummaryItem
@@ -1201,7 +1201,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryByRegion() {
 	vmstorage.Storage.DebugFlush()
 
 	var res []query.SummaryByItem
-	err := s.dq.SummaryBy(query.OrderByCPU, int(testBaseTs), int(testBaseTs+10), 10, 5, instance, tikvInstanceType, query.AggByRegionID, &res)
+	err := s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+10), 10, 5, instance, tikvInstanceType, query.AggByRegionID, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.Require().NotEmpty(res)
 	found := false
