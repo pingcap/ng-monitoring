@@ -607,6 +607,57 @@ func (s *testTopSQLSuite) TestTiKVSummaryBy() {
 	s.NoError(err)
 	s.Assert().Len(res, 1)
 }
+
+func (s *testTopSQLSuite) TestTiKVSummaryByIsOtherCompat() {
+	instance := "127.0.0.1:30002"
+	tikvInstanceType := "tikv"
+
+	mkRecord := func(tableID int64, cpuMs uint32) *rsmetering.ResourceUsageRecord {
+		tag := tipb.ResourceGroupTag{
+			SqlDigest:  []byte("sql"),
+			PlanDigest: []byte("plan"),
+			TableId:    tableID,
+		}
+		tagBytes, err := tag.Marshal()
+		s.NoError(err)
+		return &rsmetering.ResourceUsageRecord{
+			RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: &rsmetering.GroupTagRecord{
+				ResourceGroupTag: tagBytes,
+				Items: []*rsmetering.GroupTagRecordItem{{
+					TimestampSec: testBaseTs,
+					CpuTimeMs:    cpuMs,
+				}},
+			}},
+		}
+	}
+
+	// table=1 has higher CPU and should be the top group.
+	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord(1, 100), nil))
+	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord(2, 1), nil))
+	vmstorage.Storage.DebugFlush()
+
+	var res []query.SummaryByItem
+	err := s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, query.AggLevelTable, &res, query.OrderByCPU)
+	s.NoError(err)
+	s.Require().Len(res, 2)
+
+	var top, other *query.SummaryByItem
+	for i := range res {
+		switch res[i].Text {
+		case "1":
+			top = &res[i]
+		case "other":
+			other = &res[i]
+		}
+	}
+	s.Require().NotNil(top)
+	s.False(top.IsOther)
+	s.Greater(top.CPUTimeMsSum, uint64(0))
+	s.Require().NotNil(other)
+	s.True(other.IsOther)
+	s.Greater(other.CPUTimeMsSum, uint64(0))
+}
+
 func (s *testTopSQLSuite) TestTiKVSummary() {
 	type tikvPlanItem struct {
 		ts    []uint64

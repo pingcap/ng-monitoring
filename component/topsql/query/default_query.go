@@ -128,7 +128,10 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 
 	for _, result := range recordsResponse.Data.Results {
 		text, _ := result.Metric[aggBy].(string)
-		sumItem := SummaryByItem{Text: text}
+		sumItem := SummaryByItem{
+			Text:    text,
+			IsOther: text == "other",
+		}
 
 		var valueSum uint64
 		for _, value := range result.Values {
