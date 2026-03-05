@@ -119,20 +119,32 @@ func (m *MemStore) TopSQLRecord(instance, _ string, record *tipb.TopSQLRecord) e
 func (m *MemStore) ResourceMeteringRecord(instance, _ string, record *rsmetering.ResourceUsageRecord, _ *sync.Map) error {
 	m.Lock()
 	defer m.Unlock()
+
+	if record == nil {
+		return nil
+	}
+
+	gr := record.GetRecord()
+	// The new protocol may carry RegionRecord. The mock store only aggregates
+	// GroupTagRecord, so ignore other record types safely.
+	if gr == nil {
+		return nil
+	}
+
 	if _, ok := m.ResourceMeteringRecords[instance]; !ok {
 		m.ResourceMeteringRecords[instance] = make(map[string]*rsmetering.ResourceUsageRecord)
 	}
-	if _, ok := m.ResourceMeteringRecords[instance][string(record.GetRecord().ResourceGroupTag)]; !ok {
-		m.ResourceMeteringRecords[instance][string(record.GetRecord().ResourceGroupTag)] = &rsmetering.ResourceUsageRecord{
+	if _, ok := m.ResourceMeteringRecords[instance][string(gr.ResourceGroupTag)]; !ok {
+		m.ResourceMeteringRecords[instance][string(gr.ResourceGroupTag)] = &rsmetering.ResourceUsageRecord{
 			RecordOneof: &rsmetering.ResourceUsageRecord_Record{
 				Record: &rsmetering.GroupTagRecord{
-					ResourceGroupTag: record.GetRecord().ResourceGroupTag,
+					ResourceGroupTag: gr.ResourceGroupTag,
 				},
 			},
 		}
 	}
-	r := m.ResourceMeteringRecords[instance][string(record.GetRecord().ResourceGroupTag)]
-	r.GetRecord().Items = append(r.GetRecord().Items, record.GetRecord().GetItems()...)
+	r := m.ResourceMeteringRecords[instance][string(gr.ResourceGroupTag)]
+	r.GetRecord().Items = append(r.GetRecord().Items, gr.GetItems()...)
 
 	return nil
 }
