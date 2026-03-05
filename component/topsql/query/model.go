@@ -44,6 +44,7 @@ type SummaryItem struct {
 
 type SummaryByItem struct {
 	Text              string   `json:"text"`
+	IsOther           bool     `json:"is_other"`
 	TimestampSec      []uint64 `json:"timestamp_sec"`
 	CPUTimeMs         []uint64 `json:"cpu_time_ms,omitempty"`
 	CPUTimeMsSum      uint64   `json:"cpu_time_ms_sum"`
