@@ -1,5 +1,5 @@
 PACKAGE_LIST  := go list ./...| grep -E "github.com/pingcap/ng-monitoring/"
-PACKAGE_LIST_TESTS  := go list ./... | grep -E "github.com/pingcap/ng-monitoring/"
+PACKAGE_LIST_TESTS  := go list -f '{{if or (gt (len .TestGoFiles) 0) (gt (len .XTestGoFiles) 0)}}{{.ImportPath}}{{end}}' ./... | grep -E "github.com/pingcap/ng-monitoring/"
 PACKAGES  ?= $$($(PACKAGE_LIST))
 PACKAGES_TESTS ?= $$($(PACKAGE_LIST_TESTS))
 PACKAGE_DIRECTORIES := $(PACKAGE_LIST) | sed 's|github.com/pingcap/ng-monitoring/||'

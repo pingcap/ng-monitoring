@@ -19,8 +19,9 @@ var jeprof string
 func FetchRaw(url string, cfg config.HTTPClientConfig) ([]byte, error) {
 	cmd := exec.Command("perl", "/dev/stdin", "--raw", url) //nolint:gosec
 	cmd.Stdin = strings.NewReader(jeprof)
+	cmd.Env = prepareJeprofEnv()
 	if len(cfg.TLSConfig.CertFile) != 0 && len(cfg.TLSConfig.KeyFile) != 0 {
-		cmd.Env = append(os.Environ(), fmt.Sprintf(
+		cmd.Env = append(cmd.Env, fmt.Sprintf(
 			"URL_FETCHER=curl -s --cert %s --key %s --cacert %s",
 			cfg.TLSConfig.CertFile,
 			cfg.TLSConfig.KeyFile,
@@ -67,6 +68,7 @@ func ConvertToSVG(data []byte) ([]byte, error) {
 
 	cmd := exec.Command("perl", "/dev/stdin", "--dot", f.Name()) //nolint:gosec
 	cmd.Stdin = strings.NewReader(jeprof)
+	cmd.Env = prepareJeprofEnv()
 	dotContent, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -107,9 +109,42 @@ func ConvertToText(data []byte) ([]byte, error) {
 	// Brendan Gregg's collapsed stack format
 	cmd := exec.Command("perl", "/dev/stdin", "--collapsed", f.Name()) //nolint:gosec
 	cmd.Stdin = strings.NewReader(jeprof)
+	cmd.Env = prepareJeprofEnv()
 	textContent, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
 	return textContent, nil
+}
+
+func prepareJeprofEnv() []string {
+	env := os.Environ()
+	for _, key := range []string{"LANG", "LC_ALL", "LC_CTYPE"} {
+		value, ok := getEnvValue(env, key)
+		if !ok || value == "" || strings.EqualFold(value, "C.UTF-8") {
+			env = setEnvValue(env, key, "C")
+		}
+	}
+	return env
+}
+
+func getEnvValue(env []string, key string) (string, bool) {
+	prefix := key + "="
+	for _, item := range env {
+		if strings.HasPrefix(item, prefix) {
+			return strings.TrimPrefix(item, prefix), true
+		}
+	}
+	return "", false
+}
+
+func setEnvValue(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, item := range env {
+		if strings.HasPrefix(item, prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
