@@ -455,6 +455,7 @@ type TSDB struct {
 	CacheSizeIndexDBTagFilters       string  `toml:"cache-size-indexdb-tag-filters" json:"cache_size_indexdb_tag_filters"`
 	CacheSizeMetricNamesStats        string  `toml:"cache-size-metric-names-stats" json:"cache_size_metric_names_stats"`
 	CacheSizeStorageTSID             string  `toml:"cache-size-storage-tsid" json:"cache_size_storage_tsid"`
+	SearchMaxQueryDuration           string  `toml:"search-max-query-duration" json:"search_max_query_duration"`
 }
 
 type ContinueProfilingConfig struct {

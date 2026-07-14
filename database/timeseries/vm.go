@@ -69,6 +69,9 @@ func Init(cfg *config.Config) {
 	if cfg.TSDB.CacheSizeStorageTSID != "" {
 		_ = flag.Set("storage.cacheSizeStorageTSID", cfg.TSDB.CacheSizeStorageTSID)
 	}
+	if cfg.TSDB.SearchMaxQueryDuration != "" {
+		_ = flag.Set("search.maxQueryDuration", cfg.TSDB.SearchMaxQueryDuration)
+	}
 
 	// Some components in VictoriaMetrics want parsed arguments, i.e. assert `flag.Parsed()`. Make them happy.
 	_ = flag.CommandLine.Parse(nil)
