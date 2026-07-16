@@ -35,6 +35,17 @@ $ cat config/config.toml.example
   
   [log]
   # Log path
+  # When set, the following log files are written under this directory:
+  # - ng.log
+  # - service.log
+  # - docdb.log
+  # - tsdb.log
+  #
+  # When unset:
+  # - ng.log is written to stdout
+  # - service.log is written to stdout
+  # - docdb.log is written to ./docdb-log/docdb.log
+  # - tsdb.log is written to <storage.path>/tsdb-log/tsdb.log
   path = "log"
   
   # Log level: DEBUG, INFO, WARN, ERROR
