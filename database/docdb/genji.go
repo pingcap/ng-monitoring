@@ -23,10 +23,11 @@ import (
 )
 
 type GenjiConfig struct {
-	Path         string
-	LogPath      string
-	LogLevel     string
-	BadgerConfig BadgerConfig
+	Path          string
+	LogPath       string
+	LogLevel      string
+	LogFileConfig log.FileLogConfig
+	BadgerConfig  BadgerConfig
 }
 
 type BadgerConfig struct {
@@ -62,7 +63,7 @@ type genjiDB struct {
 func NewGenjiDB(ctx context.Context, cfg *GenjiConfig) (DocDB, error) {
 	badger.DefaultIteratorOptions.PrefetchValues = false
 	dataPath := path.Join(cfg.Path, "docdb")
-	l, _ := initLogger(cfg.LogPath, cfg.LogLevel)
+	l, _ := initLogger(cfg.LogPath, cfg.LogLevel, cfg.LogFileConfig)
 	var opts badger.Options
 	if cfg.BadgerConfig.LSMOnly {
 		opts = badger.LSMOnlyOptions(dataPath)

@@ -39,6 +39,15 @@ $ cat config/config.toml.example
   
   # Log level: DEBUG, INFO, WARN, ERROR
   level = "INFO"
+
+  # Max size per log file in MB before rotation
+  max-size = 300
+
+  # Max age in days for rotated logs. 0 means never delete by age
+  max-days = 0
+
+  # Maximum number of rotated log files to keep
+  max-backups = 10
   
   [pd]
   # Addresses of PD instances within the TiDB cluster. Multiple addresses are separated by commas, e.g. ["10.0.0.1:2379","10.0.0.2:2379"]

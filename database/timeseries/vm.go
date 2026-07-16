@@ -3,11 +3,13 @@ package timeseries
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"time"
 
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils/logutil"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
@@ -15,9 +17,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/pingcap/log"
 	"go.uber.org/zap"
+
+	"github.com/pingcap/log"
 )
+
+var tsdbLogForwarderStarted bool
 
 func Init(cfg *config.Config) {
 	if err := initLogger(cfg); err != nil {
@@ -94,14 +99,27 @@ func initLogger(cfg *config.Config) error {
 	}
 
 	// VictoriaMetrics only supports stdout or stderr as log output.
-	// To output the log to the specified file, redirect stderr to that file.
-	logFileName := path.Join(logDir, "tsdb.log")
-	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		return err
-	}
-	if err = dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
-		return err
+	// Redirect stderr to a pipe and forward it to a rotating file writer.
+	if !tsdbLogForwarderStarted {
+		logFileName := path.Join(logDir, "tsdb.log")
+		file, err := logutil.NewRotateWriter(cfg.Log.FileLogConfig(logFileName))
+		if err != nil {
+			return err
+		}
+		reader, writer, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+		go func() {
+			_, _ = io.Copy(file, reader)
+		}()
+		if err = dup2(int(writer.Fd()), int(os.Stderr.Fd())); err != nil {
+			_ = reader.Close()
+			_ = writer.Close()
+			return err
+		}
+		_ = writer.Close()
+		tsdbLogForwarderStarted = true
 	}
 	logger.Init()
 

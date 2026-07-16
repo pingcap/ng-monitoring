@@ -43,8 +43,10 @@ var defaultConfig = Config{
 		Endpoints: []string{"127.0.0.1:2379"},
 	},
 	Log: Log{
-		Path:  "", // default output is stdout
-		Level: "INFO",
+		Path:       "", // default output is stdout
+		Level:      "INFO",
+		MaxSize:    300,
+		MaxBackups: 10,
 	},
 	Storage: Storage{
 		Path:         "data",
@@ -298,8 +300,11 @@ func (s *Storage) valid() error {
 }
 
 type Log struct {
-	Path  string `toml:"path" json:"path"`
-	Level string `toml:"level" json:"level"`
+	Path       string `toml:"path" json:"path"`
+	Level      string `toml:"level" json:"level"`
+	MaxSize    int    `toml:"max-size" json:"max_size"`
+	MaxDays    int    `toml:"max-days" json:"max_days"`
+	MaxBackups int    `toml:"max-backups" json:"max_backups"`
 }
 
 const (
@@ -319,6 +324,15 @@ func (l *Log) valid() error {
 	default:
 		return fmt.Errorf("log level should be %s, %s, %s or %s", LevelDebug, LevelInfo, LevelWarn, LevelError)
 	}
+	if l.MaxSize < 0 {
+		return fmt.Errorf("log max-size should be greater than or equal to 0")
+	}
+	if l.MaxDays < 0 {
+		return fmt.Errorf("log max-days should be greater than or equal to 0")
+	}
+	if l.MaxBackups < 0 {
+		return fmt.Errorf("log max-backups should be greater than or equal to 0")
+	}
 
 	return nil
 }
@@ -326,7 +340,7 @@ func (l *Log) valid() error {
 func (l *Log) InitDefaultLogger() {
 	cfg := &log.Config{Level: strings.ToLower(l.Level)}
 	if l.Path != "" {
-		cfg.File = log.FileLogConfig{Filename: path.Join(l.Path, "ng.log")}
+		cfg.File = l.FileLogConfig(path.Join(l.Path, "ng.log"))
 	}
 
 	logger, p, err := log.InitLogger(cfg)
@@ -334,6 +348,15 @@ func (l *Log) InitDefaultLogger() {
 		stdlog.Fatalf("Failed to init logger, err: %v", err)
 	}
 	log.ReplaceGlobals(logger, p)
+}
+
+func (l *Log) FileLogConfig(filename string) log.FileLogConfig {
+	return log.FileLogConfig{
+		Filename:   filename,
+		MaxSize:    l.MaxSize,
+		MaxDays:    l.MaxDays,
+		MaxBackups: l.MaxBackups,
+	}
 }
 
 func ReloadRoutine(ctx context.Context, configPath string) {

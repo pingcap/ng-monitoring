@@ -1,6 +1,7 @@
 package http
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
 	"github.com/pingcap/ng-monitoring/database/docdb"
+	"github.com/pingcap/ng-monitoring/utils/logutil"
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
@@ -32,16 +34,18 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 
 	var logFile *os.File
 	var err error
+	var accessLog io.Writer
 	if l.Path != "" {
 		logFileName := path.Join(l.Path, "service.log")
-		logFile, err = os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		accessLog, err = logutil.NewRotateWriter(l.FileLogConfig(logFileName))
 		if err != nil {
 			log.Fatal("Failed to open the log file", zap.String("filename", logFileName))
 		}
 	} else {
 		logFile = os.Stdout
+		accessLog = logFile
 	}
-	ng.Use(gin.LoggerWithWriter(logFile))
+	ng.Use(gin.LoggerWithWriter(accessLog))
 
 	// recovery
 	ng.Use(gin.Recovery())
