@@ -25,8 +25,7 @@ import (
 )
 
 var (
-	httpServer    *http.Server = nil
-	httpAccessLog io.Closer
+	httpServer *http.Server = nil
 )
 
 func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
@@ -42,11 +41,12 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 			log.Fatal("Failed to open the log file", zap.String("filename", logFileName))
 		}
 		accessLog = rotateWriter
-		httpAccessLog = rotateWriter
-	} else {
-		httpAccessLog = nil
+		defer func() {
+			if err := rotateWriter.Close(); err != nil {
+				log.Warn("failed to close http access log writer", zap.Error(err))
+			}
+		}()
 	}
-	defer closeHTTPAccessLog()
 	ng.Use(gin.LoggerWithWriter(accessLog))
 
 	// recovery
@@ -110,22 +110,10 @@ type Status struct {
 
 func StopHTTP() {
 	if httpServer == nil {
-		closeHTTPAccessLog()
 		return
 	}
 
 	log.Info("shutting down http server")
 	_ = httpServer.Close()
-	closeHTTPAccessLog()
 	log.Info("http server is down")
-}
-
-func closeHTTPAccessLog() {
-	if httpAccessLog == nil {
-		return
-	}
-	if err := httpAccessLog.Close(); err != nil {
-		log.Warn("failed to close http access log writer", zap.Error(err))
-	}
-	httpAccessLog = nil
 }
