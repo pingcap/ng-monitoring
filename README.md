@@ -41,11 +41,24 @@ $ cat config/config.toml.example
   # - docdb.log
   # - tsdb.log
   #
+  # Example:
+  #   path = "/var/log/ng-monitoring"
+  #   => /var/log/ng-monitoring/ng.log
+  #   => /var/log/ng-monitoring/service.log
+  #   => /var/log/ng-monitoring/docdb.log
+  #   => /var/log/ng-monitoring/tsdb.log
+  #
   # When unset:
   # - ng.log is written to stdout
   # - service.log is written to stdout
   # - docdb.log is written to ./docdb-log/docdb.log
   # - tsdb.log is written to <storage.path>/tsdb-log/tsdb.log
+  #
+  # Example when unset and storage.path = "data":
+  # - ng.log => stdout
+  # - service.log => stdout
+  # - docdb.log => ./docdb-log/docdb.log
+  # - tsdb.log => data/tsdb-log/tsdb.log
   path = "log"
   
   # Log level: DEBUG, INFO, WARN, ERROR
