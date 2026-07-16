@@ -29,7 +29,8 @@ const (
 
 type logger struct {
 	*stdlog.Logger
-	level loggingLevel
+	level  loggingLevel
+	closer io.Closer
 }
 
 func initLogger(logPath, logLevel string, fileCfg log.FileLogConfig) (*logger, error) {
@@ -65,7 +66,11 @@ func initLogger(logPath, logLevel string, fileCfg log.FileLogConfig) (*logger, e
 	default:
 		log.Fatal("Unsupported log level", zap.String("level", logLevel))
 	}
-	return &logger{Logger: stdlog.New(io.Writer(logFile), "badger ", stdlog.LstdFlags), level: level}, nil
+	return &logger{
+		Logger: stdlog.New(io.Writer(logFile), "badger ", stdlog.LstdFlags),
+		level:  level,
+		closer: logFile,
+	}, nil
 }
 
 func (l *logger) Errorf(f string, v ...interface{}) {
@@ -90,4 +95,11 @@ func (l *logger) Debugf(f string, v ...interface{}) {
 	if l.level <= DEBUG {
 		l.Printf("DEBUG: "+f, v...)
 	}
+}
+
+func (l *logger) Close() error {
+	if l == nil || l.closer == nil {
+		return nil
+	}
+	return l.closer.Close()
 }

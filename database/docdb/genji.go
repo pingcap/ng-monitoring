@@ -3,7 +3,9 @@ package docdb
 import (
 	"context"
 	"encoding/hex"
+	stderrors "errors"
 	"fmt"
+	"io"
 	"path"
 	"runtime"
 	"strconv"
@@ -13,7 +15,7 @@ import (
 	"github.com/genjidb/genji"
 	"github.com/genjidb/genji/document"
 	"github.com/genjidb/genji/engine/badgerengine"
-	"github.com/genjidb/genji/errors"
+	genjierrors "github.com/genjidb/genji/errors"
 	"github.com/genjidb/genji/types"
 	"github.com/pingcap/log"
 	"github.com/pingcap/ng-monitoring/component/conprof/meta"
@@ -56,8 +58,9 @@ type BadgerConfig struct {
 }
 
 type genjiDB struct {
-	db      *genji.DB
-	closeCh chan struct{}
+	db        *genji.DB
+	closeCh   chan struct{}
+	logCloser io.Closer
 }
 
 func NewGenjiDB(ctx context.Context, cfg *GenjiConfig) (DocDB, error) {
@@ -99,7 +102,7 @@ func NewGenjiDB(ctx context.Context, cfg *GenjiConfig) (DocDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &genjiDB{closeCh: make(chan struct{})}
+	d := &genjiDB{closeCh: make(chan struct{}), logCloser: l}
 	go utils.GoWithRecovery(func() {
 		doGCLoop(engine.DB, d.closeCh)
 	}, nil)
@@ -138,7 +141,7 @@ func (d *genjiDB) tryInitTables() error {
 
 func (d *genjiDB) Close() error {
 	close(d.closeCh)
-	return d.db.Close()
+	return stderrors.Join(d.db.Close(), closeLogCloser(d.logCloser))
 }
 
 func (d *genjiDB) SaveConfig(ctx context.Context, cfg map[string]string) error {
@@ -190,7 +193,7 @@ func (d *genjiDB) WriteSQLMeta(ctx context.Context, meta *tipb.SQLMeta) error {
 func (d *genjiDB) QuerySQLMeta(ctx context.Context, digest string) (string, error) {
 	r, err := d.db.WithContext(ctx).QueryDocument("SELECT sql_text FROM sql_digest WHERE digest = ?", digest)
 	if err != nil {
-		if err == errors.ErrDocumentNotFound {
+		if err == genjierrors.ErrDocumentNotFound {
 			return "", nil
 		}
 		return "", err
@@ -209,7 +212,7 @@ func (d *genjiDB) DeleteSQLMetaBeforeTs(ctx context.Context, ts int64) error {
 func (d *genjiDB) QueryPlanMeta(ctx context.Context, digest string) (string, string, error) {
 	r, err := d.db.WithContext(ctx).QueryDocument("SELECT plan_text, encoded_plan FROM plan_digest WHERE digest = ?", digest)
 	if err != nil {
-		if err == errors.ErrDocumentNotFound {
+		if err == genjierrors.ErrDocumentNotFound {
 			return "", "", nil
 		}
 		return "", "", err
@@ -219,6 +222,13 @@ func (d *genjiDB) QueryPlanMeta(ctx context.Context, digest string) (string, str
 		return "", "", err
 	}
 	return text, encodedPlan, nil
+}
+
+func closeLogCloser(closer io.Closer) error {
+	if closer == nil {
+		return nil
+	}
+	return closer.Close()
 }
 
 func (d *genjiDB) WritePlanMeta(ctx context.Context, meta *tipb.PlanMeta) error {

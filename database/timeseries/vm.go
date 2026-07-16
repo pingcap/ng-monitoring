@@ -126,10 +126,16 @@ func replaceTSDBLogForwarder(fileCfg log.FileLogConfig) error {
 	tsdbLogForwarderMu.Lock()
 	defer tsdbLogForwarderMu.Unlock()
 
+	stopTSDBLogForwarderLocked()
 	if err := ensureOriginalStderrLocked(); err != nil {
 		return err
 	}
-	stopTSDBLogForwarderLocked()
+	keepOriginalStderr := false
+	defer func() {
+		if !keepOriginalStderr {
+			closeOriginalStderrLocked()
+		}
+	}()
 
 	sink, err := logutil.NewRotateWriter(fileCfg)
 	if err != nil {
@@ -155,6 +161,7 @@ func replaceTSDBLogForwarder(fileCfg log.FileLogConfig) error {
 	}
 	go forwarder.forward(originalStderr)
 	tsdbLogForwarder = forwarder
+	keepOriginalStderr = true
 	return nil
 }
 
@@ -166,16 +173,21 @@ func stopTSDBLogForwarder() {
 
 func stopTSDBLogForwarderLocked() {
 	if tsdbLogForwarder == nil {
+		closeOriginalStderrLocked()
 		return
 	}
 
 	forwarder := tsdbLogForwarder
 	tsdbLogForwarder = nil
 
-	restoreErr := dup2(int(originalStderr.Fd()), int(os.Stderr.Fd()))
-	if restoreErr != nil {
-		log.Warn("failed to restore stderr after tsdb logging", zap.Error(restoreErr))
+	if originalStderr == nil {
 		_ = forwarder.reader.Close()
+	} else {
+		restoreErr := dup2(int(originalStderr.Fd()), int(os.Stderr.Fd()))
+		if restoreErr != nil {
+			log.Warn("failed to restore stderr after tsdb logging", zap.Error(restoreErr))
+			_ = forwarder.reader.Close()
+		}
 	}
 
 	if copyErr := <-forwarder.copyDone; copyErr != nil {
@@ -187,6 +199,7 @@ func stopTSDBLogForwarderLocked() {
 	if err := forwarder.sink.Close(); err != nil {
 		log.Warn("failed to close tsdb log writer", zap.Error(err))
 	}
+	closeOriginalStderrLocked()
 }
 
 func ensureOriginalStderrLocked() error {
@@ -199,6 +212,16 @@ func ensureOriginalStderrLocked() error {
 	}
 	originalStderr = os.NewFile(uintptr(fd), "original-stderr")
 	return nil
+}
+
+func closeOriginalStderrLocked() {
+	if originalStderr == nil {
+		return
+	}
+	if err := originalStderr.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+		log.Warn("failed to close saved stderr", zap.Error(err))
+	}
+	originalStderr = nil
 }
 
 func (f *stderrForwarder) forward(fallback io.Writer) {
