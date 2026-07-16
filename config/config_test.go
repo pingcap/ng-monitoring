@@ -30,7 +30,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, config.Load(configFile))
 	require.Equal(t, config.Address, "0.0.0.0:12020")
 	require.Equal(t, config.PD, PD{Endpoints: []string{"0.0.0.0:2379"}})
-	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO", MaxSize: 300, MaxBackups: 10})
+	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO", MaxSize: 300, MaxDays: 0, MaxBackups: 10})
 	require.Equal(t, config.Storage, Storage{Path: "data", DocDBBackend: "sqlite", MetaRetentionSecs: 0})
 }
 
@@ -86,6 +86,7 @@ key-path = "ngm.key"`
 	require.Equal(t, "log", cfg.Log.Path)
 	require.Equal(t, "INFO", cfg.Log.Level)
 	require.Equal(t, 300, cfg.Log.MaxSize)
+	require.Equal(t, 0, cfg.Log.MaxDays)
 	require.Equal(t, 10, cfg.Log.MaxBackups)
 	require.Len(t, cfg.PD.Endpoints, 1)
 	require.Equal(t, "10.0.1.8:2379", cfg.PD.Endpoints[0])
@@ -123,6 +124,7 @@ path = "data1"`
 	require.Equal(t, "log", globalCfg.Log.Path)
 	require.Equal(t, "INFO", globalCfg.Log.Level)
 	require.Equal(t, 300, globalCfg.Log.MaxSize)
+	require.Equal(t, 0, globalCfg.Log.MaxDays)
 	require.Equal(t, 10, globalCfg.Log.MaxBackups)
 	require.Len(t, globalCfg.PD.Endpoints, 2)
 	require.Equal(t, "10.0.1.8:2378", globalCfg.PD.Endpoints[0])
@@ -143,6 +145,7 @@ path = "data1"`
 	require.Equal(t, "log", globalCfg.Log.Path)
 	require.Equal(t, "INFO", globalCfg.Log.Level)
 	require.Equal(t, 300, globalCfg.Log.MaxSize)
+	require.Equal(t, 0, globalCfg.Log.MaxDays)
 	require.Equal(t, 10, globalCfg.Log.MaxBackups)
 	require.Len(t, globalCfg.PD.Endpoints, 2)
 	require.Equal(t, "10.0.1.8:2378", globalCfg.PD.Endpoints[0])
