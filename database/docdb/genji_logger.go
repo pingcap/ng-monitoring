@@ -1,11 +1,13 @@
 package docdb
 
 import (
+	"io"
 	stdlog "log"
 	"os"
 	"path"
 
 	"github.com/pingcap/log"
+	"github.com/pingcap/ng-monitoring/utils/logutil"
 	"go.uber.org/zap"
 )
 
@@ -27,10 +29,11 @@ const (
 
 type logger struct {
 	*stdlog.Logger
-	level loggingLevel
+	level  loggingLevel
+	closer io.Closer
 }
 
-func initLogger(logPath, logLevel string) (*logger, error) {
+func initLogger(logPath, logLevel string, fileCfg log.FileLogConfig) (*logger, error) {
 	var err error
 	var logDir string
 	if logPath != "" {
@@ -43,7 +46,8 @@ func initLogger(logPath, logLevel string) (*logger, error) {
 		}
 	}
 	logFileName := path.Join(logDir, "docdb.log")
-	logFile, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	fileCfg.Filename = logFileName
+	logFile, err := logutil.NewRotateWriter(fileCfg)
 	if err != nil {
 		// Need to log via the default logger due to `l` is not initialized.
 		log.Warn("Failed to init logger", zap.String("filename", logFileName))
@@ -62,7 +66,11 @@ func initLogger(logPath, logLevel string) (*logger, error) {
 	default:
 		log.Fatal("Unsupported log level", zap.String("level", logLevel))
 	}
-	return &logger{Logger: stdlog.New(logFile, "badger ", stdlog.LstdFlags), level: level}, nil
+	return &logger{
+		Logger: stdlog.New(io.Writer(logFile), "badger ", stdlog.LstdFlags),
+		level:  level,
+		closer: logFile,
+	}, nil
 }
 
 func (l *logger) Errorf(f string, v ...interface{}) {
@@ -87,4 +95,11 @@ func (l *logger) Debugf(f string, v ...interface{}) {
 	if l.level <= DEBUG {
 		l.Printf("DEBUG: "+f, v...)
 	}
+}
+
+func (l *logger) Close() error {
+	if l == nil || l.closer == nil {
+		return nil
+	}
+	return l.closer.Close()
 }

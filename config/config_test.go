@@ -30,7 +30,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, config.Load(configFile))
 	require.Equal(t, config.Address, "0.0.0.0:12020")
 	require.Equal(t, config.PD, PD{Endpoints: []string{"0.0.0.0:2379"}})
-	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO"})
+	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO", MaxSize: 300, MaxDays: 0, MaxBackups: 10})
 	require.Equal(t, config.Storage, Storage{Path: "data", DocDBBackend: "sqlite", MetaRetentionSecs: 0})
 }
 
@@ -85,6 +85,9 @@ key-path = "ngm.key"`
 	require.Equal(t, "10.0.1.8:12020", cfg.AdvertiseAddress)
 	require.Equal(t, "log", cfg.Log.Path)
 	require.Equal(t, "INFO", cfg.Log.Level)
+	require.Equal(t, 300, cfg.Log.MaxSize)
+	require.Equal(t, 0, cfg.Log.MaxDays)
+	require.Equal(t, 10, cfg.Log.MaxBackups)
 	require.Len(t, cfg.PD.Endpoints, 1)
 	require.Equal(t, "10.0.1.8:2379", cfg.PD.Endpoints[0])
 	require.Equal(t, "data", cfg.Storage.Path)
@@ -120,6 +123,9 @@ path = "data1"`
 	require.Equal(t, "10.0.1.8:12020", globalCfg.AdvertiseAddress)
 	require.Equal(t, "log", globalCfg.Log.Path)
 	require.Equal(t, "INFO", globalCfg.Log.Level)
+	require.Equal(t, 300, globalCfg.Log.MaxSize)
+	require.Equal(t, 0, globalCfg.Log.MaxDays)
+	require.Equal(t, 10, globalCfg.Log.MaxBackups)
 	require.Len(t, globalCfg.PD.Endpoints, 2)
 	require.Equal(t, "10.0.1.8:2378", globalCfg.PD.Endpoints[0])
 	require.Equal(t, "10.0.1.9:2379", globalCfg.PD.Endpoints[1])
@@ -138,6 +144,9 @@ path = "data1"`
 	require.Equal(t, "10.0.1.8:12020", globalCfg.AdvertiseAddress)
 	require.Equal(t, "log", globalCfg.Log.Path)
 	require.Equal(t, "INFO", globalCfg.Log.Level)
+	require.Equal(t, 300, globalCfg.Log.MaxSize)
+	require.Equal(t, 0, globalCfg.Log.MaxDays)
+	require.Equal(t, 10, globalCfg.Log.MaxBackups)
 	require.Len(t, globalCfg.PD.Endpoints, 2)
 	require.Equal(t, "10.0.1.8:2378", globalCfg.PD.Endpoints[0])
 	require.Equal(t, "10.0.1.9:2379", globalCfg.PD.Endpoints[1])
@@ -157,6 +166,12 @@ func TestConfigValid(t *testing.T) {
 	require.Equal(t, logCfg.valid().Error(), "unexpected empty log level")
 	logCfg = Log{Path: "log", Level: "unknow"}
 	require.Equal(t, logCfg.valid().Error(), "log level should be DEBUG, INFO, WARN or ERROR")
+	logCfg = Log{Path: "log", Level: "INFO", MaxSize: -1}
+	require.Equal(t, logCfg.valid().Error(), "log max-size should be greater than or equal to 0")
+	logCfg = Log{Path: "log", Level: "INFO", MaxDays: -1}
+	require.Equal(t, logCfg.valid().Error(), "log max-days should be greater than or equal to 0")
+	logCfg = Log{Path: "log", Level: "INFO", MaxBackups: -1}
+	require.Equal(t, logCfg.valid().Error(), "log max-backups should be greater than or equal to 0")
 	logCfg = Log{Path: "log", Level: "INFO"}
 	require.Equal(t, logCfg.valid(), nil)
 	logCfg.InitDefaultLogger()

@@ -1,13 +1,17 @@
 package timeseries
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/utils/logutil"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
@@ -15,9 +19,22 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/pingcap/log"
 	"go.uber.org/zap"
+
+	"github.com/pingcap/log"
 )
+
+var (
+	tsdbLogForwarderMu sync.Mutex
+	tsdbLogForwarder   *stderrForwarder
+	originalStderr     *os.File
+)
+
+type stderrForwarder struct {
+	reader   *os.File
+	sink     io.WriteCloser
+	copyDone chan error
+}
 
 func Init(cfg *config.Config) {
 	if err := initLogger(cfg); err != nil {
@@ -75,6 +92,7 @@ func Stop() {
 	fs.MustStopDirRemover()
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
+	stopTSDBLogForwarder()
 }
 
 func initLogger(cfg *config.Config) error {
@@ -94,18 +112,148 @@ func initLogger(cfg *config.Config) error {
 	}
 
 	// VictoriaMetrics only supports stdout or stderr as log output.
-	// To output the log to the specified file, redirect stderr to that file.
+	// Redirect stderr to a pipe and forward it to a rotating file writer.
 	logFileName := path.Join(logDir, "tsdb.log")
-	file, err := os.OpenFile(logFileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		return err
-	}
-	if err = dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
+	if err := replaceTSDBLogForwarder(cfg.Log.FileLogConfig(logFileName)); err != nil {
 		return err
 	}
 	logger.Init()
 
 	return nil
+}
+
+func replaceTSDBLogForwarder(fileCfg log.FileLogConfig) error {
+	tsdbLogForwarderMu.Lock()
+	defer tsdbLogForwarderMu.Unlock()
+
+	stopTSDBLogForwarderLocked()
+	if err := ensureOriginalStderrLocked(); err != nil {
+		return err
+	}
+	keepOriginalStderr := false
+	defer func() {
+		if !keepOriginalStderr {
+			closeOriginalStderrLocked()
+		}
+	}()
+
+	sink, err := logutil.NewRotateWriter(fileCfg)
+	if err != nil {
+		return err
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		_ = sink.Close()
+		return err
+	}
+	if err = dup2(int(writer.Fd()), int(os.Stderr.Fd())); err != nil {
+		_ = reader.Close()
+		_ = writer.Close()
+		_ = sink.Close()
+		return err
+	}
+	_ = writer.Close()
+
+	forwarder := &stderrForwarder{
+		reader:   reader,
+		sink:     sink,
+		copyDone: make(chan error, 1),
+	}
+	go forwarder.forward(originalStderr)
+	tsdbLogForwarder = forwarder
+	keepOriginalStderr = true
+	return nil
+}
+
+func stopTSDBLogForwarder() {
+	tsdbLogForwarderMu.Lock()
+	defer tsdbLogForwarderMu.Unlock()
+	stopTSDBLogForwarderLocked()
+}
+
+func stopTSDBLogForwarderLocked() {
+	if tsdbLogForwarder == nil {
+		closeOriginalStderrLocked()
+		return
+	}
+
+	forwarder := tsdbLogForwarder
+	tsdbLogForwarder = nil
+
+	if originalStderr == nil {
+		_ = forwarder.reader.Close()
+	} else {
+		restoreErr := dup2(int(originalStderr.Fd()), int(os.Stderr.Fd()))
+		if restoreErr != nil {
+			log.Warn("failed to restore stderr after tsdb logging", zap.Error(restoreErr))
+			_ = forwarder.reader.Close()
+		}
+	}
+
+	if copyErr := <-forwarder.copyDone; copyErr != nil {
+		log.Warn("tsdb log forwarder exited unexpectedly", zap.Error(copyErr))
+	}
+	if err := forwarder.reader.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+		log.Warn("failed to close tsdb log reader", zap.Error(err))
+	}
+	if err := forwarder.sink.Close(); err != nil {
+		log.Warn("failed to close tsdb log writer", zap.Error(err))
+	}
+	closeOriginalStderrLocked()
+}
+
+func ensureOriginalStderrLocked() error {
+	if originalStderr != nil {
+		return nil
+	}
+	fd, err := dup(int(os.Stderr.Fd()))
+	if err != nil {
+		return err
+	}
+	originalStderr = os.NewFile(uintptr(fd), "original-stderr")
+	return nil
+}
+
+func closeOriginalStderrLocked() {
+	if originalStderr == nil {
+		return
+	}
+	if err := originalStderr.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+		log.Warn("failed to close saved stderr", zap.Error(err))
+	}
+	originalStderr = nil
+}
+
+func (f *stderrForwarder) forward(fallback io.Writer) {
+	f.copyDone <- copyWithFallback(f.reader, f.sink, fallback)
+}
+
+func copyWithFallback(reader io.Reader, primary io.Writer, fallback io.Writer) error {
+	buf := make([]byte, 32*1024)
+	writer := primary
+	switchedToFallback := false
+
+	for {
+		n, err := reader.Read(buf)
+		if n > 0 {
+			if _, writeErr := writer.Write(buf[:n]); writeErr != nil {
+				if !switchedToFallback && fallback != nil {
+					switchedToFallback = true
+					writer = fallback
+					_, _ = fmt.Fprintf(fallback, "tsdb log rotation writer failed, fallback to stderr: %v\n", writeErr)
+					_, _ = writer.Write(buf[:n])
+				} else {
+					return writeErr
+				}
+			}
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+	}
 }
 
 func initDataDir(dataPath string) {

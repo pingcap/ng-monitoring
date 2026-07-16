@@ -84,10 +84,11 @@ func main() {
 		docDB, err = docdb.NewSQLiteDB(cfg.Storage.Path, cfg.Storage.SQLiteUseWAL)
 	default:
 		docDB, err = docdb.NewGenjiDB(context.Background(), &docdb.GenjiConfig{
-			Path:         cfg.Storage.Path,
-			LogPath:      cfg.Log.Path,
-			LogLevel:     cfg.Log.Level,
-			BadgerConfig: cfg.DocDB,
+			Path:          cfg.Storage.Path,
+			LogPath:       cfg.Log.Path,
+			LogLevel:      cfg.Log.Level,
+			LogFileConfig: cfg.Log.FileLogConfig(""),
+			BadgerConfig:  cfg.DocDB,
 		})
 	}
 	if err != nil {
