@@ -13,18 +13,20 @@ const (
 	MetricNameSQLNetworkIn     = "sql_network_in_bytes"
 	MetricNameSQLNetworkOut    = "sql_network_out_bytes"
 
-	MetricNameNetworkInBytes    = "network_in_bytes"
-	MetricNameNetworkOutBytes   = "network_out_bytes"
-	MetricNameLogicalReadBytes  = "logical_read_bytes"
-	MetricNameLogicalWriteBytes = "logical_write_bytes"
+	MetricNameNetworkInBytes        = "network_in_bytes"
+	MetricNameNetworkOutBytes       = "network_out_bytes"
+	MetricNameLogicalReadBytes      = "logical_read_bytes"
+	MetricNameLogicalWriteBytes     = "logical_write_bytes"
+	MetricNameRocksdbBlockReadCount = "rocksdb_block_read_count"
 
-	MetricNameRegionCPUTime           = "region_cpu_time"
-	MetricNameRegionReadKeys          = "region_read_keys"
-	MetricNameRegionWriteKeys         = "region_write_keys"
-	MetricNameRegionNetworkInBytes    = "region_network_in_bytes"
-	MetricNameRegionNetworkOutBytes   = "region_network_out_bytes"
-	MetricNameRegionLogicalReadBytes  = "region_logical_read_bytes"
-	MetricNameRegionLogicalWriteBytes = "region_logical_write_bytes"
+	MetricNameRegionCPUTime               = "region_cpu_time"
+	MetricNameRegionReadKeys              = "region_read_keys"
+	MetricNameRegionWriteKeys             = "region_write_keys"
+	MetricNameRegionNetworkInBytes        = "region_network_in_bytes"
+	MetricNameRegionNetworkOutBytes       = "region_network_out_bytes"
+	MetricNameRegionLogicalReadBytes      = "region_logical_read_bytes"
+	MetricNameRegionLogicalWriteBytes     = "region_logical_write_bytes"
+	MetricNameRegionRocksdbBlockReadCount = "region_rocksdb_block_read_count"
 )
 
 type Metric struct {

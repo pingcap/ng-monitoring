@@ -16,7 +16,7 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/google/pprof v0.0.0-20250903194437-c28834ac2320
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/pingcap/kvproto v0.0.0-20260211115010-c5ab144dc6c7
+	github.com/pingcap/kvproto v0.0.0-20260715011709-78af7ed13316
 	github.com/pingcap/log v1.1.1-0.20250917021125-19901e015dc9
 	github.com/pingcap/tidb v1.1.0-beta.0.20260213041158-f6f6d2e968e4
 	github.com/pingcap/tidb-dashboard v0.0.0-20230222090907-5530ca41768d
@@ -35,7 +35,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/net v0.49.0
+	golang.org/x/net v0.51.0
 	google.golang.org/grpc v1.75.1
 )
 
@@ -163,13 +163,13 @@ require (
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.12.0 // indirect
-	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/oauth2 v0.33.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/text v0.33.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/api v0.249.0 // indirect
 	google.golang.org/genproto v0.0.0-20250922171735-9219d122eba9 // indirect
