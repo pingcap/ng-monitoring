@@ -231,6 +231,10 @@ func (c *Config) valid() error {
 		return err
 	}
 
+	if err = c.TSDB.valid(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -456,6 +460,19 @@ type TSDB struct {
 	CacheSizeMetricNamesStats        string  `toml:"cache-size-metric-names-stats" json:"cache_size_metric_names_stats"`
 	CacheSizeStorageTSID             string  `toml:"cache-size-storage-tsid" json:"cache_size_storage_tsid"`
 	SearchMaxQueryDuration           string  `toml:"search-max-query-duration" json:"search_max_query_duration"`
+}
+
+func (t *TSDB) valid() error {
+	if t.SearchMaxQueryDuration != "" {
+		d, err := time.ParseDuration(t.SearchMaxQueryDuration)
+		if err != nil {
+			return fmt.Errorf("tsdb search-max-query-duration %q is invalid, err: %v", t.SearchMaxQueryDuration, err)
+		}
+		if d <= 0 {
+			return fmt.Errorf("tsdb search-max-query-duration should be greater than 0, got %q", t.SearchMaxQueryDuration)
+		}
+	}
+	return nil
 }
 
 type ContinueProfilingConfig struct {

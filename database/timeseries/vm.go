@@ -42,6 +42,22 @@ func Init(cfg *config.Config) {
 	}
 	initDataDir(path.Join(cfg.Storage.Path, "tsdb"))
 
+	setVMFlags(cfg)
+
+	// Some components in VictoriaMetrics want parsed arguments, i.e. assert `flag.Parsed()`. Make them happy.
+	_ = flag.CommandLine.Parse(nil)
+
+	startTime := time.Now()
+	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
+	vmselect.Init()
+	vminsert.Init()
+
+	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+// setVMFlags translates the [tsdb] config options into VictoriaMetrics command-line flags.
+// Non-empty duration/size values are validated by config.Config.valid() before Init runs.
+func setVMFlags(cfg *config.Config) {
 	_ = flag.Set("retentionPeriod", cfg.TSDB.RetentionPeriod)
 	_ = flag.Set("search.maxStepForPointsAdjustment", "1s")
 	_ = flag.Set("search.maxUniqueTimeseries", fmt.Sprintf("%d", cfg.TSDB.SearchMaxUniqueTimeseries))
@@ -72,16 +88,6 @@ func Init(cfg *config.Config) {
 	if cfg.TSDB.SearchMaxQueryDuration != "" {
 		_ = flag.Set("search.maxQueryDuration", cfg.TSDB.SearchMaxQueryDuration)
 	}
-
-	// Some components in VictoriaMetrics want parsed arguments, i.e. assert `flag.Parsed()`. Make them happy.
-	_ = flag.CommandLine.Parse(nil)
-
-	startTime := time.Now()
-	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
-	vmselect.Init()
-	vminsert.Init()
-
-	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 }
 
 func Stop() {
