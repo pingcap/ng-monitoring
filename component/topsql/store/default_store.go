@@ -382,6 +382,7 @@ func rsMeteringProtoToMetrics(
 			Table:        tableName,
 		},
 	}
+	emitRocksdbBlockReadCount := hasRocksdbBlockReadCount(gr.GetItems())
 
 	for _, item := range gr.GetItems() {
 		tsMillis := item.TimestampSec * 1000
@@ -404,10 +405,15 @@ func rsMeteringProtoToMetrics(
 		mLogicalWrite.TimestampMs = append(mLogicalWrite.TimestampMs, tsMillis)
 		mLogicalWrite.Values = append(mLogicalWrite.Values, item.LogicalWriteBytes)
 
-		mRocksdbBlockReadCount.TimestampMs = append(mRocksdbBlockReadCount.TimestampMs, tsMillis)
-		mRocksdbBlockReadCount.Values = append(mRocksdbBlockReadCount.Values, item.RocksdbBlockReadCount)
+		if emitRocksdbBlockReadCount {
+			mRocksdbBlockReadCount.TimestampMs = append(mRocksdbBlockReadCount.TimestampMs, tsMillis)
+			mRocksdbBlockReadCount.Values = append(mRocksdbBlockReadCount.Values, item.RocksdbBlockReadCount)
+		}
 	}
-	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex, mNetworkIn, mNetworkOut, mLogicalRead, mLogicalWrite, mRocksdbBlockReadCount)
+	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex, mNetworkIn, mNetworkOut, mLogicalRead, mLogicalWrite)
+	if emitRocksdbBlockReadCount {
+		ms = append(ms, mRocksdbBlockReadCount)
+	}
 	return
 }
 
@@ -425,6 +431,7 @@ func rsMeteringRegionProtoToMetrics(instance, instanceType string, rr *rsmeterin
 	mLogicalRead := Metric{Metric: regionTags{Name: MetricNameRegionLogicalReadBytes, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
 	mLogicalWrite := Metric{Metric: regionTags{Name: MetricNameRegionLogicalWriteBytes, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
 	mRocksdbBlockReadCount := Metric{Metric: regionTags{Name: MetricNameRegionRocksdbBlockReadCount, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+	emitRocksdbBlockReadCount := hasRocksdbBlockReadCount(rr.GetItems())
 
 	for _, item := range rr.GetItems() {
 		tsMillis := item.TimestampSec * 1000
@@ -450,11 +457,27 @@ func rsMeteringRegionProtoToMetrics(instance, instanceType string, rr *rsmeterin
 		mLogicalWrite.TimestampMs = append(mLogicalWrite.TimestampMs, tsMillis)
 		mLogicalWrite.Values = append(mLogicalWrite.Values, item.LogicalWriteBytes)
 
-		mRocksdbBlockReadCount.TimestampMs = append(mRocksdbBlockReadCount.TimestampMs, tsMillis)
-		mRocksdbBlockReadCount.Values = append(mRocksdbBlockReadCount.Values, item.RocksdbBlockReadCount)
+		if emitRocksdbBlockReadCount {
+			mRocksdbBlockReadCount.TimestampMs = append(mRocksdbBlockReadCount.TimestampMs, tsMillis)
+			mRocksdbBlockReadCount.Values = append(mRocksdbBlockReadCount.Values, item.RocksdbBlockReadCount)
+		}
 	}
 
-	return []Metric{mCpu, mReadKeys, mWriteKeys, mNetworkIn, mNetworkOut, mLogicalRead, mLogicalWrite, mRocksdbBlockReadCount}
+	metrics := []Metric{mCpu, mReadKeys, mWriteKeys, mNetworkIn, mNetworkOut, mLogicalRead, mLogicalWrite}
+	if emitRocksdbBlockReadCount {
+		metrics = append(metrics, mRocksdbBlockReadCount)
+	}
+	return metrics
+}
+
+// Older TiKV versions decode the absent field as zero, so avoid creating zero-only series.
+func hasRocksdbBlockReadCount(items []*rsmetering.GroupTagRecordItem) bool {
+	for _, item := range items {
+		if item.GetRocksdbBlockReadCount() != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
