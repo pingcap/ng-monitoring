@@ -4,8 +4,62 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/pingcap/ng-monitoring/component/topsql/store"
+
 	"github.com/stretchr/testify/require"
 )
+
+func TestNormalizeOrderBy(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"", ""},
+		{" CPU ", OrderByCPU},
+		{"LogicalIO", OrderByLogicalIO},
+		{"LOGICAL_READ", OrderByLogicalRead},
+		{"logical_write", OrderByLogicalWrite},
+		{"BLOCK_READ", OrderByBlockRead},
+	}
+
+	for _, testCase := range testCases {
+		require.Equal(t, testCase.expected, NormalizeOrderBy(testCase.input))
+	}
+}
+
+func TestBuildDetailedIOSummaryQueries(t *testing.T) {
+	const (
+		instance     = "127.0.0.1:20160"
+		instanceType = "tikv"
+		windowSecs   = 60
+	)
+
+	testCases := []struct {
+		orderBy          string
+		metricName       string
+		regionMetricName string
+	}{
+		{OrderByLogicalRead, store.MetricNameLogicalReadBytes, store.MetricNameRegionLogicalReadBytes},
+		{OrderByLogicalWrite, store.MetricNameLogicalWriteBytes, store.MetricNameRegionLogicalWriteBytes},
+		{OrderByBlockRead, store.MetricNameRocksdbBlockReadCount, store.MetricNameRegionRocksdbBlockReadCount},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.orderBy, func(t *testing.T) {
+			query, err := buildOrderBySummaryQuery(testCase.orderBy, windowSecs, instance, instanceType)
+			require.NoError(t, err)
+			require.Equal(t, "sum_over_time("+testCase.metricName+"{instance=\"127.0.0.1:20160\", instance_type=\"tikv\"}[60])", query)
+
+			query, err = buildOrderBySummaryByQuery(testCase.orderBy, windowSecs, instance, instanceType, AggLevelTable)
+			require.NoError(t, err)
+			require.Equal(t, "sum(sum_over_time("+testCase.metricName+"{instance=\"127.0.0.1:20160\", instance_type=\"tikv\"}[60])) by (table)", query)
+
+			query, err = buildOrderBySummaryByQuery(testCase.orderBy, windowSecs, instance, instanceType, AggByRegionID)
+			require.NoError(t, err)
+			require.Equal(t, "sum(sum_over_time("+testCase.regionMetricName+"{instance=\"127.0.0.1:20160\", instance_type=\"tikv\"}[60])) by (region_id)", query)
+		})
+	}
+}
 
 func TestKeepTopK(t *testing.T) {
 	sqlGroups := []sqlGroup{{

@@ -16,7 +16,11 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/google/pprof v0.0.0-20241001023024-f4c0cfd0cf1d
 	github.com/mattn/go-sqlite3 v1.14.24
+<<<<<<< HEAD
 	github.com/pingcap/kvproto v0.0.0-20260302041553-bdcab1db9bef
+=======
+	github.com/pingcap/kvproto v0.0.0-20260813070037-af1ad1bef5b9
+>>>>>>> 0592ffe (topsql: support detailed IO dimensions (#355))
 	github.com/pingcap/log v1.1.1-0.20250917021125-19901e015dc9
 	github.com/pingcap/tidb v1.1.0-beta.0.20260306172441-ffe64946248c
 	github.com/pingcap/tidb-dashboard v0.0.0-20230222090907-5530ca41768d
@@ -34,9 +38,16 @@ require (
 	go.etcd.io/etcd/tests/v3 v3.5.12
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
+<<<<<<< HEAD
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.56.0
 	google.golang.org/grpc v1.82.1
+=======
+	go.uber.org/zap v1.27.1
+	golang.org/x/net v0.56.0
+	google.golang.org/grpc v1.82.1
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+>>>>>>> 0592ffe (topsql: support detailed IO dimensions (#355))
 )
 
 require (
@@ -124,8 +135,8 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
-	github.com/tikv/client-go/v2 v2.0.8-0.20260209125252-1fd09ba3ef10 // indirect
-	github.com/tikv/pd/client v0.0.0-20260122075414-848dd85011e9 // indirect
+	github.com/tikv/client-go/v2 v2.0.8-0.20260811081704-86fe4e58c8a7 // indirect
+	github.com/tikv/pd/client v0.0.0-20260805103528-afa43111d149 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
@@ -163,18 +174,31 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/arch v0.12.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
+<<<<<<< HEAD
 	golang.org/x/exp v0.0.0-20251002181428-27f1f14c8bb9 // indirect
 	golang.org/x/image v0.43.0 // indirect
+=======
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
+	golang.org/x/image v0.18.0 // indirect
+>>>>>>> 0592ffe (topsql: support detailed IO dimensions (#355))
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.39.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
+<<<<<<< HEAD
 	google.golang.org/genproto v0.0.0-20251007200510-49b9836ed3ff // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
+=======
+	google.golang.org/api v0.249.0 // indirect
+	google.golang.org/genproto v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+>>>>>>> 0592ffe (topsql: support detailed IO dimensions (#355))
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
