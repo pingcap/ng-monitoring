@@ -34,6 +34,30 @@ func TestConfig(t *testing.T) {
 	require.Equal(t, config.Storage, Storage{Path: "data", DocDBBackend: "sqlite", MetaRetentionSecs: 0})
 }
 
+func TestTSDBSearchMaxQueryDuration(t *testing.T) {
+	// Unset preserves the empty default, so the VictoriaMetrics default (30s) is kept.
+	require.Equal(t, "", GetDefaultConfig().TSDB.SearchMaxQueryDuration)
+	require.NoError(t, (&TSDB{}).valid())
+
+	// Valid duration decodes from TOML and passes validation.
+	cfgFileName := "test-tsdb-cfg.toml"
+	cfgData := `
+[tsdb]
+search-max-query-duration = "5m"`
+	require.NoError(t, os.WriteFile(cfgFileName, []byte(cfgData), 0666))
+	defer os.Remove(cfgFileName)
+
+	var config Config
+	require.NoError(t, config.Load(cfgFileName))
+	require.Equal(t, "5m", config.TSDB.SearchMaxQueryDuration)
+	require.NoError(t, config.TSDB.valid())
+
+	// Invalid, zero and negative values are rejected.
+	require.Error(t, (&TSDB{SearchMaxQueryDuration: "5minutes"}).valid())
+	require.Error(t, (&TSDB{SearchMaxQueryDuration: "0s"}).valid())
+	require.Error(t, (&TSDB{SearchMaxQueryDuration: "-1m"}).valid())
+}
+
 func TestContinueProfilingConfig(t *testing.T) {
 	cfg := ContinueProfilingConfig{}
 	require.Equal(t, cfg.Valid(), false)
