@@ -16,7 +16,7 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/google/pprof v0.0.0-20241001023024-f4c0cfd0cf1d
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/pingcap/kvproto v0.0.0-20260302041553-bdcab1db9bef
+	github.com/pingcap/kvproto v0.0.0-20260813070037-af1ad1bef5b9
 	github.com/pingcap/log v1.1.1-0.20250917021125-19901e015dc9
 	github.com/pingcap/tidb v1.1.0-beta.0.20260306172441-ffe64946248c
 	github.com/pingcap/tidb-dashboard v0.0.0-20230222090907-5530ca41768d
@@ -124,8 +124,8 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
-	github.com/tikv/client-go/v2 v2.0.8-0.20260209125252-1fd09ba3ef10 // indirect
-	github.com/tikv/pd/client v0.0.0-20260122075414-848dd85011e9 // indirect
+	github.com/tikv/client-go/v2 v2.0.8-0.20260811081704-86fe4e58c8a7 // indirect
+	github.com/tikv/pd/client v0.0.0-20260805103528-afa43111d149 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
@@ -182,8 +182,6 @@ require (
 )
 
 replace github.com/pingcap/tidb/pkg/parser => github.com/pingcap/tidb/pkg/parser v0.0.0-20260306172441-ffe64946248c
-
-replace github.com/pingcap/kvproto => github.com/pingcap/kvproto v0.0.0-20260226023611-e75b531a1914
 
 replace github.com/genjidb/genji/engine/badgerengine => github.com/crazycs520/genji/engine/badgerengine v0.12.1-0.20220328082424-727a2d089bde
 
