@@ -1178,11 +1178,11 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByNetwork() {
 	s.Greater(other.NetworkBytes, uint64(0))
 }
 
-func (s *testTopSQLSuite) TestTiKVSummaryOrderByLogicalIO() {
+func (s *testTopSQLSuite) TestTiKVSummaryOrderByResourceDimensions() {
 	instance := "127.0.0.1:30000"
 	tikvInstanceType := "tikv"
 
-	mkRecord := func(sqlDigest string, cpuMs uint32, logicalRead, logicalWrite uint64) *rsmetering.ResourceUsageRecord {
+	mkRecord := func(sqlDigest string, cpuMs uint32, logicalRead, logicalWrite, blockRead uint64) *rsmetering.ResourceUsageRecord {
 		tag := tipb.ResourceGroupTag{
 			SqlDigest:  []byte(sqlDigest),
 			PlanDigest: []byte("plan-0"),
@@ -1192,10 +1192,11 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByLogicalIO() {
 		s.NoError(err)
 
 		items := []*rsmetering.GroupTagRecordItem{{
-			TimestampSec:      testBaseTs,
-			CpuTimeMs:         cpuMs,
-			LogicalReadBytes:  logicalRead,
-			LogicalWriteBytes: logicalWrite,
+			TimestampSec:          testBaseTs,
+			CpuTimeMs:             cpuMs,
+			LogicalReadBytes:      logicalRead,
+			LogicalWriteBytes:     logicalWrite,
+			RocksdbBlockReadCount: blockRead,
 		}}
 
 		return &rsmetering.ResourceUsageRecord{
@@ -1207,9 +1208,9 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByLogicalIO() {
 	}
 
 	// sql-logic-hi: low cpu, high logical IO
-	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-logic-hi", 1, 1000, 1000), nil))
+	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-logic-hi", 1, 1000, 1000, 1), nil))
 	// sql-cpu-hi: high cpu, low logical IO
-	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-cpu-hi", 1000, 1, 1), nil))
+	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-cpu-hi", 1000, 1, 1, 1000), nil))
 
 	vmstorage.Storage.DebugFlush()
 
@@ -1232,6 +1233,29 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByLogicalIO() {
 	s.Require().NotNil(other)
 	s.True(other.IsOther)
 	s.Greater(other.LogicalIoBytes, uint64(0))
+
+	assertTop := func(orderBy, expectedDigest string, value func(*query.SummaryItem) uint64) {
+		var items []query.SummaryItem
+		s.NoError(s.dq.Summary(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &items, orderBy))
+		s.Require().Len(items, 2)
+		for i := range items {
+			if !items[i].IsOther {
+				s.Equal(expectedDigest, items[i].SQLDigest)
+				s.Greater(value(&items[i]), uint64(0))
+				return
+			}
+		}
+		s.Fail("top resource record not found")
+	}
+	assertTop(query.OrderByLogicalRead, hex.EncodeToString([]byte("sql-logic-hi")), func(item *query.SummaryItem) uint64 {
+		return item.LogicalReadBytes
+	})
+	assertTop(query.OrderByLogicalWrite, hex.EncodeToString([]byte("sql-logic-hi")), func(item *query.SummaryItem) uint64 {
+		return item.LogicalWriteBytes
+	})
+	assertTop(query.OrderByBlockRead, hex.EncodeToString([]byte("sql-cpu-hi")), func(item *query.SummaryItem) uint64 {
+		return item.RocksdbBlockReadCount
+	})
 }
 
 func (s *testTopSQLSuite) TestTiKVSummaryByRegion() {
@@ -1241,8 +1265,11 @@ func (s *testTopSQLSuite) TestTiKVSummaryByRegion() {
 	rr := &rsmetering.RegionRecord{
 		RegionId: 123,
 		Items: []*rsmetering.GroupTagRecordItem{{
-			TimestampSec: testBaseTs,
-			CpuTimeMs:    10,
+			TimestampSec:          testBaseTs,
+			CpuTimeMs:             10,
+			LogicalReadBytes:      20,
+			LogicalWriteBytes:     30,
+			RocksdbBlockReadCount: 40,
 		}},
 	}
 	record := &rsmetering.ResourceUsageRecord{
@@ -1251,18 +1278,44 @@ func (s *testTopSQLSuite) TestTiKVSummaryByRegion() {
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, record, nil))
 	vmstorage.Storage.DebugFlush()
 
-	var res []query.SummaryByItem
-	err := s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+10), 10, 5, instance, tikvInstanceType, query.AggByRegionID, &res, query.OrderByCPU)
-	s.NoError(err)
-	s.Require().NotEmpty(res)
-	found := false
-	for _, item := range res {
-		if item.Text == "123" {
-			found = true
-			s.Greater(item.CPUTimeMsSum, uint64(0))
+	assertRegionMetric := func(orderBy string, values func(query.SummaryByItem) []uint64, total func(query.SummaryByItem) uint64) {
+		var res []query.SummaryByItem
+		err := s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+10), 10, 5, instance, tikvInstanceType, query.AggByRegionID, &res, orderBy)
+		s.NoError(err)
+		s.Require().NotEmpty(res)
+
+		for _, item := range res {
+			if item.Text != "123" {
+				continue
+			}
+			s.Require().NotEmpty(values(item))
+			s.Greater(total(item), uint64(0))
+			s.Equal(sum(values(item)), total(item))
+			return
 		}
+		s.Fail("region resource record not found", "orderBy: %s", orderBy)
 	}
-	s.True(found)
+
+	assertRegionMetric(query.OrderByCPU, func(item query.SummaryByItem) []uint64 {
+		return item.CPUTimeMs
+	}, func(item query.SummaryByItem) uint64 {
+		return item.CPUTimeMsSum
+	})
+	assertRegionMetric(query.OrderByLogicalRead, func(item query.SummaryByItem) []uint64 {
+		return item.LogicalReadBytes
+	}, func(item query.SummaryByItem) uint64 {
+		return item.LogicalReadBytesSum
+	})
+	assertRegionMetric(query.OrderByLogicalWrite, func(item query.SummaryByItem) []uint64 {
+		return item.LogicalWriteBytes
+	}, func(item query.SummaryByItem) uint64 {
+		return item.LogicalWriteBytesSum
+	})
+	assertRegionMetric(query.OrderByBlockRead, func(item query.SummaryByItem) []uint64 {
+		return item.RocksdbBlockReadCount
+	}, func(item query.SummaryByItem) uint64 {
+		return item.RocksdbBlockReadCountSum
+	})
 }
 
 func (s *testTopSQLSuite) sortSummary(res []query.SummaryItem) {

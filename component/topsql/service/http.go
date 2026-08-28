@@ -101,11 +101,11 @@ func (s *Service) summaryHandler(c *gin.Context) {
 		orderBy = query.OrderByCPU
 	}
 	switch orderBy {
-	case query.OrderByCPU, query.OrderByNetwork, query.OrderByLogicalIO:
+	case query.OrderByCPU, query.OrderByNetwork, query.OrderByLogicalIO, query.OrderByLogicalRead, query.OrderByLogicalWrite, query.OrderByBlockRead:
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  "error",
-			"message": "invalid orderBy, allowed: cpu, network, logical_io",
+			"message": "invalid orderBy, allowed: cpu, network, logical_io, logical_read, logical_write, block_read",
 		})
 		return
 	}

@@ -3,9 +3,12 @@ package query
 import "strings"
 
 const (
-	OrderByCPU       = "cpu"
-	OrderByNetwork   = "network"
-	OrderByLogicalIO = "logical_io"
+	OrderByCPU          = "cpu"
+	OrderByNetwork      = "network"
+	OrderByLogicalIO    = "logical_io"
+	OrderByLogicalRead  = "logical_read"
+	OrderByLogicalWrite = "logical_write"
+	OrderByBlockRead    = "block_read"
 )
 
 const (
