@@ -113,6 +113,12 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 			item.NetworkBytes = append(item.NetworkBytes, v)
 		case OrderByLogicalIO:
 			item.LogicalIoBytes = append(item.LogicalIoBytes, v)
+		case OrderByLogicalRead:
+			item.LogicalReadBytes = append(item.LogicalReadBytes, v)
+		case OrderByLogicalWrite:
+			item.LogicalWriteBytes = append(item.LogicalWriteBytes, v)
+		case OrderByBlockRead:
+			item.RocksdbBlockReadCount = append(item.RocksdbBlockReadCount, v)
 		}
 	}
 	setSum := func(item *SummaryByItem, sum uint64) {
@@ -123,6 +129,12 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 			item.NetworkBytesSum = sum
 		case OrderByLogicalIO:
 			item.LogicalIoBytesSum = sum
+		case OrderByLogicalRead:
+			item.LogicalReadBytesSum = sum
+		case OrderByLogicalWrite:
+			item.LogicalWriteBytesSum = sum
+		case OrderByBlockRead:
+			item.RocksdbBlockReadCountSum = sum
 		}
 	}
 
@@ -185,6 +197,12 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 		fillName = metricNameNetworkBytes
 	case OrderByLogicalIO:
 		fillName = metricNameLogicalIoBytes
+	case OrderByLogicalRead:
+		fillName = store.MetricNameLogicalReadBytes
+	case OrderByLogicalWrite:
+		fillName = store.MetricNameLogicalWriteBytes
+	case OrderByBlockRead:
+		fillName = store.MetricNameRocksdbBlockReadCount
 	}
 
 	var recordsResponse recordsMetricResp
@@ -227,6 +245,21 @@ func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instanc
 				plan.LogicalIoBytes = p.LogicalIoBytes
 				for _, v := range p.LogicalIoBytes {
 					sumItem.LogicalIoBytes += v
+				}
+			case OrderByLogicalRead:
+				plan.LogicalReadBytes = p.LogicalReadBytes
+				for _, v := range p.LogicalReadBytes {
+					sumItem.LogicalReadBytes += v
+				}
+			case OrderByLogicalWrite:
+				plan.LogicalWriteBytes = p.LogicalWriteBytes
+				for _, v := range p.LogicalWriteBytes {
+					sumItem.LogicalWriteBytes += v
+				}
+			case OrderByBlockRead:
+				plan.RocksdbBlockReadCount = p.RocksdbBlockReadCount
+				for _, v := range p.RocksdbBlockReadCount {
+					sumItem.RocksdbBlockReadCount += v
 				}
 			}
 			sumItem.Plans = append(sumItem.Plans, plan)
@@ -634,6 +667,12 @@ func (dq *DefaultQuery) fillText(name string, sqlGroups *[]sqlGroup, fill func(R
 				planItem.NetworkBytes = series.values
 			case metricNameLogicalIoBytes:
 				planItem.LogicalIoBytes = series.values
+			case store.MetricNameLogicalReadBytes:
+				planItem.LogicalReadBytes = series.values
+			case store.MetricNameLogicalWriteBytes:
+				planItem.LogicalWriteBytes = series.values
+			case store.MetricNameRocksdbBlockReadCount:
+				planItem.RocksdbBlockReadCount = series.values
 			case store.MetricNameReadRow:
 				planItem.ReadRows = series.values
 			case store.MetricNameReadIndex:
@@ -724,6 +763,12 @@ func buildOrderBySummaryQuery(orderBy string, windowSecs int, instance, instance
 			store.MetricNameLogicalReadBytes, instance, instanceType, windowSecs,
 			store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs,
 		), nil
+	case OrderByLogicalRead:
+		return fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", store.MetricNameLogicalReadBytes, instance, instanceType, windowSecs), nil
+	case OrderByLogicalWrite:
+		return fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs), nil
+	case OrderByBlockRead:
+		return fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", store.MetricNameRocksdbBlockReadCount, instance, instanceType, windowSecs), nil
 	default:
 		return "", fmt.Errorf("unknown orderBy: %s", orderBy)
 	}
@@ -751,6 +796,12 @@ func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instan
 				store.MetricNameRegionLogicalWriteBytes, instance, instanceType, windowSecs,
 				aggBy,
 			), nil
+		case OrderByLogicalRead:
+			return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRegionLogicalReadBytes, instance, instanceType, windowSecs, aggBy), nil
+		case OrderByLogicalWrite:
+			return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRegionLogicalWriteBytes, instance, instanceType, windowSecs, aggBy), nil
+		case OrderByBlockRead:
+			return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRegionRocksdbBlockReadCount, instance, instanceType, windowSecs, aggBy), nil
 		default:
 			return "", fmt.Errorf("unknown orderBy: %s", orderBy)
 		}
@@ -779,6 +830,12 @@ func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instan
 			store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs,
 			aggBy,
 		), nil
+	case OrderByLogicalRead:
+		return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameLogicalReadBytes, instance, instanceType, windowSecs, aggBy), nil
+	case OrderByLogicalWrite:
+		return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs, aggBy), nil
+	case OrderByBlockRead:
+		return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRocksdbBlockReadCount, instance, instanceType, windowSecs, aggBy), nil
 	default:
 		return "", fmt.Errorf("unknown orderBy: %s", orderBy)
 	}

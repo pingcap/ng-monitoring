@@ -1322,6 +1322,8 @@ github.com/pingcap/goleveldb v0.0.0-20191226122134-f82aafb29989 h1:surzm05a8C9dN
 github.com/pingcap/goleveldb v0.0.0-20191226122134-f82aafb29989/go.mod h1:O17XtbryoCJhkKGbT62+L2OlrniwqiGLSqrmdHCMzZw=
 github.com/pingcap/kvproto v0.0.0-20260226023611-e75b531a1914 h1:Bc12etSkj719c5I01LWtT62tU+dObE9IphjJAG+ZWIg=
 github.com/pingcap/kvproto v0.0.0-20260226023611-e75b531a1914/go.mod h1:rXxWk2UnwfUhLXha1jxRWPADw9eMZGWEWCg92Tgmb/8=
+github.com/pingcap/kvproto v0.0.0-20260813070037-af1ad1bef5b9 h1:xN0vwFIrHaIsb4oX5qU80qAjAz2ctgx++9JvD/+hwjM=
+github.com/pingcap/kvproto v0.0.0-20260813070037-af1ad1bef5b9/go.mod h1:z6+aAHB7dBkA+LyinEX+48/ImRJ3jag0Hg0c7wkhEvE=
 github.com/pingcap/log v0.0.0-20210625125904-98ed8e2eb1c7/go.mod h1:8AanEdAHATuRurdGxZXBz0At+9avep+ub7U1AGYLIMM=
 github.com/pingcap/log v1.1.1-0.20250917021125-19901e015dc9 h1:qG9BSvlWFEE5otQGamuWedx9LRm0nrHvsQRQiW8SxEs=
 github.com/pingcap/log v1.1.1-0.20250917021125-19901e015dc9/go.mod h1:ORfBOFp1eteu2odzsyaxI+b8TzJwgjwyQcGhI+9SfEA=
@@ -1431,8 +1433,12 @@ github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a h1:J/YdBZ46WKpXsxsW
 github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a/go.mod h1:h4xBhSNtOeEosLJ4P7JyKXX7Cabg7AVkWCK5gV2vOrM=
 github.com/tikv/client-go/v2 v2.0.8-0.20260209125252-1fd09ba3ef10 h1:IN8USSwL3oqUXXcBU6tC5W+sMxIyzEOuIDbBScuF2gA=
 github.com/tikv/client-go/v2 v2.0.8-0.20260209125252-1fd09ba3ef10/go.mod h1:4jHqtFu0MeXVYFbka4yTZRxV/nR1Jw46hkyD5qhxi7s=
+github.com/tikv/client-go/v2 v2.0.8-0.20260811081704-86fe4e58c8a7 h1:yHuJXYEmTFzQnOF54auReTGQ2+xKBoB4t8sNzQ8nvXQ=
+github.com/tikv/client-go/v2 v2.0.8-0.20260811081704-86fe4e58c8a7/go.mod h1:Bid1lF4a8ESuhOH7CeVobOrWxUJvtg16ZLBxogNuZWk=
 github.com/tikv/pd/client v0.0.0-20260122075414-848dd85011e9 h1:3rE2zAKWw8LEnCkybQEyrOIi/S2YESGDSgs7ae3DlLI=
 github.com/tikv/pd/client v0.0.0-20260122075414-848dd85011e9/go.mod h1:JsDKQ70x0OWIhTj0SCuwiRjwPEC+d+Z8WV+QUXNKBSo=
+github.com/tikv/pd/client v0.0.0-20260805103528-afa43111d149 h1:q5NgKsvuOdEHspG/pZEpKhWlPLrIfmO8P/lDFjTEdok=
+github.com/tikv/pd/client v0.0.0-20260805103528-afa43111d149/go.mod h1:sfdha4LXeUkSs2Z7N5jLzDEtm0GE7x+Glm2pW3UgEpA=
 github.com/tklauser/go-sysconf v0.3.9/go.mod h1:11DU/5sG7UexIrp/O6g35hrWzu0JxlwQ3LSFUzyeuhs=
 github.com/tklauser/go-sysconf v0.3.15 h1:VE89k0criAymJ/Os65CSn1IXaol+1wrsFHEB8Ol49K4=
 github.com/tklauser/go-sysconf v0.3.15/go.mod h1:Dmjwr6tYFIseJw7a3dRLJfsHAMXZ3nEnL/aZY+0IuI4=

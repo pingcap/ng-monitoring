@@ -13,58 +13,73 @@ type RecordItem struct {
 }
 
 type RecordPlanItem struct {
-	PlanDigest       string   `json:"plan_digest"`
-	PlanText         string   `json:"plan_text"`
-	TimestampSec     []uint64 `json:"timestamp_sec"`
-	CPUTimeMs        []uint64 `json:"cpu_time_ms,omitempty"`
-	NetworkBytes     []uint64 `json:"network_bytes,omitempty"`
-	LogicalIoBytes   []uint64 `json:"logical_io_bytes,omitempty"`
-	ReadRows         []uint64 `json:"read_rows,omitempty"`
-	ReadIndexes      []uint64 `json:"read_indexes,omitempty"`
-	WriteRows        []uint64 `json:"write_rows,omitempty"`
-	WriteIndexes     []uint64 `json:"write_indexes,omitempty"`
-	SQLExecCount     []uint64 `json:"sql_exec_count,omitempty"`
-	SQLDurationSum   []uint64 `json:"sql_duration_sum,omitempty"`
-	SQLDurationCount []uint64 `json:"sql_duration_count,omitempty"`
+	PlanDigest            string   `json:"plan_digest"`
+	PlanText              string   `json:"plan_text"`
+	TimestampSec          []uint64 `json:"timestamp_sec"`
+	CPUTimeMs             []uint64 `json:"cpu_time_ms,omitempty"`
+	NetworkBytes          []uint64 `json:"network_bytes,omitempty"`
+	LogicalIoBytes        []uint64 `json:"logical_io_bytes,omitempty"`
+	LogicalReadBytes      []uint64 `json:"logical_read_bytes,omitempty"`
+	LogicalWriteBytes     []uint64 `json:"logical_write_bytes,omitempty"`
+	RocksdbBlockReadCount []uint64 `json:"rocksdb_block_read_count,omitempty"`
+	ReadRows              []uint64 `json:"read_rows,omitempty"`
+	ReadIndexes           []uint64 `json:"read_indexes,omitempty"`
+	WriteRows             []uint64 `json:"write_rows,omitempty"`
+	WriteIndexes          []uint64 `json:"write_indexes,omitempty"`
+	SQLExecCount          []uint64 `json:"sql_exec_count,omitempty"`
+	SQLDurationSum        []uint64 `json:"sql_duration_sum,omitempty"`
+	SQLDurationCount      []uint64 `json:"sql_duration_count,omitempty"`
 }
 
 type SummaryItem struct {
-	SQLDigest         string            `json:"sql_digest"`
-	SQLText           string            `json:"sql_text"`
-	IsOther           bool              `json:"is_other"`
-	CPUTimeMs         uint64            `json:"cpu_time_ms"`
-	ExecCountPerSec   float64           `json:"exec_count_per_sec"`
-	DurationPerExecMs float64           `json:"duration_per_exec_ms"`
-	ScanRecordsPerSec float64           `json:"scan_records_per_sec"`
-	ScanIndexesPerSec float64           `json:"scan_indexes_per_sec"`
-	NetworkBytes      uint64            `json:"network_bytes"`
-	LogicalIoBytes    uint64            `json:"logical_io_bytes"`
-	Plans             []SummaryPlanItem `json:"plans"`
+	SQLDigest             string            `json:"sql_digest"`
+	SQLText               string            `json:"sql_text"`
+	IsOther               bool              `json:"is_other"`
+	CPUTimeMs             uint64            `json:"cpu_time_ms"`
+	ExecCountPerSec       float64           `json:"exec_count_per_sec"`
+	DurationPerExecMs     float64           `json:"duration_per_exec_ms"`
+	ScanRecordsPerSec     float64           `json:"scan_records_per_sec"`
+	ScanIndexesPerSec     float64           `json:"scan_indexes_per_sec"`
+	NetworkBytes          uint64            `json:"network_bytes"`
+	LogicalIoBytes        uint64            `json:"logical_io_bytes"`
+	LogicalReadBytes      uint64            `json:"logical_read_bytes"`
+	LogicalWriteBytes     uint64            `json:"logical_write_bytes"`
+	RocksdbBlockReadCount uint64            `json:"rocksdb_block_read_count"`
+	Plans                 []SummaryPlanItem `json:"plans"`
 }
 
 type SummaryByItem struct {
-	Text              string   `json:"text"`
-	IsOther           bool     `json:"is_other"`
-	TimestampSec      []uint64 `json:"timestamp_sec"`
-	CPUTimeMs         []uint64 `json:"cpu_time_ms,omitempty"`
-	CPUTimeMsSum      uint64   `json:"cpu_time_ms_sum"`
-	NetworkBytes      []uint64 `json:"network_bytes,omitempty"`
-	NetworkBytesSum   uint64   `json:"network_bytes_sum"`
-	LogicalIoBytes    []uint64 `json:"logical_io_bytes,omitempty"`
-	LogicalIoBytesSum uint64   `json:"logical_io_bytes_sum"`
+	Text                     string   `json:"text"`
+	IsOther                  bool     `json:"is_other"`
+	TimestampSec             []uint64 `json:"timestamp_sec"`
+	CPUTimeMs                []uint64 `json:"cpu_time_ms,omitempty"`
+	CPUTimeMsSum             uint64   `json:"cpu_time_ms_sum"`
+	NetworkBytes             []uint64 `json:"network_bytes,omitempty"`
+	NetworkBytesSum          uint64   `json:"network_bytes_sum"`
+	LogicalIoBytes           []uint64 `json:"logical_io_bytes,omitempty"`
+	LogicalIoBytesSum        uint64   `json:"logical_io_bytes_sum"`
+	LogicalReadBytes         []uint64 `json:"logical_read_bytes,omitempty"`
+	LogicalReadBytesSum      uint64   `json:"logical_read_bytes_sum"`
+	LogicalWriteBytes        []uint64 `json:"logical_write_bytes,omitempty"`
+	LogicalWriteBytesSum     uint64   `json:"logical_write_bytes_sum"`
+	RocksdbBlockReadCount    []uint64 `json:"rocksdb_block_read_count,omitempty"`
+	RocksdbBlockReadCountSum uint64   `json:"rocksdb_block_read_count_sum"`
 }
 
 type SummaryPlanItem struct {
-	PlanDigest        string   `json:"plan_digest"`
-	PlanText          string   `json:"plan_text"`
-	TimestampSec      []uint64 `json:"timestamp_sec"`
-	CPUTimeMs         []uint64 `json:"cpu_time_ms,omitempty"`
-	ExecCountPerSec   float64  `json:"exec_count_per_sec"`
-	DurationPerExecMs float64  `json:"duration_per_exec_ms"`
-	ScanRecordsPerSec float64  `json:"scan_records_per_sec"`
-	ScanIndexesPerSec float64  `json:"scan_indexes_per_sec"`
-	NetworkBytes      []uint64 `json:"network_bytes"`
-	LogicalIoBytes    []uint64 `json:"logical_io_bytes"`
+	PlanDigest            string   `json:"plan_digest"`
+	PlanText              string   `json:"plan_text"`
+	TimestampSec          []uint64 `json:"timestamp_sec"`
+	CPUTimeMs             []uint64 `json:"cpu_time_ms,omitempty"`
+	ExecCountPerSec       float64  `json:"exec_count_per_sec"`
+	DurationPerExecMs     float64  `json:"duration_per_exec_ms"`
+	ScanRecordsPerSec     float64  `json:"scan_records_per_sec"`
+	ScanIndexesPerSec     float64  `json:"scan_indexes_per_sec"`
+	NetworkBytes          []uint64 `json:"network_bytes"`
+	LogicalIoBytes        []uint64 `json:"logical_io_bytes"`
+	LogicalReadBytes      []uint64 `json:"logical_read_bytes"`
+	LogicalWriteBytes     []uint64 `json:"logical_write_bytes"`
+	RocksdbBlockReadCount []uint64 `json:"rocksdb_block_read_count"`
 }
 
 type InstanceItem struct {
