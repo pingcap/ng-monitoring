@@ -97,11 +97,14 @@ func TestTopology(t *testing.T) {
 	require.NoError(t, err)
 
 	etcdCli := cluster.RandClient()
-	check := func() {
+	check := func(expectAtomicPublication bool) int64 {
 		resp, err := etcdCli.Get(context.Background(), topologyPrefix, clientv3.WithPrefix())
 		require.NoError(t, err)
 		require.Equal(t, 2, int(resp.Count))
-		require.Equal(t, resp.Kvs[0].ModRevision, resp.Kvs[1].ModRevision)
+		if expectAtomicPublication {
+			require.Equal(t, resp.Kvs[0].ModRevision, resp.Kvs[1].ModRevision)
+		}
+		infoRevision := resp.Kvs[0].ModRevision
 
 		// get ngm topology from etcd.
 		resp, err = etcdCli.Get(context.Background(), "/topology/ng-monitoring/10.0.1.8:12020/ttl")
@@ -118,21 +121,29 @@ func TestTopology(t *testing.T) {
 		require.Equal(t, 1, int(resp.Count))
 		require.Equal(t, "/topology/ng-monitoring/10.0.1.8:12020/info", string(resp.Kvs[0].Key))
 		require.Equal(t, `{"git_hash":"b225682e6660cb617b8f4ccc77da252f845f411c","ip":"10.0.1.8","listening_port":12020,"start_timestamp":1639643120,"dashboard_auth":{"scheme":"token-v1","token":"test-dashboard-token"}}`, string(resp.Kvs[0].Value))
+		return infoRevision
 	}
-	check()
+	infoRevision := check(true)
 
-	// test syncer sync.
+	// Regular refreshes only update the leased ttl and preserve the static
+	// server-info key's revision.
+	err = syncer.refreshTopologyInfo()
+	require.NoError(t, err)
+	require.Equal(t, infoRevision, check(false))
+
+	// If the initial atomic publication failed, the loop retries both entries.
 	topologyTimeToRefresh = time.Millisecond * 10
-	syncer.Start()
 	respd, err := etcdCli.Delete(context.Background(), topologyPrefix, clientv3.WithPrefix())
 	require.NoError(t, err)
 	require.Equal(t, 2, int(respd.Deleted))
+	syncer.serverInfoPublished = false
+	syncer.Start()
 	// wait syncer to restore the info.
 	time.Sleep(time.Millisecond * 100)
 	resp, err := etcdCli.Get(context.Background(), topologyPrefix, clientv3.WithPrefix())
 	require.NoError(t, err)
 	require.Equal(t, 2, int(resp.Count))
-	check()
+	check(false)
 	Stop()
 
 	// Test invalid address

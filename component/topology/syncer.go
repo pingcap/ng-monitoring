@@ -37,11 +37,12 @@ var (
 )
 
 type TopologySyncer struct {
-	do              *domain.Domain
-	topologySession *concurrency.Session
-	serverInfo      *ServerInfo
-	ctx             context.Context
-	cancel          context.CancelFunc
+	do                  *domain.Domain
+	topologySession     *concurrency.Session
+	serverInfo          *ServerInfo
+	serverInfoPublished bool
+	ctx                 context.Context
+	cancel              context.CancelFunc
 }
 
 func NewTopologySyncer(do *domain.Domain) (*TopologySyncer, error) {
@@ -100,7 +101,10 @@ func (s *TopologySyncer) refreshTopologyInfo() error {
 	if s.topologySession == nil {
 		return s.newTopologySessionAndStoreServerInfo()
 	}
-	return s.storeServerAndTopologyInfo()
+	if !s.serverInfoPublished {
+		return s.storeServerAndTopologyInfo()
+	}
+	return s.storeTopologyInfo()
 }
 
 func (s *TopologySyncer) newTopologySessionAndStoreServerInfo() error {
@@ -113,6 +117,7 @@ func (s *TopologySyncer) newTopologySessionAndStoreServerInfo() error {
 		return err
 	}
 	s.topologySession = session
+	s.serverInfoPublished = false
 
 	return s.storeServerAndTopologyInfo()
 }
@@ -134,7 +139,7 @@ func (s *TopologySyncer) storeServerAndTopologyInfo() error {
 		return err
 	}
 	ttlKey := fmt.Sprintf("%s/%s/ttl", topologyPrefix, cfg.AdvertiseAddress)
-	return putTopologyToEtcd(
+	err = putTopologyToEtcd(
 		s.ctx,
 		etcdCli,
 		defaultRetryCnt,
@@ -143,6 +148,32 @@ func (s *TopologySyncer) storeServerAndTopologyInfo() error {
 		ttlKey,
 		fmt.Sprintf("%v", time.Now().UnixNano()),
 		s.topologySession.Lease(),
+	)
+	if err != nil {
+		return err
+	}
+	s.serverInfoPublished = true
+	return nil
+}
+
+func (s *TopologySyncer) storeTopologyInfo() error {
+	if s.topologySession == nil {
+		return fmt.Errorf("topology session is not initialized")
+	}
+
+	cfg := config.GetGlobalConfig()
+	ttlKey := fmt.Sprintf("%s/%s/ttl", topologyPrefix, cfg.AdvertiseAddress)
+	etcdCli, err := s.do.GetEtcdClient()
+	if err != nil {
+		return err
+	}
+	return putKVToEtcd(
+		s.ctx,
+		etcdCli,
+		defaultRetryCnt,
+		ttlKey,
+		fmt.Sprintf("%v", time.Now().UnixNano()),
+		clientv3.WithLease(s.topologySession.Lease()),
 	)
 }
 
@@ -186,6 +217,31 @@ func putTopologyToEtcd(
 		// in logs when an etcd write fails.
 		log.Warn("[syncer] etcd-cli put topology failed",
 			zap.Strings("keys", []string{infoKey, ttlKey}),
+			zap.Error(err),
+			zap.Int("retryCnt", i))
+		time.Sleep(defRetryInterval)
+	}
+	return err
+}
+
+func putKVToEtcd(ctx context.Context, etcdCli *clientv3.Client, retryCnt int, key, value string,
+	opts ...clientv3.OpOption) error {
+	var err error
+	for i := 0; i < retryCnt; i++ {
+		if isContextDone(ctx) {
+			return ctx.Err()
+		}
+
+		childCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
+		_, err = etcdCli.Put(childCtx, key, value, opts...)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		// Topology values may contain internal credentials. Never include them
+		// in logs when an etcd write fails.
+		log.Warn("[syncer] etcd-cli put kv failed",
+			zap.String("key", key),
 			zap.Error(err),
 			zap.Int("retryCnt", i))
 		time.Sleep(defRetryInterval)
