@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func Init(cfg *config.Config, docDB docdb.DocDB) {
+func Init(cfg *config.Config, docDB docdb.DocDB, dashboardAuthToken string) {
 	vmAllowlist, err := http.LoadVictoriaMetricsAllowlist(cfg.HTTP.VictoriaMetricsAllowlistFile)
 	if err != nil {
 		log.Fatal("failed to load VictoriaMetrics HTTP API allowlist", zap.Error(err))
@@ -27,7 +27,7 @@ func Init(cfg *config.Config, docDB docdb.DocDB) {
 	}
 
 	go utils.GoWithRecovery(func() {
-		http.ServeHTTP(&cfg.Log, listener, docDB, vmAllowlist)
+		http.ServeHTTP(&cfg.Log, listener, docDB, vmAllowlist, dashboardAuthToken)
 	}, nil)
 
 	log.Info(

@@ -83,12 +83,16 @@ func TestTopology(t *testing.T) {
 
 	// test syncer
 	printer.NGMGitHash = "b225682e6660cb617b8f4ccc77da252f845f411c"
-	syncer = NewTopologySyncer(do)
+	syncer, err = NewTopologySyncer(do)
+	require.NoError(t, err)
 	require.Equal(t, "10.0.1.8", syncer.serverInfo.IP)
 	require.Equal(t, uint64(12020), syncer.serverInfo.Port)
 	require.Equal(t, "b225682e6660cb617b8f4ccc77da252f845f411c", syncer.serverInfo.GitHash)
 	require.True(t, syncer.serverInfo.StartTimestamp > 0)
+	require.Equal(t, dashboardAuthScheme, syncer.serverInfo.DashboardAuth.Scheme)
+	require.NotEmpty(t, syncer.serverInfo.DashboardAuth.Token)
 	syncer.serverInfo.StartTimestamp = 1639643120
+	syncer.serverInfo.DashboardAuth.Token = "test-dashboard-token"
 	err = syncer.newTopologySessionAndStoreServerInfo()
 	require.NoError(t, err)
 	err = syncer.storeTopologyInfo()
@@ -110,7 +114,7 @@ func TestTopology(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, int(resp.Count))
 		require.Equal(t, "/topology/ng-monitoring/10.0.1.8:12020/info", string(resp.Kvs[0].Key))
-		require.Equal(t, `{"git_hash":"b225682e6660cb617b8f4ccc77da252f845f411c","ip":"10.0.1.8","listening_port":12020,"start_timestamp":1639643120}`, string(resp.Kvs[0].Value))
+		require.Equal(t, `{"git_hash":"b225682e6660cb617b8f4ccc77da252f845f411c","ip":"10.0.1.8","listening_port":12020,"start_timestamp":1639643120,"dashboard_auth":{"scheme":"token-v1","token":"test-dashboard-token"}}`, string(resp.Kvs[0].Value))
 	}
 	check()
 
@@ -131,12 +135,12 @@ func TestTopology(t *testing.T) {
 	// Test invalid address
 	cfg.AdvertiseAddress = "abcd"
 	config.StoreGlobalConfig(cfg)
-	serverInfo := getServerInfo()
+	serverInfo := getServerInfo("test-dashboard-token")
 	require.Equal(t, "", serverInfo.IP)
 	require.Equal(t, uint64(0), serverInfo.Port)
 	cfg.AdvertiseAddress = "abcd:x"
 	config.StoreGlobalConfig(cfg)
-	serverInfo = getServerInfo()
+	serverInfo = getServerInfo("test-dashboard-token")
 	require.Equal(t, "abcd", serverInfo.IP)
 	require.Equal(t, uint64(0), serverInfo.Port)
 }

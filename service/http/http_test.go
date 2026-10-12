@@ -46,6 +46,31 @@ func TestVictoriaMetricsAllowlist(t *testing.T) {
 	}
 }
 
+func TestRequireDashboardAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	protected := router.Group("/protected")
+	protected.Use(requireDashboardAuth("test-token"))
+	protected.GET("", successHandler)
+	router.GET("/public", successHandler)
+
+	require.Equal(t, http.StatusUnauthorized, performRequest(router, http.MethodGet, "/protected").Code)
+
+	request := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	request.Header.Set(DashboardAuthHeader, "wrong-token")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusUnauthorized, response.Code)
+
+	request = httptest.NewRequest(http.MethodGet, "/protected", nil)
+	request.Header.Set(DashboardAuthHeader, "test-token")
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusNoContent, response.Code)
+
+	require.Equal(t, http.StatusNoContent, performRequest(router, http.MethodGet, "/public").Code)
+}
+
 func TestVictoriaMetricsRejectsUnlistedAPIs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

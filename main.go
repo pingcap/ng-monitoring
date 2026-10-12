@@ -129,7 +129,7 @@ func main() {
 	}
 	defer conprof.Stop()
 
-	service.Init(cfg, docDB)
+	service.Init(cfg, docDB, topology.GetDashboardAuthToken())
 	defer service.Stop()
 
 	ctx, cancel := context.WithCancel(context.Background())

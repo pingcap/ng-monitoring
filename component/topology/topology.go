@@ -15,10 +15,20 @@ func Init(do *domain.Domain) error {
 	if err != nil {
 		return err
 	}
-	syncer = NewTopologySyncer(do)
+	syncer, err = NewTopologySyncer(do)
+	if err != nil {
+		return err
+	}
 	syncer.Start()
 	discover.Start()
 	return err
+}
+
+func GetDashboardAuthToken() string {
+	if syncer == nil || syncer.serverInfo == nil || syncer.serverInfo.DashboardAuth == nil {
+		return ""
+	}
+	return syncer.serverInfo.DashboardAuth.Token
 }
 
 func InitForTest(comps []Component) {

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"crypto/subtle"
 	"io"
 	"net"
 	"net/http"
@@ -25,7 +26,9 @@ var (
 	httpServer *http.Server = nil
 )
 
-func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB, vmAllowlist VictoriaMetricsAllowlist) {
+const DashboardAuthHeader = "X-Ng-Monitoring-Dashboard-Token"
+
+func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB, vmAllowlist VictoriaMetricsAllowlist, dashboardAuthToken string) {
 	gin.SetMode(gin.ReleaseMode)
 	ng := gin.New()
 
@@ -53,15 +56,18 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB, vmAllowl
 		g.JSON(http.StatusOK, Status{Health: true})
 	})
 
-	// route
-	configGroup := ng.Group("/config")
+	// Dashboard-only and diagnostic APIs contain configuration, SQL text, query
+	// plans, and profiles. Keep them behind a credential that is advertised to
+	// Dashboard through the existing PD topology entry.
+	dashboardOnly := ng.Group("")
+	dashboardOnly.Use(requireDashboardAuth(dashboardAuthToken))
+	configGroup := dashboardOnly.Group("/config")
 	config.HTTPService(configGroup, docDB)
-	topSQLGroup := ng.Group("/topsql")
+	topSQLGroup := dashboardOnly.Group("/topsql")
 	topsql.HTTPService(topSQLGroup)
-	// register pprof http api
-	pprof.Register(ng)
+	pprof.RouteRegister(dashboardOnly)
 
-	continuousProfilingGroup := ng.Group("/continuous_profiling")
+	continuousProfilingGroup := dashboardOnly.Group("/continuous_profiling")
 	conprofhttp.HTTPService(continuousProfilingGroup)
 
 	promHandler := promhttp.Handler()
@@ -76,6 +82,21 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB, vmAllowl
 	}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Warn("failed to serve http service", zap.Error(err))
+	}
+}
+
+func requireDashboardAuth(expectedToken string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		providedToken := c.GetHeader(DashboardAuthHeader)
+		if expectedToken == "" || len(providedToken) != len(expectedToken) ||
+			subtle.ConstantTimeCompare([]byte(providedToken), []byte(expectedToken)) != 1 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "dashboard authentication required",
+			})
+			return
+		}
+		c.Next()
 	}
 }
 

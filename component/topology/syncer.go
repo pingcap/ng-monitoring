@@ -2,6 +2,8 @@ package topology
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -21,6 +23,7 @@ import (
 
 const (
 	topologyPrefix          = "/topology/ng-monitoring"
+	dashboardAuthScheme     = "token-v1"
 	defaultRetryCnt         = 3
 	defaultTimeout          = 2 * time.Second
 	defRetryInterval        = 30 * time.Millisecond
@@ -41,13 +44,25 @@ type TopologySyncer struct {
 	cancel          context.CancelFunc
 }
 
-func NewTopologySyncer(do *domain.Domain) *TopologySyncer {
+func NewTopologySyncer(do *domain.Domain) (*TopologySyncer, error) {
+	dashboardAuthToken, err := newDashboardAuthToken()
+	if err != nil {
+		return nil, fmt.Errorf("generate dashboard authentication token: %w", err)
+	}
 	syncer := &TopologySyncer{
 		do:         do,
-		serverInfo: getServerInfo(),
+		serverInfo: getServerInfo(dashboardAuthToken),
 	}
 	syncer.ctx, syncer.cancel = context.WithCancel(context.Background())
-	return syncer
+	return syncer, nil
+}
+
+func newDashboardAuthToken() (string, error) {
+	data := make([]byte, 32)
+	if _, err := rand.Read(data); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(data), nil
 }
 
 func (s *TopologySyncer) Start() {
@@ -152,7 +167,9 @@ func putKVToEtcd(ctx context.Context, etcdCli *clientv3.Client, retryCnt int, ke
 		if err == nil {
 			return nil
 		}
-		log.Warn("[syncer] etcd-cli put kv failed", zap.String("key", key), zap.String("value", val), zap.Error(err), zap.Int("retryCnt", i))
+		// Topology values may contain internal credentials. Never include them
+		// in logs when an etcd write fails.
+		log.Warn("[syncer] etcd-cli put kv failed", zap.String("key", key), zap.Error(err), zap.Int("retryCnt", i))
 		time.Sleep(defRetryInterval)
 	}
 	return err
@@ -195,18 +212,28 @@ func isContextDone(ctx context.Context) bool {
 // It will not be updated when server running.
 // So please only put static information in ServerInfo struct.
 type ServerInfo struct {
-	GitHash        string `json:"git_hash"`
-	IP             string `json:"ip"`
-	Port           uint64 `json:"listening_port"`
-	StartTimestamp int64  `json:"start_timestamp"`
+	GitHash        string             `json:"git_hash"`
+	IP             string             `json:"ip"`
+	Port           uint64             `json:"listening_port"`
+	StartTimestamp int64              `json:"start_timestamp"`
+	DashboardAuth  *DashboardAuthInfo `json:"dashboard_auth,omitempty"`
 }
 
-func getServerInfo() *ServerInfo {
+type DashboardAuthInfo struct {
+	Scheme string `json:"scheme"`
+	Token  string `json:"token"`
+}
+
+func getServerInfo(dashboardAuthToken string) *ServerInfo {
 	info := &ServerInfo{
 		GitHash:        printer.NGMGitHash,
 		IP:             "",
 		Port:           0,
 		StartTimestamp: time.Now().Unix(),
+		DashboardAuth: &DashboardAuthInfo{
+			Scheme: dashboardAuthScheme,
+			Token:  dashboardAuthToken,
+		},
 	}
 	cfg := config.GetGlobalConfig()
 	host, port, err := net.SplitHostPort(cfg.AdvertiseAddress)
