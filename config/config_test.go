@@ -84,32 +84,30 @@ func TestContinueProfilingConfig(t *testing.T) {
 
 	negativeConfigs := []ContinueProfilingConfig{
 		{ProfileSeconds: -1, IntervalSeconds: 60, TimeoutSeconds: 120, DataRetentionSeconds: 10000},
-		{ProfileSeconds: -2, IntervalSeconds: -1, TimeoutSeconds: 120, DataRetentionSeconds: 10000},
-		{ProfileSeconds: -2, IntervalSeconds: 60, TimeoutSeconds: -1, DataRetentionSeconds: 10000},
+		{ProfileSeconds: 10, IntervalSeconds: -1, TimeoutSeconds: 120, DataRetentionSeconds: 10000},
+		{ProfileSeconds: 10, IntervalSeconds: 60, TimeoutSeconds: -1, DataRetentionSeconds: 10000},
 		{ProfileSeconds: 10, IntervalSeconds: 60, TimeoutSeconds: 120, DataRetentionSeconds: -1},
 	}
 	for _, negativeCfg := range negativeConfigs {
 		require.False(t, negativeCfg.Valid())
 	}
 
-	// The upper bound is the largest number of whole seconds that can be
-	// converted to time.Duration without overflowing.
-	maxSeconds := maxDurationSeconds
-	if int64(int(maxSeconds)) == maxSeconds {
-		cfg = ContinueProfilingConfig{
-			ProfileSeconds:       int(maxSeconds),
-			IntervalSeconds:      int(maxSeconds),
-			TimeoutSeconds:       int(maxSeconds),
-			DataRetentionSeconds: int(maxSeconds),
-		}
-		require.True(t, cfg.Valid())
+	maxCfg := ContinueProfilingConfig{
+		ProfileSeconds:       maxProfileSeconds,
+		IntervalSeconds:      maxIntervalSeconds,
+		TimeoutSeconds:       maxTimeoutSeconds,
+		DataRetentionSeconds: maxDataRetentionSeconds,
+	}
+	require.True(t, maxCfg.Valid())
 
-		tooManySeconds := maxSeconds + 1
-		cfg.ProfileSeconds = int(tooManySeconds)
-		cfg.IntervalSeconds = int(tooManySeconds)
-		cfg.TimeoutSeconds = int(tooManySeconds)
-		cfg.DataRetentionSeconds = int(tooManySeconds)
-		require.False(t, cfg.Valid())
+	tooLargeConfigs := []ContinueProfilingConfig{
+		{ProfileSeconds: maxProfileSeconds + 1, IntervalSeconds: maxIntervalSeconds, TimeoutSeconds: maxTimeoutSeconds, DataRetentionSeconds: maxDataRetentionSeconds},
+		{ProfileSeconds: maxProfileSeconds, IntervalSeconds: maxIntervalSeconds + 1, TimeoutSeconds: maxTimeoutSeconds, DataRetentionSeconds: maxDataRetentionSeconds},
+		{ProfileSeconds: maxProfileSeconds, IntervalSeconds: maxIntervalSeconds, TimeoutSeconds: maxTimeoutSeconds + 1, DataRetentionSeconds: maxDataRetentionSeconds},
+		{ProfileSeconds: maxProfileSeconds, IntervalSeconds: maxIntervalSeconds, TimeoutSeconds: maxTimeoutSeconds, DataRetentionSeconds: maxDataRetentionSeconds + 1},
+	}
+	for _, tooLargeCfg := range tooLargeConfigs {
+		require.False(t, tooLargeCfg.Valid())
 	}
 }
 
