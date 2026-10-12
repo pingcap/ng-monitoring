@@ -5312,7 +5312,7 @@ sub ShellEscape {
   foreach my $word (@_) {
     my $escaped_word = $word;
     if ($word =~ m![^a-zA-Z0-9/.,_=-]!) {  # check for anything not in whitelist
-      $escaped_word =~ s/'/'\\''/;
+      $escaped_word =~ s/'/'\\''/g;
       $escaped_word = "'$escaped_word'";
     }
     push(@escaped_words, $escaped_word);
@@ -5672,8 +5672,34 @@ sub AddressIncUnitTest {
 }
 
 
+# Verify that shell arguments are quoted without changing their values.
+sub ShellEscapeUnitTest {
+  my @test_data = (
+    [["plain", "/tmp/profile"], "plain /tmp/profile"],
+    [["hello world"], "'hello world'"],
+    [[q{one'two}], q{'one'\''two'}],
+    [[q{one'two'three}], q{'one'\''two'\''three'}],
+    [[q{$(echo injected);`echo injected`}],
+     q{'$(echo injected);`echo injected`'}],
+  );
+  my $fail_count = 0;
+  my $pass_count = 0;
+  foreach my $row (@test_data) {
+    my $escaped = ShellEscape(@{$row->[0]});
+    if ($escaped ne $row->[1]) {
+      printf STDERR "ERROR: ShellEscape returned %s, expected %s\n",
+          $escaped, $row->[1];
+      ++$fail_count;
+    } else {
+      ++$pass_count;
+    }
+  }
+  printf STDERR "ShellEscape tests: %d passes, %d failures\n",
+      $pass_count, $fail_count;
+  return $fail_count;
+}
+
 # Driver for unit tests.
-# Currently just the address add/subtract/increment routines for 64-bit.
 sub RunUnitTests {
   my $error_count = 0;
 
@@ -5714,6 +5740,7 @@ sub RunUnitTests {
   $error_count += AddressAddUnitTest($unit_test_data_8, $unit_test_data_16);
   $error_count += AddressSubUnitTest($unit_test_data_8, $unit_test_data_16);
   $error_count += AddressIncUnitTest($unit_test_data_8, $unit_test_data_16);
+  $error_count += ShellEscapeUnitTest();
   if ($error_count > 0) {
     print STDERR $error_count, " errors: FAILED\n";
   } else {
