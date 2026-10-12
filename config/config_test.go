@@ -30,6 +30,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, config.Load(configFile))
 	require.Equal(t, config.Address, "0.0.0.0:12020")
 	require.Equal(t, config.PD, PD{Endpoints: []string{"0.0.0.0:2379"}})
+	require.Equal(t, HTTPConfig{}, config.HTTP)
 	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO", MaxSize: 300, MaxDays: 0, MaxBackups: 10})
 	require.Equal(t, config.Storage, Storage{Path: "data", DocDBBackend: "sqlite", MetaRetentionSecs: 0})
 }
@@ -117,6 +118,8 @@ func TestConfigInit(t *testing.T) {
 	cfgData := `
 address = "0.0.0.0:12020"
 advertise-address = "10.0.1.8:12020"
+[http]
+victoria-metrics-allowlist-file = "/tmp/vm-allowlist.toml"
 [log]
 path = "log"
 level = "INFO"
@@ -137,6 +140,7 @@ key-path = "ngm.key"`
 	require.NotNil(t, cfg)
 	require.Equal(t, "0.0.0.0:12020", cfg.Address)
 	require.Equal(t, "10.0.1.8:12020", cfg.AdvertiseAddress)
+	require.Equal(t, "/tmp/vm-allowlist.toml", cfg.HTTP.VictoriaMetricsAllowlistFile)
 	require.Equal(t, "log", cfg.Log.Path)
 	require.Equal(t, "INFO", cfg.Log.Level)
 	require.Equal(t, 300, cfg.Log.MaxSize)

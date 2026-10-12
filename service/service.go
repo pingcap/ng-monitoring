@@ -13,6 +13,11 @@ import (
 )
 
 func Init(cfg *config.Config, docDB docdb.DocDB) {
+	vmAllowlist, err := http.LoadVictoriaMetricsAllowlist(cfg.HTTP.VictoriaMetricsAllowlistFile)
+	if err != nil {
+		log.Fatal("failed to load VictoriaMetrics HTTP API allowlist", zap.Error(err))
+	}
+
 	listener, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
 		log.Fatal("failed to listen",
@@ -22,7 +27,7 @@ func Init(cfg *config.Config, docDB docdb.DocDB) {
 	}
 
 	go utils.GoWithRecovery(func() {
-		http.ServeHTTP(&cfg.Log, listener, docDB)
+		http.ServeHTTP(&cfg.Log, listener, docDB, vmAllowlist)
 	}, nil)
 
 	log.Info(

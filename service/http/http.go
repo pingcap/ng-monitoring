@@ -8,8 +8,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
@@ -27,7 +25,7 @@ var (
 	httpServer *http.Server = nil
 )
 
-func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
+func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB, vmAllowlist VictoriaMetricsAllowlist) {
 	gin.SetMode(gin.ReleaseMode)
 	ng := gin.New()
 
@@ -71,68 +69,13 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 	promGroup.Any("", func(c *gin.Context) {
 		promHandler.ServeHTTP(c.Writer, c.Request)
 	})
-	registerVictoriaMetricsRoutes(ng)
+	registerVictoriaMetricsRoutes(ng, vmAllowlist)
 	httpServer = &http.Server{
 		Handler:           ng,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	if err = httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Warn("failed to serve http service", zap.Error(err))
-	}
-}
-
-type victoriaMetricsRequestHandler func(http.ResponseWriter, *http.Request) bool
-
-var victoriaMetricsGetAndPostPaths = []string{
-	"/api/v1/query",
-	"/api/v1/query_range",
-	"/api/v1/series",
-	"/api/v1/labels",
-	"/api/v1/query_exemplars",
-}
-
-var victoriaMetricsGetPaths = []string{
-	"/api/v1/label/:name/values",
-	"/api/v1/metadata",
-	"/api/v1/rules",
-	"/api/v1/alerts",
-	"/api/v1/status/buildinfo",
-	"/api/v1/status/tsdb",
-	"/federate",
-}
-
-// registerVictoriaMetricsRoutes exposes only the Prometheus-compatible API needed
-// for remote write and Grafana queries. Keep the list explicit: falling back to
-// VictoriaMetrics' handlers for unknown paths also exposes administrative APIs.
-func registerVictoriaMetricsRoutes(router gin.IRoutes) {
-	registerVictoriaMetricsRoutesWithHandlers(router, handleVictoriaMetricsInsert, handleVictoriaMetricsSelect)
-}
-
-func registerVictoriaMetricsRoutesWithHandlers(router gin.IRoutes, insertHandler, selectHandler gin.HandlerFunc) {
-	for _, prefix := range []string{"", "/prometheus"} {
-		router.Handle(http.MethodPost, prefix+"/api/v1/write", insertHandler)
-		for _, routePath := range victoriaMetricsGetAndPostPaths {
-			for _, method := range []string{http.MethodGet, http.MethodPost} {
-				router.Handle(method, prefix+routePath, selectHandler)
-			}
-		}
-		for _, routePath := range victoriaMetricsGetPaths {
-			router.Handle(http.MethodGet, prefix+routePath, selectHandler)
-		}
-	}
-}
-
-func handleVictoriaMetricsInsert(c *gin.Context) {
-	handleVictoriaMetricsRequest(c, vminsert.RequestHandler)
-}
-
-func handleVictoriaMetricsSelect(c *gin.Context) {
-	handleVictoriaMetricsRequest(c, vmselect.RequestHandler)
-}
-
-func handleVictoriaMetricsRequest(c *gin.Context, handler victoriaMetricsRequestHandler) {
-	if !handler(c.Writer, c.Request) {
-		c.String(http.StatusNotFound, "404 page not found")
 	}
 }
 

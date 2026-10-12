@@ -29,6 +29,7 @@ type Config struct {
 	Address           string                  `toml:"address" json:"address"`
 	AdvertiseAddress  string                  `toml:"advertise-address" json:"advertise_address"`
 	Go                Go                      `toml:"go" json:"go"`
+	HTTP              HTTPConfig              `toml:"http" json:"http"`
 	PD                PD                      `toml:"pd" json:"pd"`
 	Log               Log                     `toml:"log" json:"log"`
 	Storage           Storage                 `toml:"storage" json:"storage"`
@@ -260,6 +261,10 @@ func validateAddress(address, name string) error {
 type Go struct {
 	GCPercent   int   `toml:"gc-percent" json:"gc_percent"`
 	MemoryLimit int64 `toml:"memory-limit" json:"memory_limit"`
+}
+
+type HTTPConfig struct {
+	VictoriaMetricsAllowlistFile string `toml:"victoria-metrics-allowlist-file" json:"victoria_metrics_allowlist_file"`
 }
 
 type PD struct {
