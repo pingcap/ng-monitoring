@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
@@ -72,10 +71,7 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 	promGroup.Any("", func(c *gin.Context) {
 		promHandler.ServeHTTP(c.Writer, c.Request)
 	})
-	// compatible with victoria-metrics handlers
-	ng.NoRoute(func(c *gin.Context) {
-		handlerNoRouter(c)
-	})
+	registerVictoriaMetricsRoutes(ng)
 	httpServer = &http.Server{
 		Handler:           ng,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -85,23 +81,59 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 	}
 }
 
-// Try Victoria-Metrics' handlers first. If not handled, then return a 404 error.
-func handlerNoRouter(c *gin.Context) {
-	//reset to default
-	c.Writer.WriteHeader(http.StatusOK)
-	if vminsert.RequestHandler(c.Writer, c.Request) {
-		return
-	}
+type victoriaMetricsRequestHandler func(http.ResponseWriter, *http.Request) bool
 
-	if vmselect.RequestHandler(c.Writer, c.Request) {
-		return
-	}
+var victoriaMetricsGetAndPostPaths = []string{
+	"/api/v1/query",
+	"/api/v1/query_range",
+	"/api/v1/series",
+	"/api/v1/labels",
+	"/api/v1/query_exemplars",
+}
 
-	if vmstorage.RequestHandler(c.Writer, c.Request) {
-		return
-	}
+var victoriaMetricsGetPaths = []string{
+	"/api/v1/label/:name/values",
+	"/api/v1/metadata",
+	"/api/v1/rules",
+	"/api/v1/alerts",
+	"/api/v1/status/buildinfo",
+	"/api/v1/status/tsdb",
+	"/federate",
+}
 
-	c.String(http.StatusNotFound, "404 page not found")
+// registerVictoriaMetricsRoutes exposes only the Prometheus-compatible API needed
+// for remote write and Grafana queries. Keep the list explicit: falling back to
+// VictoriaMetrics' handlers for unknown paths also exposes administrative APIs.
+func registerVictoriaMetricsRoutes(router gin.IRoutes) {
+	registerVictoriaMetricsRoutesWithHandlers(router, handleVictoriaMetricsInsert, handleVictoriaMetricsSelect)
+}
+
+func registerVictoriaMetricsRoutesWithHandlers(router gin.IRoutes, insertHandler, selectHandler gin.HandlerFunc) {
+	for _, prefix := range []string{"", "/prometheus"} {
+		router.Handle(http.MethodPost, prefix+"/api/v1/write", insertHandler)
+		for _, routePath := range victoriaMetricsGetAndPostPaths {
+			for _, method := range []string{http.MethodGet, http.MethodPost} {
+				router.Handle(method, prefix+routePath, selectHandler)
+			}
+		}
+		for _, routePath := range victoriaMetricsGetPaths {
+			router.Handle(http.MethodGet, prefix+routePath, selectHandler)
+		}
+	}
+}
+
+func handleVictoriaMetricsInsert(c *gin.Context) {
+	handleVictoriaMetricsRequest(c, vminsert.RequestHandler)
+}
+
+func handleVictoriaMetricsSelect(c *gin.Context) {
+	handleVictoriaMetricsRequest(c, vmselect.RequestHandler)
+}
+
+func handleVictoriaMetricsRequest(c *gin.Context, handler victoriaMetricsRequestHandler) {
+	if !handler(c.Writer, c.Request) {
+		c.String(http.StatusNotFound, "404 page not found")
+	}
 }
 
 type Status struct {
