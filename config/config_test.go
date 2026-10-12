@@ -60,26 +60,56 @@ search-max-query-duration = "5m"`
 
 func TestContinueProfilingConfig(t *testing.T) {
 	cfg := ContinueProfilingConfig{}
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg = ContinueProfilingConfig{
 		ProfileSeconds:       0,
 		IntervalSeconds:      60,
 		TimeoutSeconds:       120,
 		DataRetentionSeconds: 10000,
 	}
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg.ProfileSeconds = 61
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg.ProfileSeconds = 41
 	cfg.TimeoutSeconds = 40
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg = ContinueProfilingConfig{
 		ProfileSeconds:       10,
 		IntervalSeconds:      60,
 		TimeoutSeconds:       120,
 		DataRetentionSeconds: 10000,
 	}
-	require.Equal(t, cfg.Valid(), true)
+	require.True(t, cfg.Valid())
+
+	negativeConfigs := []ContinueProfilingConfig{
+		{ProfileSeconds: -1, IntervalSeconds: 60, TimeoutSeconds: 120, DataRetentionSeconds: 10000},
+		{ProfileSeconds: -2, IntervalSeconds: -1, TimeoutSeconds: 120, DataRetentionSeconds: 10000},
+		{ProfileSeconds: -2, IntervalSeconds: 60, TimeoutSeconds: -1, DataRetentionSeconds: 10000},
+		{ProfileSeconds: 10, IntervalSeconds: 60, TimeoutSeconds: 120, DataRetentionSeconds: -1},
+	}
+	for _, negativeCfg := range negativeConfigs {
+		require.False(t, negativeCfg.Valid())
+	}
+
+	// The upper bound is the largest number of whole seconds that can be
+	// converted to time.Duration without overflowing.
+	maxSeconds := maxDurationSeconds
+	if int64(int(maxSeconds)) == maxSeconds {
+		cfg = ContinueProfilingConfig{
+			ProfileSeconds:       int(maxSeconds),
+			IntervalSeconds:      int(maxSeconds),
+			TimeoutSeconds:       int(maxSeconds),
+			DataRetentionSeconds: int(maxSeconds),
+		}
+		require.True(t, cfg.Valid())
+
+		tooManySeconds := maxSeconds + 1
+		cfg.ProfileSeconds = int(tooManySeconds)
+		cfg.IntervalSeconds = int(tooManySeconds)
+		cfg.TimeoutSeconds = int(tooManySeconds)
+		cfg.DataRetentionSeconds = int(tooManySeconds)
+		require.False(t, cfg.Valid())
+	}
 }
 
 func TestConfigInit(t *testing.T) {

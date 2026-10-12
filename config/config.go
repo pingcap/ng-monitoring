@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	stdlog "log"
+	"math"
 	"net"
 	"path"
 	"sort"
@@ -483,11 +484,17 @@ type ContinueProfilingConfig struct {
 	DataRetentionSeconds int  `json:"data_retention_seconds"`
 }
 
+const maxDurationSeconds = int64(math.MaxInt64) / int64(time.Second)
+
+func validDurationSeconds(seconds int) bool {
+	return seconds > 0 && int64(seconds) <= maxDurationSeconds
+}
+
 func (c ContinueProfilingConfig) Valid() bool {
-	if c.ProfileSeconds == 0 ||
-		c.IntervalSeconds == 0 ||
-		c.TimeoutSeconds == 0 ||
-		c.DataRetentionSeconds == 0 {
+	if !validDurationSeconds(c.ProfileSeconds) ||
+		!validDurationSeconds(c.IntervalSeconds) ||
+		!validDurationSeconds(c.TimeoutSeconds) ||
+		!validDurationSeconds(c.DataRetentionSeconds) {
 		return false
 	}
 	if c.ProfileSeconds > c.IntervalSeconds ||
