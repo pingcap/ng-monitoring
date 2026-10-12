@@ -70,7 +70,7 @@ func (s *TopologySyncer) Start() {
 }
 
 func (s *TopologySyncer) topologyInfoKeeperLoop() {
-	err := syncer.newTopologySessionAndStoreServerInfo()
+	err := s.refreshTopologyInfo()
 	if err != nil {
 		log.Error("store topology into etcd failed", zap.Error(err))
 	}
@@ -79,7 +79,7 @@ func (s *TopologySyncer) topologyInfoKeeperLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			err := s.storeTopologyInfo()
+			err := s.refreshTopologyInfo()
 			if err != nil {
 				log.Error("refresh topology in loop failed", zap.Error(err))
 			}
@@ -96,6 +96,13 @@ func (s *TopologySyncer) topologyInfoKeeperLoop() {
 	}
 }
 
+func (s *TopologySyncer) refreshTopologyInfo() error {
+	if s.topologySession == nil {
+		return s.newTopologySessionAndStoreServerInfo()
+	}
+	return s.storeServerAndTopologyInfo()
+}
+
 func (s *TopologySyncer) newTopologySessionAndStoreServerInfo() error {
 	etcdCli, err := s.do.GetEtcdClient()
 	if err != nil {
@@ -107,39 +114,36 @@ func (s *TopologySyncer) newTopologySessionAndStoreServerInfo() error {
 	}
 	s.topologySession = session
 
-	err = s.storeServerInfo(etcdCli)
-	if err != nil {
-		return err
-	}
-
-	return s.storeTopologyInfo()
+	return s.storeServerAndTopologyInfo()
 }
 
-func (s *TopologySyncer) storeServerInfo(etcdCli *clientv3.Client) error {
-	cfg := config.GetGlobalConfig()
-	key := fmt.Sprintf("%s/%s/info", topologyPrefix, cfg.AdvertiseAddress)
-	infoBuf, err := json.Marshal(s.serverInfo)
-	if err != nil {
-		return err
+func (s *TopologySyncer) storeServerAndTopologyInfo() error {
+	if s.topologySession == nil {
+		return fmt.Errorf("topology session is not initialized")
 	}
-	value := string(infoBuf)
-	// Note: no lease is required here.
-	err = putKVToEtcd(s.ctx, etcdCli, defaultRetryCnt, key, value)
-	return err
-}
-
-func (s *TopologySyncer) storeTopologyInfo() error {
-	cfg := config.GetGlobalConfig()
-
-	key := fmt.Sprintf("%s/%s/ttl", topologyPrefix, cfg.AdvertiseAddress)
 
 	etcdCli, err := s.do.GetEtcdClient()
 	if err != nil {
 		return err
 	}
-	return putKVToEtcd(s.ctx, etcdCli, defaultRetryCnt, key,
+
+	cfg := config.GetGlobalConfig()
+	infoKey := fmt.Sprintf("%s/%s/info", topologyPrefix, cfg.AdvertiseAddress)
+	infoBuf, err := json.Marshal(s.serverInfo)
+	if err != nil {
+		return err
+	}
+	ttlKey := fmt.Sprintf("%s/%s/ttl", topologyPrefix, cfg.AdvertiseAddress)
+	return putTopologyToEtcd(
+		s.ctx,
+		etcdCli,
+		defaultRetryCnt,
+		infoKey,
+		string(infoBuf),
+		ttlKey,
 		fmt.Sprintf("%v", time.Now().UnixNano()),
-		clientv3.WithLease(s.topologySession.Lease()))
+		s.topologySession.Lease(),
+	)
 }
 
 func (s *TopologySyncer) topologySessionDone() <-chan struct{} {
@@ -153,8 +157,13 @@ func (s *TopologySyncer) Stop() {
 	s.cancel()
 }
 
-func putKVToEtcd(ctx context.Context, etcdCli *clientv3.Client, retryCnt int, key, val string,
-	opts ...clientv3.OpOption) error {
+func putTopologyToEtcd(
+	ctx context.Context,
+	etcdCli *clientv3.Client,
+	retryCnt int,
+	infoKey, infoValue, ttlKey, ttlValue string,
+	leaseID clientv3.LeaseID,
+) error {
 	var err error
 	for i := 0; i < retryCnt; i++ {
 		if isContextDone(ctx) {
@@ -162,14 +171,23 @@ func putKVToEtcd(ctx context.Context, etcdCli *clientv3.Client, retryCnt int, ke
 		}
 
 		childCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
-		_, err = etcdCli.Put(childCtx, key, val, opts...)
+		_, err = etcdCli.Txn(childCtx).Then(
+			// Server information is persistent, while liveness is bound to the
+			// current topology session. Publishing both in one transaction keeps
+			// the advertised Dashboard credential consistent with liveness.
+			clientv3.OpPut(infoKey, infoValue),
+			clientv3.OpPut(ttlKey, ttlValue, clientv3.WithLease(leaseID)),
+		).Commit()
 		cancel()
 		if err == nil {
 			return nil
 		}
 		// Topology values may contain internal credentials. Never include them
 		// in logs when an etcd write fails.
-		log.Warn("[syncer] etcd-cli put kv failed", zap.String("key", key), zap.Error(err), zap.Int("retryCnt", i))
+		log.Warn("[syncer] etcd-cli put topology failed",
+			zap.Strings("keys", []string{infoKey, ttlKey}),
+			zap.Error(err),
+			zap.Int("retryCnt", i))
 		time.Sleep(defRetryInterval)
 	}
 	return err

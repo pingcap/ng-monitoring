@@ -95,13 +95,16 @@ func TestTopology(t *testing.T) {
 	syncer.serverInfo.DashboardAuth.Token = "test-dashboard-token"
 	err = syncer.newTopologySessionAndStoreServerInfo()
 	require.NoError(t, err)
-	err = syncer.storeTopologyInfo()
-	require.NoError(t, err)
 
 	etcdCli := cluster.RandClient()
 	check := func() {
+		resp, err := etcdCli.Get(context.Background(), topologyPrefix, clientv3.WithPrefix())
+		require.NoError(t, err)
+		require.Equal(t, 2, int(resp.Count))
+		require.Equal(t, resp.Kvs[0].ModRevision, resp.Kvs[1].ModRevision)
+
 		// get ngm topology from etcd.
-		resp, err := etcdCli.Get(context.Background(), "/topology/ng-monitoring/10.0.1.8:12020/ttl")
+		resp, err = etcdCli.Get(context.Background(), "/topology/ng-monitoring/10.0.1.8:12020/ttl")
 		require.NoError(t, err)
 		require.Equal(t, 1, int(resp.Count))
 		require.Equal(t, "/topology/ng-monitoring/10.0.1.8:12020/ttl", string(resp.Kvs[0].Key))
