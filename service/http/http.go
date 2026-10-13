@@ -1,6 +1,7 @@
 package http
 
 import (
+	"crypto/subtle"
 	"io"
 	"net"
 	"net/http"
@@ -8,9 +9,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	conprofhttp "github.com/pingcap/ng-monitoring/component/conprof/http"
 	"github.com/pingcap/ng-monitoring/component/topsql"
 	"github.com/pingcap/ng-monitoring/config"
@@ -28,7 +26,9 @@ var (
 	httpServer *http.Server = nil
 )
 
-func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
+const DashboardAuthHeader = "X-Ng-Monitoring-Dashboard-Token"
+
+func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB, vmAllowlist VictoriaMetricsAllowlist, dashboardAuthToken string) {
 	gin.SetMode(gin.ReleaseMode)
 	ng := gin.New()
 
@@ -56,15 +56,18 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 		g.JSON(http.StatusOK, Status{Health: true})
 	})
 
-	// route
-	configGroup := ng.Group("/config")
+	// Dashboard-only and diagnostic APIs contain configuration, SQL text, query
+	// plans, and profiles. Keep them behind a credential that is advertised to
+	// Dashboard through the existing PD topology entry.
+	dashboardOnly := ng.Group("")
+	dashboardOnly.Use(requireDashboardAuth(dashboardAuthToken))
+	configGroup := dashboardOnly.Group("/config")
 	config.HTTPService(configGroup, docDB)
-	topSQLGroup := ng.Group("/topsql")
+	topSQLGroup := dashboardOnly.Group("/topsql")
 	topsql.HTTPService(topSQLGroup)
-	// register pprof http api
-	pprof.Register(ng)
+	pprof.RouteRegister(dashboardOnly)
 
-	continuousProfilingGroup := ng.Group("/continuous_profiling")
+	continuousProfilingGroup := dashboardOnly.Group("/continuous_profiling")
 	conprofhttp.HTTPService(continuousProfilingGroup)
 
 	promHandler := promhttp.Handler()
@@ -72,10 +75,7 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 	promGroup.Any("", func(c *gin.Context) {
 		promHandler.ServeHTTP(c.Writer, c.Request)
 	})
-	// compatible with victoria-metrics handlers
-	ng.NoRoute(func(c *gin.Context) {
-		handlerNoRouter(c)
-	})
+	registerVictoriaMetricsRoutes(ng, vmAllowlist)
 	httpServer = &http.Server{
 		Handler:           ng,
 		ReadHeaderTimeout: 5 * time.Second,
@@ -85,23 +85,19 @@ func ServeHTTP(l *config.Log, listener net.Listener, docDB docdb.DocDB) {
 	}
 }
 
-// Try Victoria-Metrics' handlers first. If not handled, then return a 404 error.
-func handlerNoRouter(c *gin.Context) {
-	//reset to default
-	c.Writer.WriteHeader(http.StatusOK)
-	if vminsert.RequestHandler(c.Writer, c.Request) {
-		return
+func requireDashboardAuth(expectedToken string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		providedToken := c.GetHeader(DashboardAuthHeader)
+		if expectedToken == "" || len(providedToken) != len(expectedToken) ||
+			subtle.ConstantTimeCompare([]byte(providedToken), []byte(expectedToken)) != 1 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"status":  "error",
+				"message": "dashboard authentication required",
+			})
+			return
+		}
+		c.Next()
 	}
-
-	if vmselect.RequestHandler(c.Writer, c.Request) {
-		return
-	}
-
-	if vmstorage.RequestHandler(c.Writer, c.Request) {
-		return
-	}
-
-	c.String(http.StatusNotFound, "404 page not found")
 }
 
 type Status struct {

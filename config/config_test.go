@@ -30,6 +30,7 @@ func TestConfig(t *testing.T) {
 	require.NoError(t, config.Load(configFile))
 	require.Equal(t, config.Address, "0.0.0.0:12020")
 	require.Equal(t, config.PD, PD{Endpoints: []string{"0.0.0.0:2379"}})
+	require.Equal(t, HTTPConfig{}, config.HTTP)
 	require.Equal(t, config.Log, Log{Path: "log", Level: "INFO", MaxSize: 300, MaxDays: 0, MaxBackups: 10})
 	require.Equal(t, config.Storage, Storage{Path: "data", DocDBBackend: "sqlite", MetaRetentionSecs: 0})
 }
@@ -60,26 +61,54 @@ search-max-query-duration = "5m"`
 
 func TestContinueProfilingConfig(t *testing.T) {
 	cfg := ContinueProfilingConfig{}
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg = ContinueProfilingConfig{
 		ProfileSeconds:       0,
 		IntervalSeconds:      60,
 		TimeoutSeconds:       120,
 		DataRetentionSeconds: 10000,
 	}
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg.ProfileSeconds = 61
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg.ProfileSeconds = 41
 	cfg.TimeoutSeconds = 40
-	require.Equal(t, cfg.Valid(), false)
+	require.False(t, cfg.Valid())
 	cfg = ContinueProfilingConfig{
 		ProfileSeconds:       10,
 		IntervalSeconds:      60,
 		TimeoutSeconds:       120,
 		DataRetentionSeconds: 10000,
 	}
-	require.Equal(t, cfg.Valid(), true)
+	require.True(t, cfg.Valid())
+
+	negativeConfigs := []ContinueProfilingConfig{
+		{ProfileSeconds: -1, IntervalSeconds: 60, TimeoutSeconds: 120, DataRetentionSeconds: 10000},
+		{ProfileSeconds: 10, IntervalSeconds: -1, TimeoutSeconds: 120, DataRetentionSeconds: 10000},
+		{ProfileSeconds: 10, IntervalSeconds: 60, TimeoutSeconds: -1, DataRetentionSeconds: 10000},
+		{ProfileSeconds: 10, IntervalSeconds: 60, TimeoutSeconds: 120, DataRetentionSeconds: -1},
+	}
+	for _, negativeCfg := range negativeConfigs {
+		require.False(t, negativeCfg.Valid())
+	}
+
+	maxCfg := ContinueProfilingConfig{
+		ProfileSeconds:       maxProfileSeconds,
+		IntervalSeconds:      maxIntervalSeconds,
+		TimeoutSeconds:       maxTimeoutSeconds,
+		DataRetentionSeconds: maxDataRetentionSeconds,
+	}
+	require.True(t, maxCfg.Valid())
+
+	tooLargeConfigs := []ContinueProfilingConfig{
+		{ProfileSeconds: maxProfileSeconds + 1, IntervalSeconds: maxIntervalSeconds, TimeoutSeconds: maxTimeoutSeconds, DataRetentionSeconds: maxDataRetentionSeconds},
+		{ProfileSeconds: maxProfileSeconds, IntervalSeconds: maxIntervalSeconds + 1, TimeoutSeconds: maxTimeoutSeconds, DataRetentionSeconds: maxDataRetentionSeconds},
+		{ProfileSeconds: maxProfileSeconds, IntervalSeconds: maxIntervalSeconds, TimeoutSeconds: maxTimeoutSeconds + 1, DataRetentionSeconds: maxDataRetentionSeconds},
+		{ProfileSeconds: maxProfileSeconds, IntervalSeconds: maxIntervalSeconds, TimeoutSeconds: maxTimeoutSeconds, DataRetentionSeconds: maxDataRetentionSeconds + 1},
+	}
+	for _, tooLargeCfg := range tooLargeConfigs {
+		require.False(t, tooLargeCfg.Valid())
+	}
 }
 
 func TestConfigInit(t *testing.T) {
@@ -87,6 +116,8 @@ func TestConfigInit(t *testing.T) {
 	cfgData := `
 address = "0.0.0.0:12020"
 advertise-address = "10.0.1.8:12020"
+[http]
+victoria-metrics-allowlist-file = "/tmp/vm-allowlist.toml"
 [log]
 path = "log"
 level = "INFO"
@@ -107,6 +138,7 @@ key-path = "ngm.key"`
 	require.NotNil(t, cfg)
 	require.Equal(t, "0.0.0.0:12020", cfg.Address)
 	require.Equal(t, "10.0.1.8:12020", cfg.AdvertiseAddress)
+	require.Equal(t, "/tmp/vm-allowlist.toml", cfg.HTTP.VictoriaMetricsAllowlistFile)
 	require.Equal(t, "log", cfg.Log.Path)
 	require.Equal(t, "INFO", cfg.Log.Level)
 	require.Equal(t, 300, cfg.Log.MaxSize)

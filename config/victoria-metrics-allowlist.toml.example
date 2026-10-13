@@ -1,0 +1,12 @@
+# Additional VictoriaMetrics HTTP API routes to expose through ng-monitoring.
+# These routes are added to the built-in Prometheus-compatible allowlist.
+routes = [
+  # "GET /api/v1/example",
+  # "POST /api/v1/example",
+]
+
+# Use a single "*" entry to allow every path handled by the embedded
+# VictoriaMetrics components. This restores the legacy unrestricted fallback
+# and can expose destructive administrative APIs. Use it only when compatibility
+# is more important than API isolation.
+# routes = ["*"]

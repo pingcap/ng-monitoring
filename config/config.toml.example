@@ -5,6 +5,12 @@ address = "0.0.0.0:12020"
 
 advertise-address = "0.0.0.0:12020"
 
+[http]
+# Optional path to a VictoriaMetrics HTTP API allowlist file. The file is loaded
+# once during startup and its routes are added to the built-in Prometheus-compatible
+# allowlist. See victoria-metrics-allowlist.toml.example for the file format.
+# victoria-metrics-allowlist-file = "/path/to/victoria-metrics-allowlist.toml"
+
 [log]
 # Log path
 # When set, the following log files are written under this directory:

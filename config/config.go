@@ -28,6 +28,7 @@ type Config struct {
 	Address           string                  `toml:"address" json:"address"`
 	AdvertiseAddress  string                  `toml:"advertise-address" json:"advertise_address"`
 	Go                Go                      `toml:"go" json:"go"`
+	HTTP              HTTPConfig              `toml:"http" json:"http"`
 	PD                PD                      `toml:"pd" json:"pd"`
 	Log               Log                     `toml:"log" json:"log"`
 	Storage           Storage                 `toml:"storage" json:"storage"`
@@ -261,6 +262,10 @@ type Go struct {
 	MemoryLimit int64 `toml:"memory-limit" json:"memory_limit"`
 }
 
+type HTTPConfig struct {
+	VictoriaMetricsAllowlistFile string `toml:"victoria-metrics-allowlist-file" json:"victoria_metrics_allowlist_file"`
+}
+
 type PD struct {
 	Endpoints []string `toml:"endpoints" json:"endpoints"`
 }
@@ -483,11 +488,22 @@ type ContinueProfilingConfig struct {
 	DataRetentionSeconds int  `json:"data_retention_seconds"`
 }
 
+const (
+	maxProfileSeconds       = 30 * 60
+	maxIntervalSeconds      = 60 * 60
+	maxTimeoutSeconds       = 35 * 60
+	maxDataRetentionSeconds = 15 * 24 * 60 * 60
+)
+
+func validDurationSeconds(seconds, maxSeconds int) bool {
+	return seconds > 0 && seconds <= maxSeconds
+}
+
 func (c ContinueProfilingConfig) Valid() bool {
-	if c.ProfileSeconds == 0 ||
-		c.IntervalSeconds == 0 ||
-		c.TimeoutSeconds == 0 ||
-		c.DataRetentionSeconds == 0 {
+	if !validDurationSeconds(c.ProfileSeconds, maxProfileSeconds) ||
+		!validDurationSeconds(c.IntervalSeconds, maxIntervalSeconds) ||
+		!validDurationSeconds(c.TimeoutSeconds, maxTimeoutSeconds) ||
+		!validDurationSeconds(c.DataRetentionSeconds, maxDataRetentionSeconds) {
 		return false
 	}
 	if c.ProfileSeconds > c.IntervalSeconds ||
