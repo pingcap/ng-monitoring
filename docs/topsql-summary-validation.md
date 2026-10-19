@@ -101,14 +101,58 @@ env GOTOOLCHAIN=go1.25.14 GOMAXPROCS=1 GOMEMLIMIT=2GiB go test ./component/topsq
 GOTOOLCHAIN=go1.25.14 go tool pprof -top -cum /tmp/topsql-profile.test /tmp/topsql-cpu.pprof
 ```
 
+## Dashboard → NGM HTTP check (nginx skipped)
+
+The optional harness in `tools/dashboard-proxy-check/` runs the actual Dashboard
+`NgmProxy.Route` over loopback HTTP to NGM's actual Summary service, VM and
+SQLite metadata store. Dashboard is pinned to
+`44f05e913c1b249182d51e34c7b289a1761a97d1`; its proxy source differs from the
+previously inspected `8cfdaf48f4b1458a13ab12ba302d17f624ce0494` only in the copyright
+year. NGM behavior was tested at `f02d84c`. No Dashboard production source or
+NGM dependency version is changed. The script creates a temporary Dashboard
+worktree, adds only a test, then cleans up the test servers/worktree.
+
+Both normal and race-instrumented runs passed. The race run instruments both
+processes. Representative elapsed times below are observations, not latency
+assertions for a deployment.
+
+| Scenario | Observed result |
+| --- | --- |
+| Normal query | HTTP 200, SQL text from real SQLite and CPU=100 from VM; 13 VM calls, two metadata reads. |
+| Response slower than Dashboard connect timeout | Dashboard connect timeout=1s; first VM boundary delayed 1.2s; query still returns HTTP 200 at about 1.21s. The connect timeout does not bound response waiting. |
+| Client cancel | Cancellation reaches NGM through the actual proxy; one VM call, no metadata reads, no later query. NGM reports context canceled and does not decode deliberately invalid VM output. |
+| NGM budget | Configured 150ms total budget returns HTTP 503 through Dashboard at about 153–154ms. One VM call, no metadata reads; forwarded VM timeout is positive and at most 150ms. |
+| Delayed execution boundary | Client cancel reaches NGM while the VM seam is deliberately held. NGM finishes only after release, then skips decoding and subsequent work. This proves the cooperative boundary, not interruption of an actual VM evaluator. |
+
+Queued/delayed behavior is injected at the VM-handler boundary. Only normal and
+slow-success cases evaluate the real VM fixture. Discovery is seeded into the
+proxy cache; login, feature guards and PD/etcd discovery are outside the harness.
+`context_done` in the diagnostic output also becomes true on normal completion
+because Summary defers cancellation of its child context; it is not by itself
+evidence of a client disconnect. The cancel cases additionally check the client
+error, NGM error body, call counts and, for delayed execution, context propagation
+before NGM finishes.
+
+Run from the NGM repository root with a local Dashboard checkout containing the
+pinned revision (the optional second argument changes that revision):
+
+```sh
+bash tools/dashboard-proxy-check/run.sh /path/to/tidb-dashboard 44f05e913c1b249182d51e34c7b289a1761a97d1 /tmp/proxy-results
+PROXY_CHECK_RACE=1 bash tools/dashboard-proxy-check/run.sh /path/to/tidb-dashboard 44f05e913c1b249182d51e34c7b289a1761a97d1 /tmp/proxy-race-results
+```
+
+The run requires neither nginx nor Docker, and does not recreate a customer
+nginx 504. Gateway timeout configuration remains unverified by this check.
+
 ## Outstanding acceptance
 
 - Pressure tests under real CPU quotas and hard memory limits, with concurrent
   refreshes and representative cardinality; record latency, peak memory and errors.
-- Complete nginx → Dashboard → NGM gateway timeout and disconnect verification.
+- nginx timeout reproduction is explicitly outside the requested proxy-check scope.
 - Review whether the observed residual attribution is acceptable and whether
   large-Top composite metrics require further optimization or a narrower guarantee.
 
-No isolated Linux/container/proxy environment was available for these checks.
-The local machine had neither Docker nor nginx on the inspected paths. The
-local benchmark is not reported as completion of these deployment checks.
+No isolated Linux/container environment with CPU quotas and hard memory limits
+was available. The local benchmark is not reported as completion of those
+pressure tests. Dashboard → NGM is now checked with native Go processes;
+nginx was deliberately excluded from the requested scope.

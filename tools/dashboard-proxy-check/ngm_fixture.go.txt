@@ -1,0 +1,231 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/gin-gonic/gin"
+	"github.com/pingcap/ng-monitoring/component/topsql/query"
+	"github.com/pingcap/ng-monitoring/component/topsql/service"
+	"github.com/pingcap/ng-monitoring/config"
+	"github.com/pingcap/ng-monitoring/database"
+	"github.com/pingcap/ng-monitoring/database/docdb"
+	"github.com/pingcap/ng-monitoring/database/timeseries"
+	"github.com/pingcap/tipb/go-tipb"
+)
+
+type scenarioKey struct{}
+
+type event struct {
+	mu                     sync.Mutex
+	started, release       chan struct{}
+	startOnce, releaseOnce sync.Once
+	calls, metaCalls       int
+	ctx                    context.Context
+	done                   bool
+	body, path, timeout    string
+}
+
+type events struct {
+	mu    sync.Mutex
+	items map[string]*event
+}
+
+func (es *events) get(name string) *event {
+	es.mu.Lock()
+	defer es.mu.Unlock()
+	e := es.items[name]
+	if e == nil {
+		e = &event{started: make(chan struct{}), release: make(chan struct{})}
+		es.items[name] = e
+	}
+	return e
+}
+func scenario(ctx context.Context) string { s, _ := ctx.Value(scenarioKey{}).(string); return s }
+
+type observedDB struct {
+	docdb.DocDB
+	events *events
+}
+
+func (d observedDB) QuerySQLMeta(ctx context.Context, digest string) (string, error) {
+	e := d.events.get(scenario(ctx))
+	e.mu.Lock()
+	e.metaCalls++
+	e.mu.Unlock()
+	return d.DocDB.QuerySQLMeta(ctx, digest)
+}
+func (d observedDB) QueryPlanMeta(ctx context.Context, digest string) (string, string, error) {
+	e := d.events.get(scenario(ctx))
+	e.mu.Lock()
+	e.metaCalls++
+	e.mu.Unlock()
+	return d.DocDB.QueryPlanMeta(ctx, digest)
+}
+
+type capturedWriter struct {
+	http.ResponseWriter
+	body bytes.Buffer
+}
+
+func (w *capturedWriter) Write(p []byte) (int, error) {
+	_, _ = w.body.Write(p)
+	return w.ResponseWriter.Write(p)
+}
+
+func main() {
+	ready := flag.String("ready", "", "ready JSON path")
+	data := flag.String("data", "", "data directory")
+	flag.Parse()
+	if err := os.MkdirAll(*data, 0700); err != nil {
+		panic(err)
+	}
+	cfg := config.GetDefaultConfig()
+	cfg.Storage.Path = *data
+	cfg.TopSQL.SummaryTimeout = 3 * time.Second
+	config.StoreGlobalConfig(cfg)
+	database.Init(&cfg)
+	defer database.Stop()
+	db, err := docdb.NewSQLiteDB(*data, true)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+	if err = db.WriteSQLMeta(context.Background(), &tipb.SQLMeta{SqlDigest: []byte{0xaa}, NormalizedSql: "select 1"}); err != nil {
+		panic(err)
+	}
+	if err = db.WritePlanMeta(context.Background(), &tipb.PlanMeta{PlanDigest: []byte{0x11}, NormalizedPlan: "Projection"}); err != nil {
+		panic(err)
+	}
+	base := time.Now().Unix() - 60
+	var samples strings.Builder
+	for metric, value := range map[string]int{"cpu_time": 100, "sql_exec_count": 1, "read_row": 10, "sql_duration_sum": 20000000, "sql_duration_count": 1} {
+		fmt.Fprintf(&samples, "%s{instance=\"proxy\",instance_type=\"tikv\",sql_digest=\"aa\",plan_digest=\"11\"} %d %d\n", metric, value, base*1000)
+	}
+	w := httptest.NewRecorder()
+	timeseries.InsertHandler(w, httptest.NewRequest(http.MethodPost, "/api/v1/import/prometheus", strings.NewReader(samples.String())))
+	if w.Code != http.StatusNoContent {
+		panic(w.Body.String())
+	}
+	vmstorage.Storage.DebugFlush()
+	es := &events{items: map[string]*event{}}
+	vm := func(w http.ResponseWriter, r *http.Request) {
+		name := scenario(r.Context())
+		e := es.get(name)
+		e.mu.Lock()
+		e.calls++
+		e.ctx = r.Context()
+		e.timeout = r.URL.Query().Get("timeout")
+		first := e.calls == 1
+		e.mu.Unlock()
+		e.startOnce.Do(func() { close(e.started) })
+		switch name {
+		case "cancel", "budget":
+			<-r.Context().Done()
+			_, _ = w.Write([]byte("invalid JSON after cancellation"))
+			return
+		case "executing":
+			<-e.release
+			_, _ = w.Write([]byte("invalid JSON after execution"))
+			return
+		case "slow":
+			if first {
+				select {
+				case <-time.After(1200 * time.Millisecond):
+				case <-r.Context().Done():
+					return
+				}
+			}
+		}
+		timeseries.SelectHandler(w, r)
+	}
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	service.NewService(query.NewDefaultQuery(vm, observedDB{db, es})).HTTPService(router.Group("/topsql"))
+	mux := http.NewServeMux()
+	mux.HandleFunc("/topsql/", func(w http.ResponseWriter, r *http.Request) {
+		name := r.URL.Query().Get("scenario")
+		e := es.get(name)
+		e.mu.Lock()
+		e.path = r.URL.Path
+		e.mu.Unlock()
+		cw := &capturedWriter{ResponseWriter: w}
+		router.ServeHTTP(cw, r.WithContext(context.WithValue(r.Context(), scenarioKey{}, name)))
+		e.mu.Lock()
+		e.body = cw.body.String()
+		e.done = true
+		e.mu.Unlock()
+	})
+	mux.HandleFunc("/test/state", func(w http.ResponseWriter, r *http.Request) {
+		e := es.get(r.URL.Query().Get("scenario"))
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		cancelled := false
+		if e.ctx != nil {
+			cancelled = e.ctx.Err() != nil
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"calls": e.calls, "metadata": e.metaCalls, "done": e.done, "context_done": cancelled, "body": e.body, "path": e.path, "timeout": e.timeout})
+	})
+	mux.HandleFunc("/test/wait", func(w http.ResponseWriter, r *http.Request) {
+		e := es.get(r.URL.Query().Get("scenario"))
+		select {
+		case <-e.started:
+			w.WriteHeader(http.StatusNoContent)
+		case <-r.Context().Done():
+			return
+		}
+	})
+	mux.HandleFunc("/test/release", func(w http.ResponseWriter, r *http.Request) {
+		e := es.get(r.URL.Query().Get("scenario"))
+		e.releaseOnce.Do(func() { close(e.release) })
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("/test/budget", func(w http.ResponseWriter, r *http.Request) {
+		d, err := time.ParseDuration(r.URL.Query().Get("value"))
+		if err != nil || d <= 0 {
+			http.Error(w, "invalid budget", 400)
+			return
+		}
+		config.UpdateGlobalConfig(func(c config.Config) config.Config { c.TopSQL.SummaryTimeout = d; return c })
+		w.WriteHeader(http.StatusNoContent)
+	})
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	readyJSON, _ := json.Marshal(map[string]string{"url": "http://" + listener.Addr().String(), "start": strconv.FormatInt(base, 10), "end": strconv.FormatInt(base, 10)})
+	if err = os.WriteFile(*ready, readyJSON, 0600); err != nil {
+		panic(err)
+	}
+	go func() {
+		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
+	}()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-ctx.Done()
+	es.mu.Lock()
+	for _, e := range es.items {
+		e.releaseOnce.Do(func() { close(e.release) })
+	}
+	es.mu.Unlock()
+	shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutdown)
+}

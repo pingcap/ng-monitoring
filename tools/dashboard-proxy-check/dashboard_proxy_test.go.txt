@@ -1,0 +1,138 @@
+package utils
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
+)
+
+type ngmProxyState struct {
+	Calls       int    `json:"calls"`
+	Metadata    int    `json:"metadata"`
+	Done        bool   `json:"done"`
+	ContextDone bool   `json:"context_done"`
+	Body        string `json:"body"`
+	Path        string `json:"path"`
+	Timeout     string `json:"timeout"`
+}
+
+func TestNGMProxyHTTPValidation(t *testing.T) {
+	data, err := os.ReadFile(os.Getenv("NGM_PROXY_READY"))
+	require.NoError(t, err)
+	var ready map[string]string
+	require.NoError(t, json.Unmarshal(data, &ready))
+	ngm := ready["url"]
+	control := func(t *testing.T, path string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, ngm+path, nil)
+		require.NoError(t, err)
+		r, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer r.Body.Close()
+		require.Equal(t, http.StatusNoContent, r.StatusCode)
+	}
+	state := func(t *testing.T, name string) ngmProxyState {
+		r, err := (&http.Client{Timeout: 5 * time.Second}).Get(ngm + "/test/state?scenario=" + name)
+		require.NoError(t, err)
+		defer r.Body.Close()
+		var s ngmProxyState
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&s))
+		return s
+	}
+	for _, name := range []string{"normal", "slow", "cancel", "budget", "executing"} {
+		t.Run(name, func(t *testing.T) {
+			control(t, "/test/budget?value=3s")
+			if name == "budget" {
+				control(t, "/test/budget?value=150ms")
+			}
+			// Use the actual Dashboard Route implementation. Seed only discovery;
+			// auth/version guards, PD/etcd discovery and nginx are outside this check.
+			proxy := &NgmProxy{timeout: time.Second, lifecycleCtx: context.Background()}
+			proxy.ngmAddrCache.Store(&ngmAddrCacheEntity{address: ngm, cacheAt: time.Now()})
+			gin.SetMode(gin.TestMode)
+			r := gin.New()
+			r.GET("/api/topsql/summary", proxy.Route("/topsql/v1/summary"))
+			dashboard := httptest.NewServer(r)
+			defer dashboard.Close()
+			params := url.Values{"instance": {"proxy"}, "instance_type": {"tikv"}, "start": {ready["start"]}, "end": {ready["end"]}, "window": {"6s"}, "top": {"1"}, "group_by": {"query"}, "scenario": {name}}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, dashboard.URL+"/api/topsql/summary?"+params.Encode(), nil)
+			require.NoError(t, err)
+			client := &http.Client{Timeout: 5 * time.Second}
+			begin := time.Now()
+			if name == "normal" || name == "slow" || name == "budget" {
+				response, err := client.Do(req)
+				require.NoError(t, err)
+				body, err := io.ReadAll(response.Body)
+				require.NoError(t, err)
+				require.NoError(t, response.Body.Close())
+				if name == "budget" {
+					require.Equal(t, http.StatusServiceUnavailable, response.StatusCode)
+					require.Contains(t, string(body), "context deadline exceeded")
+					require.GreaterOrEqual(t, time.Since(begin), 100*time.Millisecond)
+				} else {
+					require.Equal(t, http.StatusOK, response.StatusCode, string(body))
+					require.Contains(t, string(body), `"sql_text":"select 1"`)
+					require.Contains(t, string(body), `"cpu_time_ms":100`)
+					if name == "slow" {
+						require.Greater(t, time.Since(begin), time.Second, "the 1s connect timeout must not become a response deadline")
+					}
+				}
+			} else {
+				done := make(chan error, 1)
+				go func() {
+					response, err := client.Do(req)
+					if response != nil {
+						_ = response.Body.Close()
+					}
+					done <- err
+				}()
+				control(t, "/test/wait?scenario="+name)
+				cancel()
+				select {
+				case err := <-done:
+					require.ErrorIs(t, err, context.Canceled)
+				case <-time.After(5 * time.Second):
+					t.Fatal("client cancellation did not finish")
+				}
+				require.Eventually(t, func() bool { return state(t, name).ContextDone }, 3*time.Second, 10*time.Millisecond)
+				if name == "executing" {
+					require.False(t, state(t, name).Done, "executing VM boundary cannot be forcibly interrupted")
+					control(t, "/test/release?scenario="+name)
+				}
+			}
+			require.Eventually(t, func() bool { return state(t, name).Done }, 5*time.Second, 10*time.Millisecond)
+			s := state(t, name)
+			require.Equal(t, "/topsql/v1/summary", s.Path)
+			if name == "cancel" || name == "budget" || name == "executing" {
+				require.Equal(t, 1, s.Calls, "no subsequent VM queries after cancellation/budget")
+				require.Zero(t, s.Metadata)
+				require.Contains(t, s.Body, "context ")
+				require.NotContains(t, s.Body, "invalid character", "cancelled VM output must not be decoded")
+				if name == "budget" {
+					remaining, err := time.ParseDuration(s.Timeout)
+					require.NoError(t, err)
+					require.Positive(t, remaining)
+					require.LessOrEqual(t, remaining, 150*time.Millisecond)
+				}
+			} else {
+				require.Greater(t, s.Calls, 1)
+				require.Equal(t, 2, s.Metadata)
+			}
+			t.Logf("%s elapsed=%s vm_calls=%d metadata_reads=%d context_done=%t error_body=%s", name, time.Since(begin), s.Calls, s.Metadata, s.ContextDone, strings.TrimSpace(fmt.Sprintf("%.100s", s.Body)))
+		})
+	}
+}
