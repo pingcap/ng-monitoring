@@ -51,7 +51,7 @@ func TestBuildDetailedIOSummaryQueries(t *testing.T) {
 		t.Run(testCase.orderBy, func(t *testing.T) {
 			query, err := buildOrderBySummaryQuery(testCase.orderBy, windowSecs, instance, instanceType)
 			require.NoError(t, err)
-			require.Equal(t, "sum_over_time("+testCase.metricName+"{instance=\"127.0.0.1:20160\", instance_type=\"tikv\"}[60])", query)
+			require.Equal(t, "sum(sum_over_time("+testCase.metricName+"{instance=\"127.0.0.1:20160\", instance_type=\"tikv\"}[60])) by (sql_digest, plan_digest)", query)
 
 			query, err = buildOrderBySummaryByQuery(testCase.orderBy, windowSecs, instance, instanceType, AggLevelTable)
 			require.NoError(t, err)
@@ -464,17 +464,15 @@ func TestSplitTopSQLDigestsByQueryLen(t *testing.T) {
 		require.Len(t, batches, 1)
 	})
 
-	t.Run("network top 100 splits after zero-filling doubles the matcher", func(t *testing.T) {
+	t.Run("network top 100 fits after aggregating each side", func(t *testing.T) {
 		digests := make([]string, 100)
 		for i := range digests {
 			digests[i] = digestLabel(i)
 		}
-		// Zero-filling repeats each metric once more, so a network batch now embeds the
-		// digest matcher four times; the review-measured old draft assembled tops and
-		// others into one 26,455-byte query against the 16,384 limit.
+		// Each side appears once instead of twice for raw-series zero-filling.
 		batches, err := splitTopSQLDigests(digests, buildNetworkTops)
 		require.NoError(t, err)
-		require.Len(t, batches, 2)
+		require.Len(t, batches, 1)
 
 		for _, batch := range batches {
 			batchQuery, err := buildTopSummaryBatchQuery(OrderByNetwork, 6, instance, instanceType, ", sql_digest=~"+sqlDigestRegexp(batch))
@@ -484,7 +482,7 @@ func TestSplitTopSQLDigestsByQueryLen(t *testing.T) {
 
 		othersQuery, err := buildTopOthersQuery(OrderByNetwork, 6, instance, instanceType, digests)
 		require.NoError(t, err)
-		require.Greater(t, len(othersQuery), maxTSDBQueryBytes)
+		require.LessOrEqual(t, len(othersQuery), maxTSDBQueryBytes)
 	})
 
 	t.Run("network top 200 falls back to total-minus-top for others", func(t *testing.T) {
@@ -494,7 +492,7 @@ func TestSplitTopSQLDigestsByQueryLen(t *testing.T) {
 		}
 		batches, err := splitTopSQLDigests(digests, buildNetworkTops)
 		require.NoError(t, err)
-		require.Len(t, batches, 4)
+		require.Len(t, batches, 2)
 
 		othersQuery, err := buildTopOthersQuery(OrderByNetwork, 6, instance, instanceType, digests)
 		require.NoError(t, err)
@@ -536,17 +534,15 @@ func TestBuildTopSQLDigestsQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "topk(5, sum(sum_over_time(cpu_time{"+selector+"}[906])) by (sql_digest))", queryStr)
 
-	// Composite metric: both sides zero-filled, so the long-window ranking equals the sum
-	// of the timeline's per-step values even for one-sided samples.
+	// Aggregate each side before merging, preserving one-sided samples without
+	// joining raw series. Each inner sum can use VM's incremental aggregation.
 	queryStr, err = buildTopSQLDigestsQuery(OrderByNetwork, 906, 5, "tikv", selector)
 	require.NoError(t, err)
-	zeroFill := func(metric, other string) string {
-		e := "sum_over_time(" + metric + "{" + selector + "}[906])"
-		o := "sum_over_time(" + other + "{" + selector + "}[906])"
-		return "(" + e + " or (" + o + " * 0))"
+	side := func(metric string) string {
+		return "sum(sum_over_time(" + metric + "{" + selector + "}[906])) by (sql_digest)"
 	}
 	require.Equal(t,
-		"topk(5, sum("+zeroFill("network_in_bytes", "network_out_bytes")+" + "+zeroFill("network_out_bytes", "network_in_bytes")+") by (sql_digest))",
+		"topk(5, sum("+side("network_in_bytes")+", "+side("network_out_bytes")+") by (sql_digest))",
 		queryStr)
 }
 

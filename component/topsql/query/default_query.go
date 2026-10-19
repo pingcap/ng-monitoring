@@ -223,7 +223,8 @@ func (dq *DefaultQuery) Summary(ctx context.Context, startSecs, endSecs, windowS
 
 	var topDigests []string
 	if top <= 0 {
-		// No limit: every digest is returned anyway, so fetch all series and group them here.
+		// Every digest is returned, but tables must still be summed into one
+		// SQL/plan series so a curve never contains duplicate timestamps.
 		queryStr, err := buildOrderBySummaryQuery(orderBy, windowSecs, instance, instanceType)
 		if err != nil {
 			return err
@@ -501,15 +502,14 @@ func (dq *DefaultQuery) fetchTopSQLDigests(ctx context.Context, orderBy string, 
 }
 
 // buildTopSQLDigestsQuery returns the instant query ranking digests by the orderBy metric
-// summed over one window ending at endSecs. Composite metrics zero-fill their counterpart
-// side (see compositeSum), so the ranking total equals the sum of the timeline's per-step
-// values and cannot select a digest the timeline would not show.
+// summed over one window ending at endSecs. Composite metrics aggregate both sides
+// independently, so missing counterparts contribute zero in ranking and timelines.
 func buildTopSQLDigestsQuery(orderBy string, rangeSecs, top int, instanceType, selector string) (string, error) {
-	expr, err := buildSummaryExpr(orderBy, rangeSecs, instanceType, selector)
+	expr, err := buildAggregatedSummaryQuery(orderBy, rangeSecs, instanceType, selector, "sql_digest")
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("topk(%d, sum(%s) by (sql_digest))", top, expr), nil
+	return fmt.Sprintf("topk(%d, %s)", top, expr), nil
 }
 
 // fetchSumFromTSDB sums the metric over [startSecs, endSecs] per (sql digest, plan digest).
@@ -938,7 +938,7 @@ func (t *tsHeap) Pop() interface{} {
 }
 
 func buildOrderBySummaryQuery(orderBy string, windowSecs int, instance, instanceType string) (string, error) {
-	return buildSummaryExpr(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ""))
+	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ""), "sql_digest, plan_digest")
 }
 
 // summarySelector returns the label matchers selecting one instance, followed by extraMatchers
@@ -956,42 +956,47 @@ func sqlDigestRegexp(digests []string) string {
 	return strconv.Quote(strings.Join(quoted, "|"))
 }
 
-// buildSummaryExpr returns the per-series expression of the orderBy metric summed over windowSecs.
-func buildSummaryExpr(orderBy string, windowSecs int, instanceType, selector string) (string, error) {
+// buildAggregatedSummaryQuery sums at the requested output granularity before
+// combining composite metrics. Each side is a direct sum over a rollup, allowing
+// VM's incremental aggregation instead of materializing raw series for vector
+// joins. The outer multi-argument sum includes either side when its counterpart
+// is absent. Keep the scans separate: a combined metric-name selector would count
+// both families against a single search.maxUniqueTimeseries scan limit.
+func buildAggregatedSummaryQuery(orderBy string, windowSecs int, instanceType, selector, groupBy string) (string, error) {
+	aggregate := func(expr string) string {
+		q := "sum(" + expr + ")"
+		if groupBy != "" {
+			q += " by (" + groupBy + ")"
+		}
+		return q
+	}
+	var in, out string
 	switch NormalizeOrderBy(orderBy) {
 	case "", OrderByCPU:
-		return fmt.Sprintf("sum_over_time(%s{%s}[%d])", store.MetricNameCPUTime, selector, windowSecs), nil
+		in = store.MetricNameCPUTime
 	case OrderByNetwork:
-		in, out := store.MetricNameNetworkInBytes, store.MetricNameNetworkOutBytes
+		in, out = store.MetricNameNetworkInBytes, store.MetricNameNetworkOutBytes
 		if instanceType == "tidb" {
 			in, out = store.MetricNameSQLNetworkIn, store.MetricNameSQLNetworkOut
 		}
-		return compositeSum(in, out, selector, windowSecs), nil
 	case OrderByLogicalIO:
-		return compositeSum(store.MetricNameLogicalReadBytes, store.MetricNameLogicalWriteBytes, selector, windowSecs), nil
+		in, out = store.MetricNameLogicalReadBytes, store.MetricNameLogicalWriteBytes
 	case OrderByLogicalRead:
-		return fmt.Sprintf("sum_over_time(%s{%s}[%d])", store.MetricNameLogicalReadBytes, selector, windowSecs), nil
+		in = store.MetricNameLogicalReadBytes
 	case OrderByLogicalWrite:
-		return fmt.Sprintf("sum_over_time(%s{%s}[%d])", store.MetricNameLogicalWriteBytes, selector, windowSecs), nil
+		in = store.MetricNameLogicalWriteBytes
 	case OrderByBlockRead:
-		return fmt.Sprintf("sum_over_time(%s{%s}[%d])", store.MetricNameRocksdbBlockReadCount, selector, windowSecs), nil
+		in = store.MetricNameRocksdbBlockReadCount
 	default:
 		return "", fmt.Errorf("unknown orderBy: %s", orderBy)
 	}
-}
-
-// compositeSum combines two metrics of the same series with their counterpart side
-// zero-filled: `(in or out*0) + (out or in*0)`. A plain binary op drops a series whose
-// counterpart metric is missing in the current window, which makes the per-step timeline
-// values and the long-window ranking disagree for one-sided samples; zero-filling keeps the
-// long-window total equal to the sum of the timeline's per-step values, and counts one-sided
-// bytes instead of silently dropping them.
-func compositeSum(in, out, selector string, windowSecs int) string {
-	inExpr := fmt.Sprintf("sum_over_time(%s{%s}[%d])", in, selector, windowSecs)
-	outExpr := fmt.Sprintf("sum_over_time(%s{%s}[%d])", out, selector, windowSecs)
-	inFilled := fmt.Sprintf("(%s or (%s * 0))", inExpr, outExpr)
-	outFilled := fmt.Sprintf("(%s or (%s * 0))", outExpr, inExpr)
-	return fmt.Sprintf("%s + %s", inFilled, outFilled)
+	side := func(metric string) string {
+		return aggregate(fmt.Sprintf("sum_over_time(%s{%s}[%d])", metric, selector, windowSecs))
+	}
+	if out == "" {
+		return side(in), nil
+	}
+	return aggregate(side(in) + ", " + side(out)), nil
 }
 
 // splitTopSQLDigests splits digests into batches whose fully assembled tops query stays
@@ -1033,21 +1038,13 @@ func splitTopSQLDigests(digests []string, buildQuery func(matcher string) (strin
 // buildTopSummaryBatchQuery returns a range query aggregating one batch of selected digests
 // per (sql digest, plan digest). matcher must start with ", ".
 func buildTopSummaryBatchQuery(orderBy string, windowSecs int, instance, instanceType, matcher string) (string, error) {
-	expr, err := buildSummaryExpr(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, matcher))
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("sum(%s) by (sql_digest, plan_digest)", expr), nil
+	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, matcher), "sql_digest, plan_digest")
 }
 
 // buildTotalSummaryQuery returns a label-less range query summing the orderBy metric over
 // every series of the instance, selected digests or not.
 func buildTotalSummaryQuery(orderBy string, windowSecs int, instance, instanceType string) (string, error) {
-	expr, err := buildSummaryExpr(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ""))
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("sum(%s)", expr), nil
+	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ""), "")
 }
 
 // buildTopOthersQuery returns the label-less query aggregating every digest not in
@@ -1056,11 +1053,7 @@ func buildTopOthersQuery(orderBy string, windowSecs int, instance, instanceType 
 	if len(topDigests) == 0 {
 		return buildTotalSummaryQuery(orderBy, windowSecs, instance, instanceType)
 	}
-	expr, err := buildSummaryExpr(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ", sql_digest!~"+sqlDigestRegexp(topDigests)))
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("sum(%s)", expr), nil
+	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ", sql_digest!~"+sqlDigestRegexp(topDigests)), "")
 }
 
 // fetchTopSummarySeries fetches the timeline series of the selected digests plus one

@@ -10,9 +10,11 @@ or deployment acceptance.
 | Scenario | Test and result |
 | --- | --- |
 | Writes after ranking | `TestSummaryLateSamplesKeepInitialSelection`: selection remains fixed; later curves include new plans/data. |
-| Writes after all selected batches, before total | `TestSummaryWritesBetweenTopAndTotal`: real VM, Top 300, six network batches and two auxiliary batches. No writes: Other=10. Selected SQL receives 20: residual Other=30 although unselected usage remains 10. Unselected SQL receives 20: Other=30, matching its usage. Curves and execution statistics both cover these cases. Conservation alone does not establish attribution. |
+| Writes after all selected batches, before total | `TestSummaryWritesBetweenTopAndTotal`: real VM, Top 300, three network batches and two auxiliary batches. No writes: Other=10. Selected SQL receives 20: residual Other=30 although unselected usage remains 10. Unselected SQL receives 20: Other=30, matching its usage. Curves and execution statistics both cover these cases. Conservation alone does not establish attribution. |
 | Negative residual | `TestNegativeOtherDifferenceFailsQuery`: controlled inconsistent responses with selected=10 and later total=9. Both the public Summary path and auxiliary fallback fail the query. This simulates inconsistent reads; it does not claim ordinary nonnegative appends produce negative values. No clamping or floating-point tolerance is applied. Equal total and selected values produce zero successfully. |
 | More than 100 regex candidates | `TestSummaryLargeCPURegexp`: 300 SQLs, two plans, two tables and two timestamps. Top 100/101/150/200 execute actual positive and negative VM filters, with the entire requested candidate set in each expression. SQL/plan results, CPU totals and auxiliary totals are checked independently. VM's `GetOrValuesPromRegex` returns literals at 100 and no literal list above 100. This confirms extraction eligibility; it does not assert the optimizer must choose a particular storage-index path. |
+| Composite incremental aggregation | `TestSummaryCompositeIncrementalAggregation`: real VM trace verifies two incremental sums for ranking, selected curves and Other across TiKV/TiDB network and logical IO. Disjoint tables, one-sided plans/windows and native Other retain exact values. With `MaxSeries=4`, each separate scan succeeds while a combined metric-name selector fails on eight matching raw series. |
+| Unlimited table aggregation | `TestSummaryUnlimitedTableAggregation`: CPU/network/logical IO, `top=0` and `top=-1`, multiple tables/plans and sparse data. Tables sum to one point per timestamp (30, 7), rather than duplicate curve points. |
 | Expression-construction cost | `TestSplitTopSQLDigestsLimitsExpressionConstruction`: 500 digests previously caused 502 full expression builds. Binary search keeps construction below 64 while preserving the partition and query byte limit. Existing query-length, empty-selection, sparse-metric and cancellation regressions remain enabled. |
 
 The defined read contract remains a fixed selection with independent subsequent
@@ -23,56 +25,83 @@ rather than silently losing curve points or returning negative auxiliary rates.
 
 ## Paired query benchmark
 
-`BenchmarkSummaryFanout` imports the same fixture into real embedded VM on both
-revisions: 300 SQLs × two plans × two tables × 20 samples, with CPU, network,
-logical IO and all five auxiliary metric families. Metadata is a no-IO stub,
-so timings exclude SQL/plan storage latency and the HTTP proxy chain. The old
-revision uses its original Summary implementation; the only benchmark adapter
-removes the added context argument from that call.
+Latest runs compare original `main` at `fce47f6`, the previously reviewed PR at
+`a06ec7c`, and this supplemental revision. Each uses the same
+`BenchmarkSummaryFanout` fixture: real embedded VM v1.110.5, 300 SQLs × two plans
+× two tables × 20 samples, CPU/network/logical IO and five auxiliary families.
+Metadata is a no-IO stub, so timings exclude metadata storage and HTTP proxies.
+Only the added context argument is removed for the original main benchmark.
 
-Runs are sequential on the same darwin/arm64 machine with `GOMAXPROCS=1` and
-`GOMEMLIMIT=2GiB`, 200ms per benchmark, three repetitions. Values below are
-medians, not statistical latency guarantees. These settings bound Go scheduling
-and provide a soft Go memory limit; they are **not** a container CPU quota or
-hard memory limit. VM result caching is disabled by the query implementations;
-other caches may be warm.
+Runs are sequential on the same darwin/arm64 machine with Go 1.25.14,
+`GOMAXPROCS=1`, soft `GOMEMLIMIT=2GiB`, 200ms per case, three repetitions.
+Values are medians of short local runs with visible timing variation, not
+statistical latency guarantees, container CPU quotas or hard memory limits.
+VM result caching is disabled by the queries; other caches may be warm.
+`Allocated` is cumulative Go allocation per request, not live heap or peak RSS.
 
-`VM JSON` counts bytes generated into the existing VM response buffers across
-all queries in one Summary, without copying or decoding them for measurement.
-It is not network traffic. `Allocated` is Go allocation volume per operation,
-not live heap or peak RSS.
+| Metric / Top | Main ms | a06ec7c ms | New ms | Main allocated MiB | a06ec7c allocated MiB | New allocated MiB | New VM JSON KiB |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| cpu / top5 | 30.19 | 7.17 | 6.23 | 18.79 | 3.42 | 3.43 | 14.6 |
+| cpu / top100 | 29.01 | 13.41 | 11.90 | 17.95 | 8.38 | 8.43 | 250.2 |
+| cpu / top101 | 29.41 | 13.16 | 12.40 | 17.95 | 8.42 | 8.47 | 252.7 |
+| cpu / top150 | 31.41 | 16.74 | 15.44 | 17.64 | 11.84 | 11.92 | 373.9 |
+| cpu / top200 | 28.79 | 18.53 | 24.24 | 17.26 | 14.28 | 14.38 | 496.9 |
+| network / top5 | 32.22 | 21.67 | 10.17 | 21.50 | 20.58 | 4.55 | 14.6 |
+| network / top100 | 31.55 | 31.42 | 16.23 | 20.66 | 29.94 | 10.24 | 250.2 |
+| network / top101 | 31.50 | 31.77 | 15.35 | 20.66 | 30.04 | 10.29 | 252.7 |
+| network / top150 | 31.52 | 38.12 | 22.14 | 20.35 | 35.78 | 14.67 | 374.0 |
+| network / top200 | 33.57 | 50.06 | 24.90 | 19.97 | 40.67 | 18.16 | 497.1 |
+| logical_io / top5 | 32.87 | 30.44 | 9.43 | 21.52 | 20.65 | 4.64 | 14.6 |
+| logical_io / top100 | 37.19 | 33.92 | 16.60 | 20.96 | 30.02 | 10.25 | 250.2 |
+| logical_io / top101 | 32.36 | 30.82 | 14.49 | 20.68 | 24.22 | 10.29 | 252.7 |
+| logical_io / top150 | 32.75 | 36.77 | 19.27 | 20.37 | 35.86 | 14.67 | 374.0 |
+| logical_io / top200 | 32.60 | 40.77 | 22.66 | 19.99 | 40.72 | 18.23 | 497.1 |
 
-| Metric / Top | Old ms | PR ms | Old VM JSON KiB | PR VM JSON KiB | Old allocated MiB | PR allocated MiB |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| cpu / 5 | 29.35 | 10.07 | 1816.9 | 14.6 | 18.79 | 3.42 |
-| cpu / 100 | 28.58 | 14.69 | 1816.9 | 250.2 | 17.95 | 8.38 |
-| cpu / 101 | 29.03 | 11.74 | 1816.9 | 252.7 | 17.95 | 8.42 |
-| cpu / 150 | 28.49 | 15.17 | 1816.9 | 373.9 | 17.64 | 11.84 |
-| cpu / 200 | 28.22 | 17.63 | 1816.9 | 496.9 | 17.26 | 14.28 |
-| network / 5 | 32.68 | 21.18 | 1817.0 | 14.6 | 21.50 | 20.58 |
-| network / 100 | 31.49 | 30.43 | 1817.0 | 250.3 | 20.66 | 29.93 |
-| network / 101 | 31.13 | 30.21 | 1817.0 | 252.8 | 20.66 | 30.04 |
-| network / 150 | 30.90 | 36.61 | 1817.0 | 374.1 | 20.35 | 35.80 |
-| network / 200 | 31.41 | 41.98 | 1817.0 | 497.3 | 19.97 | 40.66 |
-| logical_io / 5 | 34.51 | 21.58 | 1817.0 | 14.6 | 21.52 | 20.65 |
-| logical_io / 100 | 32.41 | 30.16 | 1817.0 | 250.3 | 20.76 | 30.02 |
-| logical_io / 101 | 32.18 | 30.46 | 1817.0 | 252.8 | 20.68 | 30.13 |
-| logical_io / 150 | 32.68 | 35.79 | 1817.0 | 374.1 | 20.37 | 35.86 |
-| logical_io / 200 | 31.63 | 41.87 | 1817.0 | 497.3 | 19.99 | 40.76 |
+Original main generated about 1817 KiB of VM JSON for each case. This is bytes
+produced into VM response buffers across all queries, not network traffic.
+The new composite queries retain the selected SQL/plan output contract while
+reducing intermediate allocation. Network Top 200 changes from 50.06ms / 40.67MiB
+at a06ec7c to 24.90ms / 18.16MiB; Logical IO changes from 40.77ms / 40.72MiB to
+22.66ms / 18.23MiB. Both also beat original main in this fixture, so the previously
+measured large-Top composite regression is removed here. This does not establish
+production-cardinality or hard-resource-limit behavior. CPU expressions are
+unchanged for finite Top; the varying CPU timings are not claimed as an added
+benefit of this supplemental change.
 
-There is no observed latency cliff at 101 candidates in this fixture. CPU Top 5
-and Top 200 improve over the old implementation. Composite metrics at Top 150
-and 200 remain slower and allocate more than the old implementation despite
-returning less JSON. In particular, Network/Logical IO Top 200 are about 42ms
-versus 31–32ms old. These are measured performance trade-offs; deployment
-performance acceptance has not passed for all dimensions.
+## Why this optimization and what remains worthwhile
 
-The initial paired run also exposed quadratic expression construction. In a
-CPU Top 200 profile, `splitTopSQLDigests` accounted for 1.74s / 3.79s of sampled
-CPU (including the benchmark process setup). Binary search reduces that to
-0.37s / 3.69s in the follow-up profile. CPU Top 200 changes from about 55ms before
-this construction fix to 17.6ms afterwards. These profile proportions describe
-this harness, not production CPU attribution.
+Composite queries now aggregate each metric before combining it, for example:
+
+```promql
+sum(
+  sum(sum_over_time(network_in_bytes{...}[6])) by (sql_digest, plan_digest),
+  sum(sum_over_time(network_out_bytes{...}[6])) by (sql_digest, plan_digest)
+) by (sql_digest, plan_digest)
+```
+
+Each inner sum has VM's incremental-aggregation shape; the outer MetricsQL
+multi-argument sum merges the small outputs, including a missing counterpart.
+This replaces raw-series zero-fill/vector joins and repeats the digest matcher
+twice instead of four times. Network Top 100 now needs one selected batch rather
+than two; Top 200 needs two rather than four. The existing query-byte budget and
+Other subtraction fallback remain in effect. Unlimited queries reuse the same
+aggregation and now merge tables before returning curves.
+
+A single selector matching both metric names would be shorter, but would count
+both families against one scan's series limit. The real VM limit regression
+above rejects that design; no limit is increased. The normal/evaluation trace
+assertions, not expression inspection alone, establish incremental execution.
+The Network Top 200 CPU profile before this change contains substantial binary
+operation work; the follow-up profile shifts toward auxiliary statistics.
+These profiles include benchmark setup and are not production CPU attribution.
+
+| Option | ROI decision |
+| --- | --- |
+| Aggregate composite sides before merging | Implemented: one shared query builder, measured latency/allocation improvement, no dependency or ingestion changes. |
+| Reuse aggregation for unlimited curves | Implemented: removes the known cross-table duplicate timestamps through the same query path. Still returns every digest. |
+| Measure under hard quotas and concurrent refresh | Next validation priority; needed for deployment acceptance and peak-memory/error-rate evidence. |
+| Batch/cache SQL and plan metadata or combine auxiliary queries | Profile a workload with real metadata IO first. This benchmark stubs that IO; combining metric selectors can also change scan limits and increase expression size. No speculative implementation here. |
+| Parallel VM requests, cross-request cache, ingestion/storage redesign | Deferred: unmeasured benefit versus more memory/queue pressure, cache freshness rules, or cross-component compatibility work. |
 
 ## Reproduction
 
@@ -80,7 +109,7 @@ Run the focused regressions:
 
 ```sh
 GOTOOLCHAIN=go1.25.14 go test ./component/topsql/query -run 'Test(NegativeOther|Subtract|SplitTopSQLDigests)' -count=1 -v
-GOTOOLCHAIN=go1.25.14 go test ./component/topsql -run 'TestTopSQL/(TestSummaryWritesBetweenTopAndTotal|TestSummaryLargeCPURegexp)' -count=1 -v
+GOTOOLCHAIN=go1.25.14 go test ./component/topsql -run 'TestTopSQL/(TestSummaryWritesBetweenTopAndTotal|TestSummaryLargeCPURegexp|TestSummaryCompositeIncrementalAggregation|TestSummaryUnlimitedTableAggregation)' -count=1 -v
 ```
 
 Run the query benchmark without starting the integration suite:
@@ -170,8 +199,9 @@ checks for the latest run status.
 - Pressure tests under real CPU quotas and hard memory limits, with concurrent
   refreshes and representative cardinality; record latency, peak memory and errors.
 - nginx timeout reproduction is explicitly outside the requested proxy-check scope.
-- Review whether the observed residual attribution is acceptable and whether
-  large-Top composite metrics require further optimization or a narrower guarantee.
+- Review acceptance of residual attribution and negative-residual HTTP 503 behavior.
+- Verify the latest composite gains at representative production cardinality;
+  the small-fixture regression is removed, not a deployment guarantee.
 
 No isolated Linux/container environment with CPU quotas and hard memory limits
 was available. The local benchmark is not reported as completion of those

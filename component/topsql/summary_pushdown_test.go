@@ -6,12 +6,108 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
 	"github.com/pingcap/ng-monitoring/database/timeseries"
+	"github.com/pingcap/ng-monitoring/utils"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 )
+
+func (s *testTopSQLSuite) TestSummaryCompositeIncrementalAggregation() {
+	for _, tc := range []struct {
+		order, instanceType, in, out string
+	}{
+		{query.OrderByNetwork, "tikv", "network_in_bytes", "network_out_bytes"},
+		{query.OrderByNetwork, "tidb", "sql_network_in_bytes", "sql_network_out_bytes"},
+		{query.OrderByLogicalIO, "tikv", "logical_read_bytes", "logical_write_bytes"},
+	} {
+		s.Run(tc.order+"-"+tc.instanceType, func() {
+			instance := "incremental-" + tc.order + "-" + tc.instanceType
+			line := func(metric, sql, plan, table string, offset, value int) string {
+				return fmt.Sprintf("%s{instance=%q,instance_type=%q,sql_digest=%q,plan_digest=%q,table=%q} %d %d\n", metric, instance, tc.instanceType, sql, plan, table, value, (testBaseTs+uint64(offset))*1000)
+			}
+			// Include disjoint tables, a plan with only one side, different sample
+			// windows, and native Other. No raw-series vector join is necessary.
+			s.importSummarySamples(line(tc.in, "aa", "11", "t1", 0, 100) +
+				line(tc.out, "aa", "11", "t1", 6, 7) +
+				line(tc.in, "aa", "11", "t2", 0, 3) +
+				line(tc.out, "aa", "11", "t3", 0, 5) +
+				line(tc.out, "aa", "22", "t1", 0, 11) +
+				line(tc.in, "bb", "11", "t1", 0, 2) +
+				line(tc.out, "bb", "11", "t1", 0, 2) +
+				line(tc.in, "", "", "", 0, 2))
+			mainQueries := 0
+			var mainExpressions []string
+			dq := query.NewDefaultQuery(func(w http.ResponseWriter, r *http.Request) {
+				expr := r.URL.Query().Get("query")
+				main := strings.Contains(expr, tc.in+"{")
+				if main {
+					q := r.URL.Query()
+					q.Set("trace", "1")
+					r.URL.RawQuery = q.Encode()
+				}
+				timeseries.SelectHandler(w, r)
+				if main {
+					mainQueries++
+					mainExpressions = append(mainExpressions, expr)
+					trace := w.(*utils.ResponseWriter).Body.String()
+					s.GreaterOrEqual(strings.Count(trace, "with incremental aggregation sum()"), 2, "both metric scans must aggregate incrementally: %s", trace)
+				}
+			}, s.docDB)
+			var items []query.SummaryItem
+			s.Require().NoError(dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+6), 6, 1, instance, tc.instanceType, &items, tc.order))
+			s.Require().Equal(3, mainQueries, "ranking, selected curve and Other")
+			s.sortSummary(items)
+			s.Require().Len(items, 2)
+			s.True(items[0].IsOther)
+			s.Equal("aa", items[1].SQLDigest)
+			usage := func(item query.SummaryItem) uint64 {
+				if tc.order == query.OrderByNetwork {
+					return item.NetworkBytes
+				}
+				return item.LogicalIoBytes
+			}
+			s.Equal(uint64(6), usage(items[0]))
+			s.Equal(uint64(126), usage(items[1]))
+			s.Require().Len(items[1].Plans, 2)
+			for _, plan := range items[1].Plans {
+				values := plan.NetworkBytes
+				if tc.order == query.OrderByLogicalIO {
+					values = plan.LogicalIoBytes
+				}
+				if plan.PlanDigest == "11" {
+					s.Equal([]uint64{testBaseTs, testBaseTs + 6}, plan.TimestampSec)
+					s.Equal([]uint64{108, 7}, values)
+				} else {
+					s.Equal("22", plan.PlanDigest)
+					s.Equal([]uint64{11}, values)
+				}
+			}
+			// Each metric has at most four raw series. Keep those scan budgets
+			// independent: the combined selector's eight series exceed the same
+			// limit even though both approaches produce few aggregate results.
+			exec := func(expr string) error {
+				ec := &promql.EvalConfig{
+					Start: int64(testBaseTs) * 1000, End: int64(testBaseTs+6) * 1000, Step: 6000,
+					MaxSeries: 4, MaxPointsPerSeries: 10, RoundDigits: 100,
+					Deadline: searchutil.NewDeadline(time.Now(), 5*time.Second, "test"),
+				}
+				_, err := promql.Exec(querytracer.New(false, "scan limit"), ec, expr, false)
+				return err
+			}
+			for _, expr := range mainExpressions {
+				s.NoError(exec(expr))
+			}
+			combined := fmt.Sprintf("sum(sum_over_time({__name__=~%q,instance=%q,instance_type=%q}[12]))", tc.in+"|"+tc.out, instance, tc.instanceType)
+			s.ErrorContains(exec(combined), "number of matching timeseries exceeds 4", "a combined metric selector would lower the effective per-family limit")
+		})
+	}
+}
 
 func (s *testTopSQLSuite) importSummarySamples(lines string) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/import/prometheus", strings.NewReader(lines))
@@ -19,6 +115,48 @@ func (s *testTopSQLSuite) importSummarySamples(lines string) {
 	timeseries.InsertHandler(w, req)
 	s.Require().Equal(http.StatusNoContent, w.Code, w.Body.String())
 	vmstorage.Storage.DebugFlush()
+}
+
+func (s *testTopSQLSuite) TestSummaryUnlimitedTableAggregation() {
+	for _, tc := range []struct{ order, metric string }{
+		{query.OrderByCPU, "cpu_time"},
+		{query.OrderByNetwork, "network_in_bytes"},
+		{query.OrderByLogicalIO, "logical_read_bytes"},
+	} {
+		s.Run(tc.order, func() {
+			instance := "unlimited-tables-" + tc.order
+			line := func(sql, plan, table string, offset, value int) string {
+				return fmt.Sprintf("%s{instance=%q,instance_type=\"tikv\",sql_digest=%q,plan_digest=%q,table=%q} %d %d\n", tc.metric, instance, sql, plan, table, value, (testBaseTs+uint64(offset))*1000)
+			}
+			s.importSummarySamples(line("aa", "11", "t1", 0, 10) + line("aa", "11", "t2", 0, 20) +
+				line("aa", "11", "t1", 6, 3) + line("aa", "11", "t2", 6, 4) +
+				line("aa", "22", "t1", 0, 5) + line("", "", "", 0, 2))
+			for _, top := range []int{0, -1} {
+				var items []query.SummaryItem
+				s.Require().NoError(s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+6), 6, top, instance, "tikv", &items, tc.order))
+				s.sortSummary(items)
+				s.Require().Len(items, 2)
+				s.True(items[0].IsOther)
+				s.Equal("aa", items[1].SQLDigest)
+				s.Require().Len(items[1].Plans, 2)
+				for _, plan := range items[1].Plans {
+					values := plan.CPUTimeMs
+					if tc.order == query.OrderByNetwork {
+						values = plan.NetworkBytes
+					} else if tc.order == query.OrderByLogicalIO {
+						values = plan.LogicalIoBytes
+					}
+					if plan.PlanDigest == "11" {
+						s.Equal([]uint64{testBaseTs, testBaseTs + 6}, plan.TimestampSec)
+						s.Equal([]uint64{30, 7}, values, "one point per timestamp after summing tables")
+					} else {
+						s.Equal("22", plan.PlanDigest)
+						s.Equal([]uint64{5}, values)
+					}
+				}
+			}
+		})
+	}
 }
 
 func (s *testTopSQLSuite) TestSummaryLateSamplesKeepInitialSelection() {
