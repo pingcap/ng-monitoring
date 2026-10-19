@@ -100,10 +100,9 @@ Ranking and subsequent reads do not share a snapshot. The selected SQL set stays
 fixed for a request, while late samples can change its curves, plans, and Other.
 In the total-minus-selected fallback, samples added to selected SQLs between reads
 can appear in the residual Other. A negative residual fails the query instead of
-being clamped or silently discarded. See [validation notes](docs/topsql-summary-validation.md)
-for the tested behavior and benchmark limits.
+being clamped or silently discarded.
 Equal usage at the cutoff can select a different SQL than the previous Go-side
-tie-breaker. Unlimited requests (`top <= 0`) still fetch all main-metric series.
+tie-breaker. Unlimited requests (`top <= 0`) return every SQL/plan aggregate.
 
 `[topsql] summary-timeout = "30s"` sets the total By Query request budget, including
 all queries and metadata reads. Each VM query receives the remaining budget and
