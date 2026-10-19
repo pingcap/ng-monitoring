@@ -1,7 +1,10 @@
 package query
 
 import (
+	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
@@ -408,3 +411,169 @@ var _ sort.Interface = sqlGroupSlice{}
 func (s sqlGroupSlice) Len() int           { return len(s) }
 func (s sqlGroupSlice) Less(i, j int) bool { return s[i].sqlDigest < s[j].sqlDigest }
 func (s sqlGroupSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+// digestLabel returns a digest whose VM label form (hex-encoded by the store) is 64
+// characters, matching real TiDB SQL digests.
+func digestLabel(i int) string {
+	return fmt.Sprintf("%064x", i)
+}
+
+func TestSplitTopSQLDigestsByQueryLen(t *testing.T) {
+	const instance = "127.0.0.1:20160"
+	const instanceType = "tikv"
+
+	buildNetworkTops := func(matcher string) (string, error) {
+		return buildTopSummaryBatchQuery(OrderByNetwork, 6, instance, instanceType, matcher)
+	}
+	buildCPUTops := func(matcher string) (string, error) {
+		return buildTopSummaryBatchQuery(OrderByCPU, 6, instance, instanceType, matcher)
+	}
+
+	t.Run("partition and budget", func(t *testing.T) {
+		digests := make([]string, 500)
+		for i := range digests {
+			digests[i] = digestLabel(i)
+		}
+		batches, err := splitTopSQLDigests(digests, buildNetworkTops)
+		require.NoError(t, err)
+		require.Greater(t, len(batches), 1)
+
+		seen := make(map[string]int)
+		for _, batch := range batches {
+			require.NotEmpty(t, batch)
+			queryStr, err := buildTopSummaryBatchQuery(OrderByNetwork, 6, instance, instanceType, ", sql_digest=~"+sqlDigestRegexp(batch))
+			require.NoError(t, err)
+			require.LessOrEqual(t, len(queryStr), maxTSDBQueryBytes)
+			for _, d := range batch {
+				seen[d]++
+			}
+		}
+		require.Len(t, seen, len(digests))
+		for _, n := range seen {
+			require.Equal(t, 1, n)
+		}
+	})
+
+	t.Run("cpu top 100 fits one batch", func(t *testing.T) {
+		digests := make([]string, 100)
+		for i := range digests {
+			digests[i] = digestLabel(i)
+		}
+		batches, err := splitTopSQLDigests(digests, buildCPUTops)
+		require.NoError(t, err)
+		require.Len(t, batches, 1)
+	})
+
+	t.Run("network top 100 splits after zero-filling doubles the matcher", func(t *testing.T) {
+		digests := make([]string, 100)
+		for i := range digests {
+			digests[i] = digestLabel(i)
+		}
+		// Zero-filling repeats each metric once more, so a network batch now embeds the
+		// digest matcher four times; the review-measured old draft assembled tops and
+		// others into one 26,455-byte query against the 16,384 limit.
+		batches, err := splitTopSQLDigests(digests, buildNetworkTops)
+		require.NoError(t, err)
+		require.Len(t, batches, 2)
+
+		for _, batch := range batches {
+			batchQuery, err := buildTopSummaryBatchQuery(OrderByNetwork, 6, instance, instanceType, ", sql_digest=~"+sqlDigestRegexp(batch))
+			require.NoError(t, err)
+			require.LessOrEqual(t, len(batchQuery), maxTSDBQueryBytes)
+		}
+
+		othersQuery, err := buildTopOthersQuery(OrderByNetwork, 6, instance, instanceType, digests)
+		require.NoError(t, err)
+		require.Greater(t, len(othersQuery), maxTSDBQueryBytes)
+	})
+
+	t.Run("network top 200 falls back to total-minus-top for others", func(t *testing.T) {
+		digests := make([]string, 200)
+		for i := range digests {
+			digests[i] = digestLabel(i)
+		}
+		batches, err := splitTopSQLDigests(digests, buildNetworkTops)
+		require.NoError(t, err)
+		require.Len(t, batches, 4)
+
+		othersQuery, err := buildTopOthersQuery(OrderByNetwork, 6, instance, instanceType, digests)
+		require.NoError(t, err)
+		require.Greater(t, len(othersQuery), maxTSDBQueryBytes)
+	})
+
+	t.Run("cpu top 200 needs no split once others is a separate query", func(t *testing.T) {
+		// The review-measured 26,229 bytes was tops and others assembled into one query;
+		// separated, each side is ~13.1 KB and fits the budget without batching.
+		digests := make([]string, 200)
+		for i := range digests {
+			digests[i] = digestLabel(i)
+		}
+		batches, err := splitTopSQLDigests(digests, buildCPUTops)
+		require.NoError(t, err)
+		require.Len(t, batches, 1)
+
+		othersQuery, err := buildTopOthersQuery(OrderByCPU, 6, instance, instanceType, digests)
+		require.NoError(t, err)
+		require.LessOrEqual(t, len(othersQuery), maxTSDBQueryBytes)
+	})
+
+	t.Run("cpu top 300 splits into two batches", func(t *testing.T) {
+		digests := make([]string, 300)
+		for i := range digests {
+			digests[i] = digestLabel(i)
+		}
+		batches, err := splitTopSQLDigests(digests, buildCPUTops)
+		require.NoError(t, err)
+		require.Len(t, batches, 2)
+	})
+}
+
+func TestBuildTopSQLDigestsQuery(t *testing.T) {
+	selector := `instance="127.0.0.1:20160", instance_type="tikv", sql_digest!=""`
+
+	// Single metric: one contiguous window.
+	queryStr, err := buildTopSQLDigestsQuery(OrderByCPU, 906, 5, "tikv", selector)
+	require.NoError(t, err)
+	require.Equal(t, "topk(5, sum(sum_over_time(cpu_time{"+selector+"}[906])) by (sql_digest))", queryStr)
+
+	// Composite metric: both sides zero-filled, so the long-window ranking equals the sum
+	// of the timeline's per-step values even for one-sided samples.
+	queryStr, err = buildTopSQLDigestsQuery(OrderByNetwork, 906, 5, "tikv", selector)
+	require.NoError(t, err)
+	zeroFill := func(metric, other string) string {
+		e := "sum_over_time(" + metric + "{" + selector + "}[906])"
+		o := "sum_over_time(" + other + "{" + selector + "}[906])"
+		return "(" + e + " or (" + o + " * 0))"
+	}
+	require.Equal(t,
+		"topk(5, sum("+zeroFill("network_in_bytes", "network_out_bytes")+" + "+zeroFill("network_out_bytes", "network_in_bytes")+") by (sql_digest))",
+		queryStr)
+}
+
+func TestSubtractTopFromTotal(t *testing.T) {
+	mk := func(pairs ...float64) []recordsMetricRespDataResultValue {
+		values := make([]recordsMetricRespDataResultValue, 0, len(pairs)/2)
+		for i := 0; i < len(pairs); i += 2 {
+			values = append(values, recordsMetricRespDataResultValue{pairs[i], strconv.FormatFloat(pairs[i+1], 'f', -1, 64)})
+		}
+		return values
+	}
+
+	total := recordsMetricRespDataResult{Values: mk(100, 10, 106, 7)}
+	top := []recordsMetricRespDataResult{
+		{Values: mk(100, 4, 106, 4, 112, 9)},
+		{Values: mk(100, 1)},
+	}
+	values := subtractTopFromTotal(total, top)
+	require.Equal(t, []recordsMetricRespDataResultValue{
+		{float64(100), "5"},
+		{float64(106), "3"},
+	}, values)
+}
+
+func TestRejectOversizedSingleDigestQuery(t *testing.T) {
+	_, err := splitTopSQLDigests([]string{"aa"}, func(matcher string) (string, error) {
+		return buildTopSummaryBatchQuery(OrderByCPU, 6, strings.Repeat("x", maxTSDBQueryBytes), "tikv", matcher)
+	})
+	require.ErrorContains(t, err, "even with one digest")
+}

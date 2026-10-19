@@ -35,6 +35,7 @@ type Config struct {
 	ContinueProfiling ContinueProfilingConfig `toml:"-" json:"continuous_profiling"`
 	Security          Security                `toml:"security" json:"security"`
 	TSDB              TSDB                    `toml:"tsdb" json:"tsdb"`
+	TopSQL            TopSQLConfig            `toml:"topsql" json:"topsql"`
 	DocDB             docdb.BadgerConfig      `toml:"docdb" json:"docdb"`
 }
 
@@ -64,6 +65,7 @@ var defaultConfig = Config{
 		RetentionPeriod:           "1", // 1 month
 		SearchMaxUniqueTimeseries: 300000,
 	},
+	TopSQL: TopSQLConfig{SummaryTimeout: 30 * time.Second},
 	DocDB: docdb.BadgerConfig{
 		LSMOnly:                 false,
 		SyncWrites:              false,
@@ -234,6 +236,9 @@ func (c *Config) valid() error {
 
 	if err = c.TSDB.valid(); err != nil {
 		return err
+	}
+	if c.TopSQL.SummaryTimeout <= 0 {
+		return fmt.Errorf("topsql summary-timeout must be greater than 0")
 	}
 
 	return nil
@@ -451,6 +456,12 @@ func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
 		log.Fatal("Failed to load certificates", zap.Error(err))
 	}
 	return tlsConfig
+}
+
+// TopSQLConfig controls the By Query Summary request, including all TSDB queries
+// and metadata reads. The embedded VM also enforces its per-query execution limit.
+type TopSQLConfig struct {
+	SummaryTimeout time.Duration `toml:"summary-timeout" json:"summary_timeout"`
 }
 
 type TSDB struct {

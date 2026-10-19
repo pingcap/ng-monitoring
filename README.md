@@ -87,6 +87,26 @@ $ cat config/config.toml.example
   key-path = ""
 ```
 
+## Top SQL By Query
+
+For `top > 0`, Summary ranks SQL digests by cumulative usage in the embedded
+VictoriaMetrics engine, then fetches the selected SQL/plan curves and an Other
+aggregate. Different table series for the same SQL/plan are summed. Network and
+logical IO summaries count a missing input/output or read/write side as zero.
+Large selections are batched to fit the query length limit; an oversized Other
+filter uses the overall total minus the selected totals.
+
+Ranking and subsequent reads do not share a snapshot. The selected SQL set stays
+fixed for a request, while late samples can change its curves, plans, and Other.
+Equal usage at the cutoff can select a different SQL than the previous Go-side
+tie-breaker. Unlimited requests (`top <= 0`) still fetch all main-metric series.
+
+`[topsql] summary-timeout = "30s"` sets the total By Query request budget, including
+all queries and metadata reads. Each VM query receives the remaining budget and
+also obeys `tsdb.search-max-query-duration`. Cancellation is cooperative: queued
+and subsequent work can stop, but an executing VM operation may return after the
+deadline. This setting does not change By Table/DB/Region or metric record APIs.
+
 ## Reload Config
 
 ```shell

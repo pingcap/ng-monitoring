@@ -1,28 +1,35 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
+	"github.com/pingcap/ng-monitoring/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
 type summaryQueryStub struct {
-	orderBy string
-	calls   int
+	orderBy   string
+	calls     int
+	onSummary func(context.Context) error
 }
 
 func (s *summaryQueryStub) Records(string, int, int, int, int, string, string, *[]query.RecordItem) error {
 	return nil
 }
 
-func (s *summaryQueryStub) Summary(_ int, _ int, _ int, _ int, _ string, _ string, _ *[]query.SummaryItem, orderBy string) error {
+func (s *summaryQueryStub) Summary(ctx context.Context, _ int, _ int, _ int, _ int, _ string, _ string, _ *[]query.SummaryItem, orderBy string) error {
 	s.orderBy = orderBy
 	s.calls++
+	if s.onSummary != nil {
+		return s.onSummary(ctx)
+	}
 	return nil
 }
 
@@ -66,4 +73,39 @@ func TestSummaryHandlerOrderByCompatibility(t *testing.T) {
 			require.Equal(t, testCase.expectedOrderBy, stub.orderBy)
 		})
 	}
+}
+
+func TestSummaryHandlerDeadline(t *testing.T) {
+	original := config.GetGlobalConfig()
+	t.Cleanup(func() { config.StoreGlobalConfig(original) })
+	cfg := config.GetDefaultConfig()
+	cfg.TopSQL.SummaryTimeout = 20 * time.Millisecond
+	config.StoreGlobalConfig(cfg)
+
+	stub := &summaryQueryStub{onSummary: func(ctx context.Context) error {
+		deadline, ok := ctx.Deadline()
+		require.True(t, ok)
+		require.LessOrEqual(t, time.Until(deadline), cfg.TopSQL.SummaryTimeout)
+		<-ctx.Done()
+		return ctx.Err()
+	}}
+	router := gin.New()
+	service := NewService(stub)
+	router.GET("/v1/summary", service.summaryHandler)
+	request := httptest.NewRequest(http.MethodGet, "/v1/summary?instance=test&instance_type=tikv&start=1&end=2", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	require.Equal(t, http.StatusServiceUnavailable, response.Code)
+	require.Contains(t, response.Body.String(), context.DeadlineExceeded.Error())
+	require.Equal(t, 1, stub.calls)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	stub.onSummary = func(ctx context.Context) error {
+		require.ErrorIs(t, ctx.Err(), context.Canceled)
+		return ctx.Err()
+	}
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request.WithContext(ctx))
+	require.Equal(t, http.StatusServiceUnavailable, response.Code)
 }

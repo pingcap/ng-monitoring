@@ -1,7 +1,10 @@
 package topsql_test
 
 import (
+	"context"
 	"encoding/hex"
+	"fmt"
+	"net/http/httptest"
 	"os"
 	"sort"
 	"strconv"
@@ -277,7 +280,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// normal case
 	var res []query.SummaryItem
-	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res, query.OrderByCPU)
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -333,7 +336,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// top 1
 	res = nil
-	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -370,13 +373,13 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// no data
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.Equal(len(res), 0)
 
 	// one point
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 40}
@@ -432,7 +435,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// two points
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
@@ -814,7 +817,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// normal case
 	var res []query.SummaryItem
-	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -879,7 +882,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// top 1
 	res = nil
-	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, tikvInstanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 1, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -958,13 +961,13 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// no data
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.Equal(len(res), 0)
 
 	// one point
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 40}
@@ -1042,7 +1045,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// two points
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, tikvInstanceType, &res, query.OrderByCPU)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
@@ -1158,7 +1161,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByNetwork() {
 	vmstorage.Storage.DebugFlush()
 
 	var res []query.SummaryItem
-	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByNetwork)
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByNetwork)
 	s.NoError(err)
 	s.Require().Len(res, 2)
 	var top, other *query.SummaryItem
@@ -1176,6 +1179,70 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByNetwork() {
 	s.Require().NotNil(other)
 	s.True(other.IsOther)
 	s.Greater(other.NetworkBytes, uint64(0))
+}
+
+func (s *testTopSQLSuite) TestTiKVSummaryMergesTables() {
+	instance := "127.0.0.1:29997"
+	tikvInstanceType := "tikv"
+
+	mkRecord := func(sqlDigest string, tableID int64, cpuMs, readKeys []uint32) *rsmetering.ResourceUsageRecord {
+		tag := tipb.ResourceGroupTag{
+			SqlDigest:  []byte(sqlDigest),
+			PlanDigest: []byte("plan-0"),
+			TableId:    tableID,
+			Label:      tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow.Enum(),
+		}
+		tagBytes, err := tag.Marshal()
+		s.NoError(err)
+
+		var items []*rsmetering.GroupTagRecordItem
+		for i := range cpuMs {
+			items = append(items, &rsmetering.GroupTagRecordItem{
+				TimestampSec: testBaseTs + uint64(i)*10,
+				CpuTimeMs:    cpuMs[i],
+				ReadKeys:     readKeys[i],
+			})
+		}
+		return &rsmetering.ResourceUsageRecord{
+			RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: &rsmetering.GroupTagRecord{
+				ResourceGroupTag: tagBytes,
+				Items:            items,
+			}},
+		}
+	}
+
+	// The same SQL and plan touches two tables, so TiKV stores one series per table.
+	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-a", 1, []uint32{100, 200}, []uint32{10, 20}), nil))
+	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-a", 2, []uint32{300, 400}, []uint32{30, 40}), nil))
+	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-b", 1, []uint32{1, 1}, []uint32{1, 1}), nil))
+
+	vmstorage.Storage.DebugFlush()
+
+	var res []query.SummaryItem
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByCPU)
+	s.NoError(err)
+	s.sortSummary(res)
+	timeWindow := float64(10 + 1)
+	s.Equal([]query.SummaryItem{{
+		IsOther:           true,
+		CPUTimeMs:         2,
+		ScanRecordsPerSec: 2 / timeWindow,
+		Plans: []query.SummaryPlanItem{{
+			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10},
+			CPUTimeMs:         []uint64{1, 1},
+			ScanRecordsPerSec: 2 / timeWindow,
+		}},
+	}, {
+		SQLDigest:         hex.EncodeToString([]byte("sql-a")),
+		CPUTimeMs:         1000,
+		ScanRecordsPerSec: 100 / timeWindow,
+		Plans: []query.SummaryPlanItem{{
+			PlanDigest:        hex.EncodeToString([]byte("plan-0")),
+			TimestampSec:      []uint64{testBaseTs, testBaseTs + 10},
+			CPUTimeMs:         []uint64{400, 600},
+			ScanRecordsPerSec: 100 / timeWindow,
+		}},
+	}}, res)
 }
 
 func (s *testTopSQLSuite) TestTiKVSummaryOrderByResourceDimensions() {
@@ -1215,7 +1282,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByResourceDimensions() {
 	vmstorage.Storage.DebugFlush()
 
 	var res []query.SummaryItem
-	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByLogicalIO)
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByLogicalIO)
 	s.NoError(err)
 	s.Require().Len(res, 2)
 	var top, other *query.SummaryItem
@@ -1236,7 +1303,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByResourceDimensions() {
 
 	assertTop := func(orderBy, expectedDigest string, value func(*query.SummaryItem) uint64) {
 		var items []query.SummaryItem
-		s.NoError(s.dq.Summary(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &items, orderBy))
+		s.NoError(s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &items, orderBy))
 		s.Require().Len(items, 2)
 		for i := range items {
 			if !items[i].IsOther {
@@ -1361,4 +1428,105 @@ func sumv(v ...[]uint64) []uint64 {
 		}
 	}
 	return res
+}
+
+func (s *testTopSQLSuite) TestTiKVSummaryNetworkRankingMatchesTimeline() {
+	instance := "127.0.0.1:29996"
+	// The store writes both network metrics of an item at the same timestamp, so one-sided
+	// samples are imported straight into the TSDB: A's in and out never share a 6s window
+	// (in@T=100, out@T+10=1), while B pairs at T (2+2). The old per-step vector match
+	// dropped A from the timeline entirely, and a long-window ranking picked A with an
+	// empty curve; with zero-filling the ranking and the curve agree that A carries 101
+	// bytes, and with top=1 A is returned together with its own curve.
+	digestA := hex.EncodeToString([]byte("sql-a"))
+	digestB := hex.EncodeToString([]byte("sql-b"))
+	plan := hex.EncodeToString([]byte("plan-0"))
+	lines := fmt.Sprintf(`network_in_bytes{instance=%q,instance_type="tikv",sql_digest=%q,plan_digest=%q} 100 %d
+network_out_bytes{instance=%q,instance_type="tikv",sql_digest=%q,plan_digest=%q} 1 %d
+network_in_bytes{instance=%q,instance_type="tikv",sql_digest=%q,plan_digest=%q} 2 %d
+network_out_bytes{instance=%q,instance_type="tikv",sql_digest=%q,plan_digest=%q} 2 %d
+`,
+		instance, digestA, plan, int(testBaseTs)*1000,
+		instance, digestA, plan, (int(testBaseTs)+10)*1000,
+		instance, digestB, plan, int(testBaseTs)*1000,
+		instance, digestB, plan, int(testBaseTs)*1000)
+	req := httptest.NewRequest("POST", "/api/v1/import/prometheus", strings.NewReader(lines))
+	w := httptest.NewRecorder()
+	timeseries.InsertHandler(w, req)
+	s.Equal(204, w.Code, w.Body.String())
+
+	vmstorage.Storage.DebugFlush()
+
+	var res []query.SummaryItem
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+12), 6, 1, instance, "tikv", &res, query.OrderByNetwork)
+	s.NoError(err)
+	s.sortSummary(res)
+	s.Len(res, 2)
+	s.True(res[0].IsOther)
+	// B missed the top 1 and folds into others with its 4 bytes.
+	s.Equal(uint64(4), res[0].NetworkBytes)
+	s.False(res[1].IsOther)
+	s.Equal(digestA, res[1].SQLDigest)
+	s.Equal(uint64(101), res[1].NetworkBytes)
+	s.Len(res[1].Plans, 1)
+	s.Equal([]uint64{testBaseTs, testBaseTs + 12}, res[1].Plans[0].TimestampSec)
+	s.Equal([]uint64{100, 1}, res[1].Plans[0].NetworkBytes)
+}
+
+func (s *testTopSQLSuite) TestTiKVSummaryNetworkLargeTopSplitsQueries() {
+	instance := "127.0.0.1:30003"
+	const smallCount = 199
+	mkRecord := func(sqlDigest string, in, out uint64) *rsmetering.ResourceUsageRecord {
+		tag := tipb.ResourceGroupTag{
+			SqlDigest:  []byte(sqlDigest),
+			PlanDigest: []byte("plan-0"),
+			Label:      tipb.ResourceGroupTagLabel_ResourceGroupTagLabelRow.Enum(),
+		}
+		tagBytes, err := tag.Marshal()
+		s.NoError(err)
+		return &rsmetering.ResourceUsageRecord{
+			RecordOneof: &rsmetering.ResourceUsageRecord_Record{Record: &rsmetering.GroupTagRecord{
+				ResourceGroupTag: tagBytes,
+				Items: []*rsmetering.GroupTagRecordItem{{
+					TimestampSec:    testBaseTs,
+					NetworkInBytes:  in,
+					NetworkOutBytes: out,
+				}},
+			}},
+		}
+	}
+
+	// 200 digests with network orderBy used to assemble one query over the 16 KiB TSDB
+	// length limit and fail with a 422 -> 503. The split keeps every query within budget
+	// and preserves the totals: big + 199 small, with the 50 unselected smalls in other.
+	bigDigest := strings.Repeat("a", 32)
+	s.NoError(s.ds.ResourceMeteringRecord(instance, "tikv", mkRecord(bigDigest, 1000, 1000), nil))
+	for i := 0; i < smallCount; i++ {
+		s.NoError(s.ds.ResourceMeteringRecord(instance, "tikv", mkRecord(fmt.Sprintf("%032x", i), 1, 1), nil))
+	}
+
+	vmstorage.Storage.DebugFlush()
+
+	var res []query.SummaryItem
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs), 6, 150, instance, "tikv", &res, query.OrderByNetwork)
+	s.NoError(err)
+	s.Len(res, 151)
+
+	total := uint64(0)
+	bigSeen, othersSeen := false, false
+	for _, item := range res {
+		total += item.NetworkBytes
+		if item.IsOther {
+			othersSeen = true
+			// The 50 small digests that missed the top 150, 2 bytes each.
+			s.Equal(uint64(100), item.NetworkBytes)
+		}
+		if item.SQLDigest == hex.EncodeToString([]byte(bigDigest)) {
+			bigSeen = true
+			s.Equal(uint64(2000), item.NetworkBytes)
+		}
+	}
+	s.True(bigSeen)
+	s.True(othersSeen)
+	s.Equal(uint64(2000+smallCount*2), total)
 }
