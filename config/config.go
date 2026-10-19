@@ -65,7 +65,7 @@ var defaultConfig = Config{
 		RetentionPeriod:           "1", // 1 month
 		SearchMaxUniqueTimeseries: 300000,
 	},
-	TopSQL: TopSQLConfig{SummaryTimeout: 30 * time.Second},
+	TopSQL: TopSQLConfig{SummaryTimeout: 0},
 	DocDB: docdb.BadgerConfig{
 		LSMOnly:                 false,
 		SyncWrites:              false,
@@ -237,8 +237,8 @@ func (c *Config) valid() error {
 	if err = c.TSDB.valid(); err != nil {
 		return err
 	}
-	if c.TopSQL.SummaryTimeout <= 0 {
-		return fmt.Errorf("topsql summary-timeout must be greater than 0")
+	if c.TopSQL.SummaryTimeout < 0 {
+		return fmt.Errorf("topsql summary-timeout must not be negative")
 	}
 
 	return nil
@@ -459,7 +459,8 @@ func buildTLSConfig(caPath, keyPath, certPath string) *tls.Config {
 }
 
 // TopSQLConfig controls the By Query Summary request, including all TSDB queries
-// and metadata reads. The embedded VM also enforces its per-query execution limit.
+// and metadata reads. A zero SummaryTimeout adds no request-wide deadline; caller
+// cancellation and the embedded VM's per-query execution limit still apply.
 type TopSQLConfig struct {
 	SummaryTimeout time.Duration `toml:"summary-timeout" json:"summary_timeout"`
 }

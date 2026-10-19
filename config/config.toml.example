@@ -81,11 +81,12 @@ search-max-unique-timeseries = 300000
 # search-max-query-duration = "5m"
 
 [topsql]
-# Total time budget for a By Query Summary request, including ranking, timeline,
-# auxiliary statistics and metadata. Cancellation is cooperative: an executing VM
-# query may finish after this budget, but NGM will not start subsequent work.
-# VM queries also obey tsdb.search-max-query-duration independently.
-summary-timeout = "30s"
+# Optional total By Query Summary budget, including ranking, timeline, auxiliary
+# statistics and metadata. 0s (default) adds no request-wide deadline; caller
+# cancellation and VM's tsdb.search-max-query-duration still apply. Configure a
+# positive duration only after assessing the workload. Cancellation is cooperative:
+# executing VM work may finish after the budget, but no later stage will start.
+summary-timeout = "0s"
 
 [docdb]
 lsm-only = false

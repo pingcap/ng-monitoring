@@ -181,8 +181,12 @@ func (s *Service) summaryHandler(c *gin.Context) {
 	default:
 		items := summaryBySqlP.Get()
 		defer summaryBySqlP.Put(items)
-		ctx, cancel := context.WithTimeout(c.Request.Context(), config.GetGlobalConfig().TopSQL.SummaryTimeout)
-		defer cancel()
+		ctx := c.Request.Context()
+		if timeout := config.GetGlobalConfig().TopSQL.SummaryTimeout; timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
 		err = s.query.Summary(ctx, start, end, windowSecs, top, instance, instanceType, items, orderBy)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{

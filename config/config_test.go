@@ -433,14 +433,14 @@ func TestConfigValidAddress(t *testing.T) {
 }
 
 func TestTopSQLSummaryTimeout(t *testing.T) {
-	// Old configurations omit [topsql] and inherit the bounded default.
+	// Old configurations omit [topsql] and must not gain a new request-wide deadline.
 	legacy := path.Join(t.TempDir(), "legacy.toml")
 	require.NoError(t, os.WriteFile(legacy, []byte("[tsdb]\nsearch-max-unique-timeseries = 300000\n"), 0600))
 	cfg := GetDefaultConfig()
 	require.NoError(t, cfg.Load(legacy))
 	cfg.setDefaultAdvertiseAddress()
 	require.NoError(t, cfg.valid())
-	require.Equal(t, 30*time.Second, cfg.TopSQL.SummaryTimeout)
+	require.Zero(t, cfg.TopSQL.SummaryTimeout)
 
 	for _, value := range []string{"2m", "0s", "-1s"} {
 		t.Run(value, func(t *testing.T) {
@@ -449,11 +449,13 @@ func TestTopSQLSummaryTimeout(t *testing.T) {
 			cfg := GetDefaultConfig()
 			require.NoError(t, cfg.Load(file))
 			cfg.setDefaultAdvertiseAddress()
-			if value == "2m" {
-				require.NoError(t, cfg.valid())
-				require.Equal(t, 2*time.Minute, cfg.TopSQL.SummaryTimeout)
-			} else {
+			if value == "-1s" {
 				require.ErrorContains(t, cfg.valid(), "summary-timeout")
+			} else {
+				require.NoError(t, cfg.valid())
+				expected, err := time.ParseDuration(value)
+				require.NoError(t, err)
+				require.Equal(t, expected, cfg.TopSQL.SummaryTimeout)
 			}
 		})
 	}

@@ -104,11 +104,16 @@ being clamped or silently discarded.
 Equal usage at the cutoff can select a different SQL than the previous Go-side
 tie-breaker. Unlimited requests (`top <= 0`) return every SQL/plan aggregate.
 
-`[topsql] summary-timeout = "30s"` sets the total By Query request budget, including
-all queries and metadata reads. Each VM query receives the remaining budget and
-also obeys `tsdb.search-max-query-duration`. Cancellation is cooperative: queued
-and subsequent work can stop, but an executing VM operation may return after the
-deadline. This setting does not change By Table/DB/Region or metric record APIs.
+`[topsql] summary-timeout` optionally limits the entire By Query request, including
+all queries and metadata reads. Its default `"0s"` adds no request-wide deadline;
+old configurations keep this behavior without adding the setting. Caller deadlines
+and cancellation, and VM's `tsdb.search-max-query-duration`, still apply. With a
+positive budget, each VM query receives the remaining request time. Choose a
+budget using representative workload and resource-limit measurements, rather than
+assuming the gateway or VM per-query timeout is a suitable request-wide default.
+Cancellation is cooperative: subsequent work can stop, but an executing VM operation
+may return after the deadline. This setting does not affect By Table/DB/Region or
+metric record APIs.
 
 ## Reload Config
 
