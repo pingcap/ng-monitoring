@@ -564,7 +564,8 @@ func TestSubtractTopFromTotal(t *testing.T) {
 		{Values: mk(100, 4, 106, 4, 112, 9)},
 		{Values: mk(100, 1)},
 	}
-	values := subtractTopFromTotal(total, top)
+	values, err := subtractTopFromTotal(total, top)
+	require.NoError(t, err)
 	require.Equal(t, []recordsMetricRespDataResultValue{
 		{float64(100), "5"},
 		{float64(106), "3"},
@@ -576,4 +577,33 @@ func TestRejectOversizedSingleDigestQuery(t *testing.T) {
 		return buildTopSummaryBatchQuery(OrderByCPU, 6, strings.Repeat("x", maxTSDBQueryBytes), "tikv", matcher)
 	})
 	require.ErrorContains(t, err, "even with one digest")
+}
+
+func TestSplitTopSQLDigestsLimitsExpressionConstruction(t *testing.T) {
+	// Constructing and escaping every growing prefix makes large Top selections
+	// allocate quadratically. Keep the number of full expression builds bounded
+	// while preserving the partition and byte-budget contract.
+	digests := make([]string, 500)
+	for i := range digests {
+		digests[i] = digestLabel(i)
+	}
+	builds := 0
+	batches, err := splitTopSQLDigests(digests, func(matcher string) (string, error) {
+		builds++
+		return buildTopSummaryBatchQuery(OrderByCPU, 6, "instance", "tikv", matcher)
+	})
+	require.NoError(t, err)
+	var joined []string
+	for _, batch := range batches {
+		joined = append(joined, batch...)
+	}
+	require.Equal(t, digests, joined)
+	require.LessOrEqual(t, builds, 64, "avoid rebuilding the complete expression for every digest prefix")
+	t.Logf("digests=%d batches=%d expression_builds=%d", len(digests), len(batches), builds)
+}
+
+func TestSubtractSelectedTotalZero(t *testing.T) {
+	other, err := subtractSelectedTotal(10, 10)
+	require.NoError(t, err)
+	require.Zero(t, other)
 }

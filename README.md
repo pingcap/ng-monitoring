@@ -98,6 +98,10 @@ filter uses the overall total minus the selected totals.
 
 Ranking and subsequent reads do not share a snapshot. The selected SQL set stays
 fixed for a request, while late samples can change its curves, plans, and Other.
+In the total-minus-selected fallback, samples added to selected SQLs between reads
+can appear in the residual Other. A negative residual fails the query instead of
+being clamped or silently discarded. See [validation notes](docs/topsql-summary-validation.md)
+for the tested behavior and benchmark limits.
 Equal usage at the cutoff can select a different SQL than the previous Go-side
 tie-breaker. Unlimited requests (`top <= 0`) still fetch all main-metric series.
 

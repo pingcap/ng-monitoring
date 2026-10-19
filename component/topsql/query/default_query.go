@@ -607,7 +607,11 @@ func (dq *DefaultQuery) fetchSumFromTSDB(ctx context.Context, name string, start
 	}
 	key := RecordKey{}
 	if _, exists := fill[key]; !exists {
-		fill[key] = total - topTotal
+		other, err := subtractSelectedTotal(total, topTotal)
+		if err != nil {
+			return err
+		}
+		fill[key] = other
 	}
 	return nil
 }
@@ -997,26 +1001,31 @@ func compositeSum(in, out, selector string, windowSecs int) string {
 func splitTopSQLDigests(digests []string, buildQuery func(matcher string) (string, error)) ([][]string, error) {
 	var batches [][]string
 	for i := 0; i < len(digests); {
-		j := i + 1
-		first, err := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:j]))
+		first, err := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:i+1]))
 		if err != nil {
 			return nil, err
 		}
 		if len(first) > maxTSDBQueryBytes {
 			return nil, fmt.Errorf("Top SQL query exceeds %d bytes even with one digest", maxTSDBQueryBytes)
 		}
-		for j < len(digests) {
-			queryStr, err := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:j+1]))
+		// Adding escaped alternatives only increases these expressions' byte
+		// length. Find the largest fitting prefix without rebuilding all prefixes
+		// (which makes large Top requests allocate quadratically).
+		low, high := i+1, len(digests)
+		for low < high {
+			mid := low + (high-low+1)/2
+			queryStr, err := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:mid]))
 			if err != nil {
 				return nil, err
 			}
-			if len(queryStr) > maxTSDBQueryBytes {
-				break
+			if len(queryStr) <= maxTSDBQueryBytes {
+				low = mid
+			} else {
+				high = mid - 1
 			}
-			j++
 		}
-		batches = append(batches, digests[i:j])
-		i = j
+		batches = append(batches, digests[i:low])
+		i = low
 	}
 	return batches, nil
 }
@@ -1116,9 +1125,11 @@ func (dq *DefaultQuery) fetchTopSummarySeries(ctx context.Context, orderBy strin
 	if len(resp.Data.Results) == 0 {
 		return topResults, nil
 	}
-	others := recordsMetricRespDataResult{
-		Values: subtractTopFromTotal(resp.Data.Results[0], topResults),
+	values, err := subtractTopFromTotal(resp.Data.Results[0], topResults)
+	if err != nil {
+		return nil, err
 	}
+	others := recordsMetricRespDataResult{Values: values}
 	return append(topResults, others), nil
 }
 
@@ -1126,7 +1137,7 @@ func (dq *DefaultQuery) fetchTopSummarySeries(ctx context.Context, orderBy strin
 // top series. Both sides come from range queries on the same grid, so point indexes align;
 // timestamps missing on the top side count as zero, and timestamps missing from the total
 // are skipped.
-func subtractTopFromTotal(totalSeries recordsMetricRespDataResult, top []recordsMetricRespDataResult) []recordsMetricRespDataResultValue {
+func subtractTopFromTotal(totalSeries recordsMetricRespDataResult, top []recordsMetricRespDataResult) ([]recordsMetricRespDataResultValue, error) {
 	topSums := make(map[float64]float64)
 	for _, series := range top {
 		for _, point := range series.Values {
@@ -1157,10 +1168,24 @@ func subtractTopFromTotal(totalSeries recordsMetricRespDataResult, top []records
 		if !ok {
 			continue
 		}
-		others := total - topSums[ts]
+		others, err := subtractSelectedTotal(total, topSums[ts])
+		if err != nil {
+			return nil, fmt.Errorf("timestamp %g: %w", ts, err)
+		}
 		values = append(values, recordsMetricRespDataResultValue{point[0], strconv.FormatFloat(others, 'f', -1, 64)})
 	}
-	return values
+	return values, nil
+}
+
+// subtractSelectedTotal rejects a negative Other instead of hiding inconsistent
+// reads by clamping it. Otherwise curve parsing silently drops negative points
+// and auxiliary statistics can expose negative rates in a successful response.
+func subtractSelectedTotal(total, selected float64) (float64, error) {
+	other := total - selected
+	if other < 0 {
+		return 0, fmt.Errorf("inconsistent Top SQL aggregates: total is smaller than selected (%g < %g)", total, selected)
+	}
+	return other, nil
 }
 
 func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instanceType, aggBy string) (string, error) {

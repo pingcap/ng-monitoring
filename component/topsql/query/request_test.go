@@ -2,7 +2,9 @@ package query
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -108,4 +110,71 @@ func TestMetadataCancellationStopsPlanReads(t *testing.T) {
 	require.ErrorIs(t, dq.fillText(ctx, "cpu_time", &groups, func(RecordItem) { filled = true }), context.Canceled)
 	require.Zero(t, db.plans)
 	require.False(t, filled)
+}
+
+func TestNegativeOtherDifferenceFailsQuery(t *testing.T) {
+	// Simulate inconsistent reads, not ordinary append-only ingestion: the later
+	// total is smaller than an already fetched selected value. A successful
+	// response must not silently discard the resulting negative curve point or
+	// return a negative auxiliary rate.
+	digests := make([]string, 300)
+	for i := range digests {
+		digests[i] = digestLabel(i)
+	}
+	for _, auxiliary := range []bool{false, true} {
+		t.Run(fmt.Sprintf("auxiliary=%t", auxiliary), func(t *testing.T) {
+			selectedReads, totalReads := 0, 0
+			dq := NewDefaultQuery(func(w http.ResponseWriter, r *http.Request) {
+				expr := r.URL.Query().Get("query")
+				require.LessOrEqual(t, len(expr), maxTSDBQueryBytes)
+				require.NotContains(t, expr, "sql_digest!~", "the oversized Other filter must use the fallback")
+				if strings.HasPrefix(expr, "topk(") {
+					var ranking strings.Builder
+					ranking.WriteString(`{"status":"success","data":{"result":[`)
+					for i, digest := range digests {
+						if i > 0 {
+							ranking.WriteByte(',')
+						}
+						fmt.Fprintf(&ranking, `{"metric":{"sql_digest":%q},"value":[100,"1"]}`, digest)
+					}
+					ranking.WriteString(`]}}`)
+					_, _ = w.Write([]byte(ranking.String()))
+					return
+				}
+				result := `{"status":"success","data":{"result":[]}}`
+				if strings.Contains(expr, "sql_digest=~") {
+					selectedReads++
+					if strings.Contains(expr, digests[0]) {
+						if auxiliary {
+							result = fmt.Sprintf(`{"status":"success","data":{"result":[{"metric":{"sql_digest":%q,"plan_digest":"plan"},"value":[100,"10"]}]}}`, digests[0])
+						} else {
+							result = fmt.Sprintf(`{"status":"success","data":{"result":[{"metric":{"sql_digest":%q,"plan_digest":"plan"},"values":[[100,"10"]]}]}}`, digests[0])
+						}
+					}
+				} else {
+					totalReads++
+					if auxiliary {
+						result = `{"status":"success","data":{"result":[{"metric":{},"value":[100,"9"]}]}}`
+					} else {
+						result = `{"status":"success","data":{"result":[{"metric":{},"values":[[100,"9"]]}]}}`
+					}
+				}
+				_, _ = w.Write([]byte(result))
+			}, nil)
+			if auxiliary {
+				values := map[RecordKey]float64{}
+				err := dq.fetchSumFromTSDB(context.Background(), "sql_exec_count", 100, 100, "instance", "tikv", digests, true, values)
+				require.ErrorContains(t, err, "total is smaller than selected")
+				_, hasOther := values[RecordKey{}]
+				require.False(t, hasOther)
+			} else {
+				var items []SummaryItem
+				err := dq.Summary(context.Background(), 100, 100, 6, len(digests), "instance", "tikv", &items, OrderByNetwork)
+				require.ErrorContains(t, err, "total is smaller than selected")
+				require.Empty(t, items, "do not return a successful response with a silently dropped negative point")
+			}
+			require.Greater(t, selectedReads, 1)
+			require.Equal(t, 1, totalReads)
+		})
+	}
 }
