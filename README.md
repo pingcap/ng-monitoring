@@ -104,16 +104,12 @@ being clamped or silently discarded.
 Equal usage at the cutoff can select a different SQL than the previous Go-side
 tie-breaker. Unlimited requests (`top <= 0`) return every SQL/plan aggregate.
 
-`[topsql] summary-timeout` optionally limits the entire By Query request, including
-all queries and metadata reads. Its default `"0s"` adds no request-wide deadline;
-old configurations keep this behavior without adding the setting. Caller deadlines
-and cancellation, and VM's `tsdb.search-max-query-duration`, still apply. With a
-positive budget, each VM query receives the remaining request time. Choose a
-budget using representative workload and resource-limit measurements, rather than
-assuming the gateway or VM per-query timeout is a suitable request-wide default.
-Cancellation is cooperative: subsequent work can stop, but an executing VM operation
-may return after the deadline. This setting does not affect By Table/DB/Region or
-metric record APIs.
+Summary propagates the incoming request context through VM queries and metadata
+reads. Caller cancellation stops subsequent work; an existing caller deadline is
+forwarded to VM queries as the remaining time. This change adds no request-wide
+timeout or configuration option. VM's existing `tsdb.search-max-query-duration`
+still applies. Cancellation is cooperative: an executing VM operation may finish
+before NGM can stop processing its result.
 
 ## Reload Config
 

@@ -80,13 +80,5 @@ search-max-unique-timeseries = 300000
 # duration string (e.g. "5m"). When unset, the VictoriaMetrics default of 30s is used.
 # search-max-query-duration = "5m"
 
-[topsql]
-# Optional total By Query Summary budget, including ranking, timeline, auxiliary
-# statistics and metadata. 0s (default) adds no request-wide deadline; caller
-# cancellation and VM's tsdb.search-max-query-duration still apply. Configure a
-# positive duration only after assessing the workload. Cancellation is cooperative:
-# executing VM work may finish after the budget, but no later stage will start.
-summary-timeout = "0s"
-
 [docdb]
 lsm-only = false

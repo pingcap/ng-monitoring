@@ -431,32 +431,3 @@ func TestConfigValidAddress(t *testing.T) {
 		require.Equal(t, c.expectedAddress, cfg.Address)
 	}
 }
-
-func TestTopSQLSummaryTimeout(t *testing.T) {
-	// Old configurations omit [topsql] and must not gain a new request-wide deadline.
-	legacy := path.Join(t.TempDir(), "legacy.toml")
-	require.NoError(t, os.WriteFile(legacy, []byte("[tsdb]\nsearch-max-unique-timeseries = 300000\n"), 0600))
-	cfg := GetDefaultConfig()
-	require.NoError(t, cfg.Load(legacy))
-	cfg.setDefaultAdvertiseAddress()
-	require.NoError(t, cfg.valid())
-	require.Zero(t, cfg.TopSQL.SummaryTimeout)
-
-	for _, value := range []string{"2m", "0s", "-1s"} {
-		t.Run(value, func(t *testing.T) {
-			file := path.Join(t.TempDir(), "topsql.toml")
-			require.NoError(t, os.WriteFile(file, []byte("[topsql]\nsummary-timeout = \""+value+"\"\n"), 0600))
-			cfg := GetDefaultConfig()
-			require.NoError(t, cfg.Load(file))
-			cfg.setDefaultAdvertiseAddress()
-			if value == "-1s" {
-				require.ErrorContains(t, cfg.valid(), "summary-timeout")
-			} else {
-				require.NoError(t, cfg.valid())
-				expected, err := time.ParseDuration(value)
-				require.NoError(t, err)
-				require.Equal(t, expected, cfg.TopSQL.SummaryTimeout)
-			}
-		})
-	}
-}

@@ -26,6 +26,7 @@ func TestQueryCancellation(t *testing.T) {
 			dq := NewDefaultQuery(func(w http.ResponseWriter, r *http.Request) {
 				calls++
 				require.Equal(t, ctx, r.Context())
+				require.Empty(t, r.URL.Query().Get("timeout"), "a request without a caller deadline must not override VM's timeout")
 				cancel()
 				// If decoding runs after cancellation this would return a JSON error.
 				_, _ = w.Write([]byte("invalid JSON"))
@@ -45,7 +46,7 @@ func TestQueryCancellation(t *testing.T) {
 	}
 }
 
-func TestQueryRemainingBudget(t *testing.T) {
+func TestQueryRemainingCallerDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	deadline, _ := ctx.Deadline()

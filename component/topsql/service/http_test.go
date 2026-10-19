@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
-	"github.com/pingcap/ng-monitoring/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -75,48 +74,28 @@ func TestSummaryHandlerOrderByCompatibility(t *testing.T) {
 	}
 }
 
-func TestSummaryHandlerDeadline(t *testing.T) {
-	original := config.GetGlobalConfig()
-	t.Cleanup(func() { config.StoreGlobalConfig(original) })
-	cfg := config.GetDefaultConfig()
-	cfg.TopSQL.SummaryTimeout = 20 * time.Millisecond
-	config.StoreGlobalConfig(cfg)
-
-	stub := &summaryQueryStub{onSummary: func(ctx context.Context) error {
-		deadline, ok := ctx.Deadline()
+func TestSummaryHandlerCallerDeadline(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	deadline, _ := ctx.Deadline()
+	stub := &summaryQueryStub{onSummary: func(got context.Context) error {
+		gotDeadline, ok := got.Deadline()
 		require.True(t, ok)
-		require.LessOrEqual(t, time.Until(deadline), cfg.TopSQL.SummaryTimeout)
-		<-ctx.Done()
-		return ctx.Err()
+		require.Equal(t, deadline, gotDeadline)
+		<-got.Done()
+		return got.Err()
 	}}
 	router := gin.New()
-	service := NewService(stub)
-	router.GET("/v1/summary", service.summaryHandler)
-	request := httptest.NewRequest(http.MethodGet, "/v1/summary?instance=test&instance_type=tikv&start=1&end=2", nil)
+	router.GET("/v1/summary", NewService(stub).summaryHandler)
+	request := httptest.NewRequest(http.MethodGet, "/v1/summary?instance=test&instance_type=tikv&start=1&end=2", nil).WithContext(ctx)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	require.Equal(t, http.StatusServiceUnavailable, response.Code)
 	require.Contains(t, response.Body.String(), context.DeadlineExceeded.Error())
 	require.Equal(t, 1, stub.calls)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	stub.onSummary = func(ctx context.Context) error {
-		require.ErrorIs(t, ctx.Err(), context.Canceled)
-		return ctx.Err()
-	}
-	response = httptest.NewRecorder()
-	router.ServeHTTP(response, request.WithContext(ctx))
-	require.Equal(t, http.StatusServiceUnavailable, response.Code)
 }
 
-func TestSummaryHandlerDefaultPreservesCallerContext(t *testing.T) {
-	original := config.GetGlobalConfig()
-	t.Cleanup(func() { config.StoreGlobalConfig(original) })
-	cfg := config.GetDefaultConfig()
-	require.Zero(t, cfg.TopSQL.SummaryTimeout, "upgrades must not add an unvalidated request-wide deadline")
-	config.StoreGlobalConfig(cfg)
-
+func TestSummaryHandlerPreservesCallerContext(t *testing.T) {
 	for _, tc := range []struct {
 		name                  string
 		callerDeadline, abort bool
@@ -134,7 +113,7 @@ func TestSummaryHandlerDefaultPreservesCallerContext(t *testing.T) {
 			}
 			defer cancel()
 			stub := &summaryQueryStub{onSummary: func(got context.Context) error {
-				require.Equal(t, ctx, got, "disabled budget must pass through the caller context")
+				require.Equal(t, ctx, got, "the request context must pass through unchanged")
 				deadline, ok := got.Deadline()
 				wantDeadline, wantOK := ctx.Deadline()
 				require.Equal(t, wantOK, ok)

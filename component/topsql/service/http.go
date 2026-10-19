@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
 	"github.com/pingcap/ng-monitoring/component/topsql/store"
-	"github.com/pingcap/ng-monitoring/config"
 
 	"github.com/gin-gonic/gin"
 )
@@ -181,13 +179,7 @@ func (s *Service) summaryHandler(c *gin.Context) {
 	default:
 		items := summaryBySqlP.Get()
 		defer summaryBySqlP.Put(items)
-		ctx := c.Request.Context()
-		if timeout := config.GetGlobalConfig().TopSQL.SummaryTimeout; timeout > 0 {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, timeout)
-			defer cancel()
-		}
-		err = s.query.Summary(ctx, start, end, windowSecs, top, instance, instanceType, items, orderBy)
+		err = s.query.Summary(c.Request.Context(), start, end, windowSecs, top, instance, instanceType, items, orderBy)
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",
