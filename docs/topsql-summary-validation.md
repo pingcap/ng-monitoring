@@ -121,7 +121,7 @@ assertions for a deployment.
 | Normal query | HTTP 200, SQL text from real SQLite and CPU=100 from VM; 13 VM calls, two metadata reads. |
 | Response slower than Dashboard connect timeout | Dashboard connect timeout=1s; first VM boundary delayed 1.2s; query still returns HTTP 200 at about 1.21s. The connect timeout does not bound response waiting. |
 | Client cancel | Cancellation reaches NGM through the actual proxy; one VM call, no metadata reads, no later query. NGM reports context canceled and does not decode deliberately invalid VM output. |
-| NGM budget | Configured 150ms total budget returns HTTP 503 through Dashboard at about 153–154ms. One VM call, no metadata reads; forwarded VM timeout is positive and at most 150ms. |
+| NGM budget | Configured 150ms total budget returns HTTP 503 through Dashboard at about 153–156ms. One VM call, no metadata reads; forwarded VM timeout is positive and at most 150ms. |
 | Delayed execution boundary | Client cancel reaches NGM while the VM seam is deliberately held. NGM finishes only after release, then skips decoding and subsequent work. This proves the cooperative boundary, not interruption of an actual VM evaluator. |
 
 Queued/delayed behavior is injected at the VM-handler boundary. Only normal and
@@ -143,6 +143,27 @@ PROXY_CHECK_RACE=1 bash tools/dashboard-proxy-check/run.sh /path/to/tidb-dashboa
 
 The run requires neither nginx nor Docker, and does not recreate a customer
 nginx 504. Gateway timeout configuration remains unverified by this check.
+
+## Repository CI qualification
+
+The initial local full repository run passed. Cloud CI for supplemental commit
+`f02d84c` passed format/lint and all Top SQL/config packages, but timed out after
+10 minutes in `conprof/store.TestStoreProfileStatus`, blocked in Genji
+`Database.Close` on its transaction mutex. The same stuck close was reproduced
+locally both on this PR and on the unmodified `main` baseline `fce47f6`; that
+package and the Genji adapter are unchanged by this PR. A 50-iteration baseline
+run passed, while a later 500-iteration run timed out with the matching stack,
+so a passing single run does not establish stability.
+
+Baseline reproduction, from a clean worktree at `fce47f6`:
+
+```sh
+GOTOOLCHAIN=go1.25.14 go test ./component/conprof/store -run '^TestStoreProfileStatus$' -count=500 -timeout=30s
+```
+
+This is a separate repository test instability, not a successful full cloud CI
+result. No conprof/Genji production change is included. Check the PR's current
+checks for the latest run status.
 
 ## Outstanding acceptance
 

@@ -57,6 +57,10 @@ PY
     NGM_PROXY_READY="$proxy_tmp/ready.json" go test ./pkg/apiserver/utils -run '^TestNGMProxyHTTPValidation$' -count=1 -v
   fi
 ) 2>&1 | tee "$output_dir/dashboard-proxy.log"
+# Check the fixture exit too: the race detector may report in either process.
+kill -TERM "$fixture_pid"
+wait "$fixture_pid"
+fixture_pid=""
 git -C "$ngm_root" rev-parse HEAD > "$output_dir/ngm-head.txt"
 git -C "$dashboard_root" rev-parse "$dashboard_ref" > "$output_dir/dashboard-head.txt"
 printf 'Results: %s\n' "$output_dir"
