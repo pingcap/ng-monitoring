@@ -1195,7 +1195,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryMergesTables() {
 		tagBytes, err := tag.Marshal()
 		s.NoError(err)
 
-		var items []*rsmetering.GroupTagRecordItem
+		items := make([]*rsmetering.GroupTagRecordItem, 0, len(cpuMs))
 		for i := range cpuMs {
 			items = append(items, &rsmetering.GroupTagRecordItem{
 				TimestampSec: testBaseTs + uint64(i)*10,
