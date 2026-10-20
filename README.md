@@ -87,6 +87,30 @@ $ cat config/config.toml.example
   key-path = ""
 ```
 
+## Top SQL By Query
+
+For `top > 0`, Summary ranks SQL digests by cumulative usage in the embedded
+VictoriaMetrics engine, then fetches the selected SQL/plan curves and an Other
+aggregate. Different table series for the same SQL/plan are summed. Network and
+logical IO summaries count a missing input/output or read/write side as zero.
+Large selections are batched to fit the query length limit; an oversized Other
+filter uses the overall total minus the selected totals.
+
+Ranking and subsequent reads do not share a snapshot. The selected SQL set stays
+fixed for a request, while late samples can change its curves, plans, and Other.
+In the total-minus-selected fallback, samples added to selected SQLs between reads
+can appear in the residual Other. A negative residual fails the query instead of
+being clamped or silently discarded.
+Equal usage at the cutoff can select a different SQL than the previous Go-side
+tie-breaker. Unlimited requests (`top <= 0`) return every SQL/plan aggregate.
+
+Summary propagates the incoming request context through VM queries and metadata
+reads. Caller cancellation stops subsequent work; an existing caller deadline is
+forwarded to VM queries as the remaining time. This change adds no request-wide
+timeout or configuration option. VM's existing `tsdb.search-max-query-duration`
+still applies. Cancellation is cooperative: an executing VM operation may finish
+before NGM can stop processing its result.
+
 ## Reload Config
 
 ```shell
