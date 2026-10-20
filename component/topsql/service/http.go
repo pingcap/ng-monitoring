@@ -136,7 +136,11 @@ func (s *Service) summaryHandler(c *gin.Context) {
 	default:
 		items := summaryBySqlP.Get()
 		defer summaryBySqlP.Put(items)
+<<<<<<< HEAD
 		err = s.query.Summary(start, end, windowSecs, top, instance, instanceType, items)
+=======
+		err = s.query.Summary(c.Request.Context(), start, end, windowSecs, top, instance, instanceType, items, orderBy)
+>>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"status":  "error",
