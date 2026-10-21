@@ -72,6 +72,11 @@ func (s *testTopSQLSuite) SetupSuite() {
 
 	cfg := config.GetDefaultConfig()
 	cfg.Storage.Path = dir
+	// Exercise the cross-instance aggregator with a tiny horizon so the (old)
+	// fixture timestamps are flushed within the setup sleep.
+	cfg.TopSQL.AggregateInstances = true
+	cfg.TopSQL.AggregateFlushHorizonSecs = 1
+	cfg.TopSQL.AggregateMaxPoints = 100000
 	config.StoreGlobalConfig(cfg)
 
 	// init local mock tidb server
@@ -327,8 +332,14 @@ func (s *testTopSQLSuite) TestInstances() {
 	if resp.Status != "ok" {
 		s.FailNow(fmt.Sprintf("status: %s, message: %s, body: %v\n", resp.Status, resp.Message, string(w.Body)))
 	}
-	s.Len(resp.Data, 2)
+	// One real instance per type plus the aggregate pseudo-instance "*" per type.
+	s.Len(resp.Data, 4)
+	seen := map[string]bool{}
 	for _, item := range resp.Data {
+		seen[item.InstanceType+"/"+item.Instance] = true
+		if item.Instance == store.AggregateInstance {
+			continue
+		}
 		switch item.InstanceType {
 		case topology.ComponentTiDB:
 			s.Equal(s.tidbAddr, item.Instance)
@@ -338,6 +349,55 @@ func (s *testTopSQLSuite) TestInstances() {
 			panic("unknown component type: " + item.InstanceType)
 		}
 	}
+	s.True(seen["tidb/*"], "aggregate tidb instance advertised")
+	s.True(seen["tikv/*"], "aggregate tikv instance advertised")
+}
+
+// TestAggregateInstance checks the cross-instance sums stored under instance="*".
+func (s *testTopSQLSuite) TestAggregateInstance() {
+	// Single TiDB instance: the aggregate equals the instance itself.
+	s.testCpuTime(store.AggregateInstance, "tidb", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{121, 122, 123, 124, 125})
+	s.testSQLDurationSum(store.AggregateInstance, "tidb", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{10, 20, 30, 40, 50})
+	// KV exec counts are reported per TiKV target (tikv-1 and tikv-2); the
+	// aggregate is their sum.
+	s.testSQLExecCount(store.AggregateInstance, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{402, 404, 406, 408, 410})
+	s.testSQLExecCount(store.AggregateInstance, "tikv", testBaseTs+211, testBaseTs+216,
+		[]uint64{testBaseTs + 211, testBaseTs + 212, testBaseTs + 213, testBaseTs + 214, testBaseTs + 215},
+		[]uint64{0, 2, 4, 6, 0})
+	// TiKV resource metering rows keep db/table; single TiKV so aggregate == instance.
+	s.testCpuTime(store.AggregateInstance, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{121, 122, 123, 124, 125})
+	s.testReadRow(store.AggregateInstance, "tikv", testBaseTs+111, testBaseTs+116,
+		[]uint64{testBaseTs + 111, testBaseTs + 112, testBaseTs + 113, testBaseTs + 114, testBaseTs + 115},
+		[]uint64{131, 132, 133, 134, 135})
+}
+
+// Region series are not aggregated, so region grouping is rejected for "*" instead
+// of returning an empty result.
+func (s *testTopSQLSuite) TestAggregateInstanceRejectsRegionGroupBy() {
+	summaryByRegion := func(instance string) int {
+		w := NewMockResponseWriter()
+		req, err := http.NewRequest(http.MethodGet, "/v1/summary", nil)
+		s.NoError(err)
+		urlQuery := url.Values{}
+		urlQuery.Set("instance", instance)
+		urlQuery.Set("instance_type", "tikv")
+		urlQuery.Set("start", fmt.Sprintf("%d", testBaseTs))
+		urlQuery.Set("end", fmt.Sprintf("%d", testBaseTs+300))
+		urlQuery.Set("group_by", "region")
+		req.URL.RawQuery = urlQuery.Encode()
+		s.ng.ServeHTTP(w, req)
+		return w.StatusCode
+	}
+	s.Equal(http.StatusBadRequest, summaryByRegion(store.AggregateInstance))
+	s.Equal(http.StatusOK, summaryByRegion(s.tikvAddr))
 }
 
 func (s *testTopSQLSuite) TestCpuTime() {

@@ -162,6 +162,13 @@ func (s *Service) summaryHandler(c *gin.Context) {
 			})
 			return
 		}
+		if instance == store.AggregateInstance {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"status":  "error",
+				"message": "region summary is not supported for the aggregate instance",
+			})
+			return
+		}
 		items := summaryByItemP.Get()
 		defer summaryByItemP.Put(items)
 		err = s.query.SummaryBy(start, end, windowSecs, top, instance, instanceType, query.AggByRegionID, items, orderBy)

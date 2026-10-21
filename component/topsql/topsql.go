@@ -2,6 +2,7 @@ package topsql
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/pingcap/ng-monitoring/component/domain"
 	"github.com/pingcap/ng-monitoring/component/subscriber"
@@ -33,7 +34,14 @@ func Init(
 	varSub pdvariable.Subscriber,
 	metaRetentionSecs int64,
 ) (err error) {
-	defStore = store.NewDefaultStore(insertHdr, docDB, metaRetentionSecs)
+	var aggCfg *store.AggregatorConfig
+	if tc := config.GetGlobalConfig().TopSQL; tc.AggregateInstances {
+		aggCfg = &store.AggregatorConfig{
+			FlushHorizon: time.Duration(tc.AggregateFlushHorizonSecs) * time.Second,
+			MaxPoints:    tc.AggregateMaxPoints,
+		}
+	}
+	defStore = store.NewDefaultStore(insertHdr, docDB, metaRetentionSecs, aggCfg)
 	defQuery = query.NewDefaultQuery(selectHdr, docDB)
 	defSubscriber = sub.NewSubscriber(topSub, varSub, cfgSub, do, defStore)
 	defService = service.NewService(defQuery)

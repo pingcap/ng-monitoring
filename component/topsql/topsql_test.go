@@ -54,7 +54,7 @@ func (s *testTopSQLSuite) SetupSuite() {
 	database.Init(&cfg)
 	s.docDB, err = docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(s.T(), dir))
 	s.NoError(err)
-	s.ds = store.NewDefaultStore(timeseries.InsertHandler, s.docDB, 0)
+	s.ds = store.NewDefaultStore(timeseries.InsertHandler, s.docDB, 0, nil)
 	s.dq = query.NewDefaultQuery(timeseries.SelectHandler, s.docDB)
 }
 
