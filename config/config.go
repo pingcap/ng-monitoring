@@ -36,6 +36,7 @@ type Config struct {
 	Security          Security                `toml:"security" json:"security"`
 	TSDB              TSDB                    `toml:"tsdb" json:"tsdb"`
 	DocDB             docdb.BadgerConfig      `toml:"docdb" json:"docdb"`
+	TopSQL            TopSQL                  `toml:"topsql" json:"topsql"`
 }
 
 var defaultConfig = Config{
@@ -63,6 +64,11 @@ var defaultConfig = Config{
 	TSDB: TSDB{
 		RetentionPeriod:           "1", // 1 month
 		SearchMaxUniqueTimeseries: 300000,
+	},
+	TopSQL: TopSQL{
+		AggregateInstances:        false,
+		AggregateFlushHorizonSecs: 180,
+		AggregateMaxPoints:        2000000,
 	},
 	DocDB: docdb.BadgerConfig{
 		LSMOnly:                 false,
@@ -236,6 +242,23 @@ func (c *Config) valid() error {
 		return err
 	}
 
+	if err = c.TopSQL.valid(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *TopSQL) valid() error {
+	if !t.AggregateInstances {
+		return nil
+	}
+	if t.AggregateFlushHorizonSecs <= 0 {
+		return fmt.Errorf("topsql.aggregate-flush-horizon-secs must be positive, got %d", t.AggregateFlushHorizonSecs)
+	}
+	if t.AggregateMaxPoints <= 0 {
+		return fmt.Errorf("topsql.aggregate-max-points must be positive, got %d", t.AggregateMaxPoints)
+	}
 	return nil
 }
 
@@ -478,6 +501,22 @@ func (t *TSDB) valid() error {
 		}
 	}
 	return nil
+}
+
+// TopSQL holds settings for the TopSQL component.
+type TopSQL struct {
+	// AggregateInstances enables write-side pre-aggregation of TopSQL records across all
+	// instances of the same type. The sums are stored as ordinary TopSQL series with
+	// instance="*" so that `/topsql/v1/*?instance=*` serves a cluster-wide view.
+	AggregateInstances bool `toml:"aggregate-instances" json:"aggregate_instances"`
+	// AggregateFlushHorizonSecs is how long a per-second bucket is kept open for other
+	// instances' reports, measured from when its first contribution arrived, before its
+	// sum is written to the TSDB. Reports arriving later are written as extra samples.
+	AggregateFlushHorizonSecs int `toml:"aggregate-flush-horizon-secs" json:"aggregate_flush_horizon_secs"`
+	// AggregateMaxPoints caps the (series, timestamp) points held in memory, open or
+	// waiting to be written. At the cap the oldest second is written early and new
+	// points are dropped and counted until the write completes.
+	AggregateMaxPoints int `toml:"aggregate-max-points" json:"aggregate_max_points"`
 }
 
 type ContinueProfilingConfig struct {

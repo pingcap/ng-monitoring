@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -32,9 +33,12 @@ type DefaultStore struct {
 	docDB             docdb.DocDB
 	metaRetentionSecs int64
 	closeCh           chan struct{}
+	agg               *aggregator // nil when cross-instance aggregation is disabled
 }
 
-func NewDefaultStore(vminsertHandler http.HandlerFunc, docDB docdb.DocDB, metaRetentionSecs int64) *DefaultStore {
+// NewDefaultStore creates the TSDB-backed store. aggCfg == nil disables the
+// cross-instance aggregator.
+func NewDefaultStore(vminsertHandler http.HandlerFunc, docDB docdb.DocDB, metaRetentionSecs int64, aggCfg *AggregatorConfig) *DefaultStore {
 	ds := &DefaultStore{
 		vminsertHandler:   vminsertHandler,
 		docDB:             docDB,
@@ -43,6 +47,12 @@ func NewDefaultStore(vminsertHandler http.HandlerFunc, docDB docdb.DocDB, metaRe
 	}
 	if metaRetentionSecs > 0 {
 		go ds.gcLoop()
+	}
+	if aggCfg != nil {
+		ds.agg = newAggregator(*aggCfg, ds.writeTimeseriesDB)
+		ds.agg.start()
+		log.Info("topsql cross-instance aggregation enabled",
+			zap.Duration("flush-horizon", aggCfg.FlushHorizon), zap.Int("max-points", aggCfg.MaxPoints))
 	}
 	return ds
 }
@@ -56,6 +66,9 @@ func (ds *DefaultStore) Instances(items []InstanceItem) error {
 
 func (ds *DefaultStore) TopSQLRecord(instance, instanceType string, record *tipb.TopSQLRecord) error {
 	ms := topSQLProtoToMetrics(instance, instanceType, record)
+	if ds.agg != nil {
+		ds.agg.add(ms)
+	}
 	return ds.writeTimeseriesDB(ms)
 }
 
@@ -67,6 +80,9 @@ func (ds *DefaultStore) ResourceMeteringRecord(
 	ms, err := rsMeteringProtoToMetrics(instance, instanceType, record, schemaInfo)
 	if err != nil {
 		return err
+	}
+	if ds.agg != nil {
+		ds.agg.add(ms)
 	}
 	return ds.writeTimeseriesDB(ms)
 }
@@ -81,6 +97,9 @@ func (ds *DefaultStore) PlanMeta(meta *tipb.PlanMeta) error {
 
 func (ds *DefaultStore) Close() {
 	close(ds.closeCh)
+	if ds.agg != nil {
+		ds.agg.close()
+	}
 }
 
 func (ds *DefaultStore) gcLoop() {
@@ -520,7 +539,7 @@ func (ds *DefaultStore) writeTimeseriesDB(metrics []Metric) error {
 	ds.vminsertHandler(&respR, req)
 
 	if statusOK := respR.Code >= 200 && respR.Code < 300; !statusOK {
-		log.Warn("failed to write timeseries db", zap.String("error", respR.Body.String()))
+		return fmt.Errorf("failed to write timeseries db: status %d: %s", respR.Code, respR.Body.String())
 	}
 	return nil
 }
