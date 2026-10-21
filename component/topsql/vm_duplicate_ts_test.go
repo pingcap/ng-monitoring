@@ -1,6 +1,8 @@
 package topsql_test
 
 import (
+	"context"
+
 	"github.com/pingcap/ng-monitoring/component/topsql/query"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -28,7 +30,7 @@ func (s *testTopSQLSuite) TestDuplicateTimestampSamplesAreSummed() {
 
 	check := func() {
 		var res []query.SummaryItem
-		s.NoError(s.dq.Summary(int(testBaseTs), int(testBaseTs+10), 10, 5, instance, "tidb", &res, query.OrderByCPU))
+		s.NoError(s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 5, instance, "tidb", &res, query.OrderByCPU))
 		s.Require().Len(res, 1)
 		s.Equal(uint64(30), res[0].CPUTimeMs)
 		s.InDelta(2.0/11.0, res[0].ExecCountPerSec, 1e-9)
