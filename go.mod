@@ -16,9 +16,9 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/google/pprof v0.0.0-20250903194437-c28834ac2320
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/pingcap/kvproto v0.0.0-20260820070758-623e58e60fa9
+	github.com/pingcap/kvproto v0.0.0-20261014124429-4141ecadac8f
 	github.com/pingcap/log v1.1.1-0.20261007233122-0034994d1a22
-	github.com/pingcap/tidb v1.1.0-beta.0.20260213041158-f6f6d2e968e4
+	github.com/pingcap/tidb v1.1.0-beta.0.20261022132800-69d1aac23d4c
 	github.com/pingcap/tidb-dashboard v0.0.0-20230222090907-5530ca41768d
 	github.com/pingcap/tipb v0.0.0-20261006155659-59b678398b17
 	github.com/pkg/errors v0.9.1
@@ -114,7 +114,7 @@ require (
 	github.com/pingcap/errors v0.11.5-0.20260508054701-306e305bcf41 // indirect
 	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86 // indirect
 	github.com/pingcap/sysutil v1.0.1-0.20240311050922-ae81ee01f3a5 // indirect
-	github.com/pingcap/tidb/pkg/parser v0.0.0-20211011031125-9b13dc409c5e // indirect
+	github.com/pingcap/tidb/pkg/parser v0.0.0-20261022132800-69d1aac23d4c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -182,11 +182,6 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
-
-// Temporarily pin TiDB and its parser to the Go 1.27 ABI preparation in pingcap/tidb#72081.
-replace github.com/pingcap/tidb => github.com/dillon-zheng/tidb v0.0.0-20261017065457-8b21f5b35742
-
-replace github.com/pingcap/tidb/pkg/parser => github.com/dillon-zheng/tidb/pkg/parser v0.0.0-20261017065457-8b21f5b35742
 
 replace github.com/genjidb/genji/engine/badgerengine => github.com/crazycs520/genji/engine/badgerengine v0.12.1-0.20220328082424-727a2d089bde
 
