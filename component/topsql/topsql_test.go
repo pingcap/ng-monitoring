@@ -257,7 +257,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	for sqlDigest, plans := range data {
 		for planDigest, planItem := range plans {
-			var items []*tipb.TopSQLRecordItem
+			items := make([]*tipb.TopSQLRecordItem, 0, len(planItem.ts))
 			for j := range planItem.ts {
 				items = append(items, &tipb.TopSQLRecordItem{
 					TimestampSec:      planItem.ts[j],
@@ -572,7 +572,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryBy() {
 				tid, err := strconv.Atoi(strings.Split(table, "-")[1])
 				s.NoError(err)
 				tag.TableId = int64(tid)
-				var items []*rsmetering.GroupTagRecordItem
+				items := make([]*rsmetering.GroupTagRecordItem, 0, len(item.ts))
 				for i := range item.ts {
 					items = append(items, &rsmetering.GroupTagRecordItem{
 						TimestampSec: item.ts[i],
@@ -781,8 +781,8 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 				} else if typ == "index" {
 					tag.Label = tipb.ResourceGroupTagLabel_ResourceGroupTagLabelIndex.Enum()
 				}
-				var items []*rsmetering.GroupTagRecordItem
-				var tidbItems []*tipb.TopSQLRecordItem
+				items := make([]*rsmetering.GroupTagRecordItem, 0, len(plan.ts))
+				tidbItems := make([]*tipb.TopSQLRecordItem, 0, len(plan.ts))
 				for i := range plan.ts {
 					items = append(items, &rsmetering.GroupTagRecordItem{
 						TimestampSec: plan.ts[i],
@@ -1195,7 +1195,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryMergesTables() {
 		tagBytes, err := tag.Marshal()
 		s.NoError(err)
 
-		var items []*rsmetering.GroupTagRecordItem
+		items := make([]*rsmetering.GroupTagRecordItem, 0, len(cpuMs))
 		for i := range cpuMs {
 			items = append(items, &rsmetering.GroupTagRecordItem{
 				TimestampSec: testBaseTs + uint64(i)*10,

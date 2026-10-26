@@ -27,6 +27,7 @@ LDFLAGS += -X "github.com/pingcap/ng-monitoring/utils/printer.NGMGitBranch=$(GIT
 GO              := $(BUILD_GOEXPERIMENT) $(BUILD_CGO_ENABLED) GO111MODULE=on go
 GOBUILD         := $(GO) build
 GOTEST          := $(GO) test -p 8
+GOLANGCI_LINT_VERSION := 2.15.0
 
 
 
@@ -47,5 +48,9 @@ test:
 lint: tools/bin/golangci-lint
 	GO111MODULE=on tools/bin/golangci-lint run -v $$($(PACKAGE_DIRECTORIES)) --config .golangci.yml
 
+.PHONY: tools/bin/golangci-lint
 tools/bin/golangci-lint:
-	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ./tools/bin v2.4.0
+	@if ! "$@" --version 2>/dev/null | grep -qF "version $(GOLANGCI_LINT_VERSION) "; then \
+		GOBIN="$(CURDIR)/tools/bin" GOTOOLCHAIN="$$(go env GOVERSION)" \
+		$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION); \
+	fi
