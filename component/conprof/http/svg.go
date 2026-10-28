@@ -43,9 +43,9 @@ func convertToDot(p *profile.Profile) ([]byte, error) {
 		// prevent printing stdout
 		"-output", "dummy",
 		"-seconds", strconv.Itoa(int(30)),
+		// mock address
+		"127.0.0.1:10080",
 	}
-	// mock address
-	args = append(args, "127.0.0.1:10080")
 	f := &flagSet{
 		FlagSet: flag.NewFlagSet("pprof", flag.PanicOnError),
 		args:    args,
