@@ -20,9 +20,12 @@ import (
 var ErrStoreIsClosed = errors.New("storage is closed")
 
 type ProfileStorage struct {
-	closed atomic.Bool
-	ctx    context.Context
-	cancel context.CancelFunc
+	closed    atomic.Bool
+	ctx       context.Context
+	cancel    context.CancelFunc
+	gcStop    chan struct{}
+	gcDone    chan struct{}
+	closeOnce sync.Once
 	sync.Mutex
 	db          docdb.DocDB
 	metaCache   map[meta.ProfileTarget]*meta.TargetInfo
@@ -33,6 +36,8 @@ func NewProfileStorage(db docdb.DocDB) (*ProfileStorage, error) {
 	store := &ProfileStorage{
 		db:        db,
 		metaCache: make(map[meta.ProfileTarget]*meta.TargetInfo),
+		gcStop:    make(chan struct{}),
+		gcDone:    make(chan struct{}),
 	}
 	store.ctx, store.cancel = context.WithCancel(context.Background())
 	err := store.init()
@@ -40,7 +45,10 @@ func NewProfileStorage(db docdb.DocDB) (*ProfileStorage, error) {
 		return nil, err
 	}
 
-	go utils.GoWithRecovery(store.doGCLoop, nil)
+	go func() {
+		defer close(store.gcDone)
+		utils.GoWithRecovery(store.doGCLoop, nil)
+	}()
 
 	return store, nil
 }
@@ -324,13 +332,14 @@ func (s *ProfileStorage) getAllTargetsFromCache() []meta.ProfileTarget {
 }
 
 func (s *ProfileStorage) Close() {
-	if s.isClose() {
-		return
-	}
-	s.closed.Store(true)
-	if s.cancel != nil {
+	s.closeOnce.Do(func() {
+		s.closed.Store(true)
+		close(s.gcStop)
+		// Finish GC database work before canceling its context. The caller may
+		// close the database as soon as this method returns.
+		<-s.gcDone
 		s.cancel()
-	}
+	})
 }
 
 func (s *ProfileStorage) isClose() bool {
