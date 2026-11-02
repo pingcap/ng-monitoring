@@ -50,7 +50,8 @@ lint: tools/bin/golangci-lint
 
 .PHONY: tools/bin/golangci-lint
 tools/bin/golangci-lint:
-	@if ! "$@" --version 2>/dev/null | grep -qF "version $(GOLANGCI_LINT_VERSION) "; then \
-		GOBIN="$(CURDIR)/tools/bin" GOTOOLCHAIN="$$(go env GOVERSION)" \
+	@GO_TOOLCHAIN="$$(go env GOVERSION)"; \
+	if ! "$@" --version 2>/dev/null | grep -qF "version $(GOLANGCI_LINT_VERSION) built with $${GO_TOOLCHAIN} "; then \
+		GOBIN="$(CURDIR)/tools/bin" GOTOOLCHAIN="$${GO_TOOLCHAIN}" \
 		$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_LINT_VERSION); \
 	fi
