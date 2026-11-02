@@ -38,6 +38,9 @@ func TestProfileStorage(t *testing.T) {
 }
 
 func testProfileStorageGC(t *testing.T, tmpDir string, baseTs int64) {
+	originalCfg := config.GetGlobalConfig()
+	defer config.StoreGlobalConfig(originalCfg)
+
 	db, err := docdb.NewGenjiDBFromGenji(testutil.NewGenjiDB(t, tmpDir))
 	require.NoError(t, err)
 	defer db.Close()
@@ -48,7 +51,7 @@ func testProfileStorageGC(t *testing.T, tmpDir string, baseTs int64) {
 	originSize := len(storage.metaCache)
 	require.True(t, originSize > 0)
 
-	cfg := config.GetDefaultConfig()
+	cfg := originalCfg
 	cfg.ContinueProfiling.DataRetentionSeconds = -100000
 	config.StoreGlobalConfig(cfg)
 	storage.runGC()

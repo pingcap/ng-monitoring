@@ -1,6 +1,6 @@
 module github.com/pingcap/ng-monitoring
 
-go 1.25.10
+go 1.27.3
 
 require (
 	github.com/BurntSushi/toml v1.5.0
@@ -16,11 +16,11 @@ require (
 	github.com/golang/snappy v1.0.0
 	github.com/google/pprof v0.0.0-20241001023024-f4c0cfd0cf1d
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/pingcap/kvproto v0.0.0-20260302041553-bdcab1db9bef
+	github.com/pingcap/kvproto v0.0.0-20261026041219-2c5f843b9827
 	github.com/pingcap/log v1.1.1-0.20250917021125-19901e015dc9
-	github.com/pingcap/tidb v1.1.0-beta.0.20260306172441-ffe64946248c
+	github.com/pingcap/tidb v1.1.0-beta.0.20261102045021-ca7ce06e6014
 	github.com/pingcap/tidb-dashboard v0.0.0-20230222090907-5530ca41768d
-	github.com/pingcap/tipb v0.0.0-20260202031324-4ce7b6c65c98
+	github.com/pingcap/tipb v0.0.0-20260605083900-f9f651ef5fbc
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.0
 	github.com/prometheus/common v0.65.0
@@ -35,7 +35,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/net v0.48.0
+	golang.org/x/net v0.55.0
 	google.golang.org/grpc v1.79.3
 )
 
@@ -47,7 +47,6 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.12.2 // indirect
 	github.com/VictoriaMetrics/metrics v1.35.2 // indirect
 	github.com/VictoriaMetrics/metricsql v0.84.3 // indirect
-	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/bytedance/sonic v1.12.6 // indirect
@@ -61,6 +60,7 @@ require (
 	github.com/coocood/freecache v1.2.1 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect
 	github.com/danjacques/gofslock v0.0.0-20191023191349-0a45f885bc37 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgraph-io/ristretto v0.1.1 // indirect
@@ -111,7 +111,7 @@ require (
 	github.com/pingcap/errors v0.11.5-0.20250523034308-74f78ae071ee // indirect
 	github.com/pingcap/failpoint v0.0.0-20240528011301-b51a646c7c86 // indirect
 	github.com/pingcap/sysutil v1.0.1-0.20240311050922-ae81ee01f3a5 // indirect
-	github.com/pingcap/tidb/pkg/parser v0.0.0-20211011031125-9b13dc409c5e // indirect
+	github.com/pingcap/tidb/pkg/parser v0.0.0-20261102045021-ca7ce06e6014 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20221212215047-62379fc7944b // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -124,8 +124,8 @@ require (
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tiancaiamao/gp v0.0.0-20221230034425-4025bc8a4d4a // indirect
-	github.com/tikv/client-go/v2 v2.0.8-0.20260209125252-1fd09ba3ef10 // indirect
-	github.com/tikv/pd/client v0.0.0-20260122075414-848dd85011e9 // indirect
+	github.com/tikv/client-go/v2 v2.0.8-0.20260615130046-a2b634d170d9 // indirect
+	github.com/tikv/pd/client v0.0.0-20260609141937-b01426f6b08b // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
@@ -152,22 +152,22 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0 // indirect
-	go.opentelemetry.io/otel v1.39.0 // indirect
+	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.22.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.22.0 // indirect
-	go.opentelemetry.io/otel/metric v1.39.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.39.0 // indirect
-	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	go.opentelemetry.io/otel/metric v1.43.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
+	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.12.0 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20250324211829-b45e905df463 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
@@ -176,13 +176,8 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/mathutil v1.7.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
-
-replace github.com/pingcap/tidb/pkg/parser => github.com/pingcap/tidb/pkg/parser v0.0.0-20260306172441-ffe64946248c
-
-replace github.com/pingcap/kvproto => github.com/pingcap/kvproto v0.0.0-20260226023611-e75b531a1914
 
 replace github.com/genjidb/genji/engine/badgerengine => github.com/crazycs520/genji/engine/badgerengine v0.12.1-0.20220328082424-727a2d089bde
 

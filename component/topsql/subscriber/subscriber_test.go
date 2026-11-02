@@ -69,15 +69,18 @@ func TestSubscriberBasic(t *testing.T) {
 	defer ts.Close()
 
 	ts.varSubscriber <- enable
-	topo := []topology.Component{{
+	topo := make([]topology.Component, 3, 4)
+	topo[0] = topology.Component{
 		Name:       topology.ComponentTiDB,
 		IP:         ts.ip,
 		StatusPort: ts.port,
-	}, {
+	}
+	topo[1] = topology.Component{
 		Name: topology.ComponentPD,
-	}, {
+	}
+	topo[2] = topology.Component{
 		Name: topology.ComponentTiFlash,
-	}}
+	}
 	ts.topoSubscriber <- topoGetter(topo)
 	ts.checkTiDBScrape(t)
 
