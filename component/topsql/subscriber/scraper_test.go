@@ -42,6 +42,69 @@ func TestScraperTiKVBasic(t *testing.T) {
 	testScraperTiKVBasic(t, serverTLS, clientTLS)
 }
 
+// TiUP deployments use client certificates as well as server verification.
+// Check that both subscriptions resume after an mTLS server restarts.
+func TestScraperMutualTLSRestart(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS, err := testutil.SetupCert()
+	require.NoError(t, err)
+	serverTLS.ClientAuth = tls.RequireAndVerifyClientCert
+	serverTLS.ClientCAs = clientTLS.RootCAs
+	clientTLS.Certificates = serverTLS.Certificates
+
+	for _, name := range []string{topology.ComponentTiDB, topology.ComponentTiKV} {
+		t.Run(name, func(t *testing.T) {
+			store := mock.NewMemStore()
+			defer store.Close()
+
+			pubsub := mock.NewMockPubSub()
+			ip, port, err := pubsub.Listen("127.0.0.1:0", serverTLS)
+			require.NoError(t, err)
+			go pubsub.Serve()
+			t.Cleanup(pubsub.Stop)
+
+			component := topology.Component{Name: name, IP: ip, Port: port, StatusPort: port}
+			scraper := subscriber.NewScraper(context.Background(), nil, component, store, clientTLS)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				scraper.Run()
+			}()
+			defer func() {
+				scraper.Close()
+				select {
+				case <-done:
+				case <-time.After(5 * time.Second):
+					t.Error("scraper did not stop after cancellation")
+				}
+			}()
+
+			addr := fmt.Sprintf("%s:%d", ip, port)
+			check := checkTiDBScrape
+			if name == topology.ComponentTiKV {
+				check = checkTiKVScrape
+			}
+			check(t, addr, pubsub, store)
+			pubsub.Stop()
+			// Require fresh records and metadata from the new connection.
+			store.Lock()
+			clear(store.TopSQLRecords)
+			clear(store.ResourceMeteringRecords)
+			clear(store.SQLMetas)
+			clear(store.PlanMetas)
+			store.Unlock()
+
+			pubsub = mock.NewMockPubSub()
+			_, _, err = pubsub.Listen(addr, serverTLS)
+			require.NoError(t, err)
+			go pubsub.Serve()
+			t.Cleanup(pubsub.Stop)
+			check(t, addr, pubsub, store)
+		})
+	}
+}
+
 func testScraperTiDBBasic(t *testing.T, serverTLS *tls.Config, clientTLS *tls.Config) {
 	store := mock.NewMemStore()
 	defer store.Close()
