@@ -21,15 +21,21 @@ func (s *ProfileStorage) doGCLoop() {
 	s.runGC()
 	for {
 		select {
-		case <-s.ctx.Done():
+		case <-s.gcStop:
 			return
 		case <-ticker.C:
+			if s.isClose() {
+				return
+			}
 			s.runGC()
 		}
 	}
 }
 
 func (s *ProfileStorage) runGC() {
+	if s.isClose() {
+		return
+	}
 	start := time.Now()
 	allTargets, allInfos, err := s.loadAllTargetsFromTable()
 	if err != nil {
@@ -38,6 +44,9 @@ func (s *ProfileStorage) runGC() {
 	}
 	safePointTs := s.getLastSafePointTs()
 	for i, target := range allTargets {
+		if s.isClose() {
+			return
+		}
 		info := allInfos[i]
 		err := s.db.ConprofDeleteProfileDataBeforeTs(s.ctx, info.ID, safePointTs)
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -199,6 +200,142 @@ func TestStoreProfileStatus(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+type blockingGCDocDB struct {
+	docdb.DocDB
+	calls     atomic.Int32
+	gcStarted chan context.Context
+	allowGC   chan struct{}
+}
+
+func (d *blockingGCDocDB) ConprofQueryAllProfileTargets(ctx context.Context, _ func(meta.ProfileTarget, meta.TargetInfo) error) error {
+	if d.calls.Add(1) == 1 {
+		return nil
+	}
+	d.gcStarted <- ctx
+	<-d.allowGC
+	return nil
+}
+
+func TestProfileStorageCloseWaitsForGC(t *testing.T) {
+	db := &blockingGCDocDB{
+		gcStarted: make(chan context.Context, 1),
+		allowGC:   make(chan struct{}),
+	}
+	defer func() {
+		select {
+		case <-db.allowGC:
+		default:
+			close(db.allowGC)
+		}
+	}()
+
+	storage, err := NewProfileStorage(db)
+	require.NoError(t, err)
+	var gcCtx context.Context
+	select {
+	case gcCtx = <-db.gcStarted:
+	case <-time.After(time.Second):
+		t.Fatal("background GC did not start")
+	}
+
+	closed := make(chan struct{})
+	go func() {
+		storage.Close()
+		close(closed)
+	}()
+	require.Eventually(t, storage.isClose, time.Second, time.Millisecond)
+	require.NoError(t, gcCtx.Err())
+	select {
+	case <-closed:
+		t.Fatal("storage closed before background GC finished")
+	default:
+	}
+
+	close(db.allowGC)
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("storage did not close after background GC finished")
+	}
+	require.ErrorIs(t, gcCtx.Err(), context.Canceled)
+}
+
+type stoppingGCDocDB struct {
+	docdb.DocDB
+	calls        atomic.Int32
+	firstStarted chan struct{}
+	allowFirst   chan struct{}
+	deleted      chan int64
+}
+
+func (d *stoppingGCDocDB) ConprofQueryAllProfileTargets(_ context.Context, f func(meta.ProfileTarget, meta.TargetInfo) error) error {
+	if d.calls.Add(1) == 1 {
+		return nil
+	}
+	for id, address := range []string{"first", "second"} {
+		if err := f(meta.ProfileTarget{Address: address}, meta.TargetInfo{ID: int64(id + 1), LastScrapeTs: 1 << 62}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *stoppingGCDocDB) ConprofDeleteProfileDataBeforeTs(_ context.Context, id, _ int64) error {
+	d.deleted <- id
+	if id == 1 {
+		close(d.firstStarted)
+		<-d.allowFirst
+	}
+	return nil
+}
+
+func (d *stoppingGCDocDB) ConprofDeleteProfileMetaBeforeTs(context.Context, int64, int64) error {
+	return nil
+}
+
+func TestProfileStorageCloseStopsRemainingGC(t *testing.T) {
+	db := &stoppingGCDocDB{
+		firstStarted: make(chan struct{}),
+		allowFirst:   make(chan struct{}),
+		deleted:      make(chan int64, 2),
+	}
+	storage, err := NewProfileStorage(db)
+	require.NoError(t, err)
+	defer func() {
+		select {
+		case <-db.allowFirst:
+		default:
+			close(db.allowFirst)
+		}
+		storage.Close()
+	}()
+
+	select {
+	case <-db.firstStarted:
+	case <-time.After(time.Second):
+		t.Fatal("background GC did not reach the first target")
+	}
+
+	closed := make(chan struct{})
+	go func() {
+		storage.Close()
+		close(closed)
+	}()
+	require.Eventually(t, storage.isClose, time.Second, time.Millisecond)
+	close(db.allowFirst)
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("storage did not close after the current target finished")
+	}
+	require.Equal(t, int64(1), <-db.deleted)
+	select {
+	case id := <-db.deleted:
+		t.Fatalf("GC continued to target %d after storage closed", id)
+	default:
+	}
 }
 
 func TestGenjiDBAddColumn(t *testing.T) {
