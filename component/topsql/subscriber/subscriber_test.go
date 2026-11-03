@@ -1,6 +1,7 @@
 package subscriber_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -131,7 +132,9 @@ func TestSubscriberTopoChange(t *testing.T) {
 	ts.checkTiKVScrape(t)
 
 	// tidb component is out
-	ts.service.AccessTiDBStream(func(s tipb.TopSQLPubSub_SubscribeServer) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, ts.service.AccessTiDBStream(ctx, func(s tipb.TopSQLPubSub_SubscribeServer) error {
 		retry := 0
 		for {
 			err := s.Send(&tipb.TopSQLSubResponse{})
@@ -145,7 +148,7 @@ func TestSubscriberTopoChange(t *testing.T) {
 			retry += 1
 			time.Sleep(10 * time.Millisecond)
 		}
-	})
+	}))
 	ts.topoSubscriber <- topoGetter(topo[1:])
 }
 
@@ -165,7 +168,9 @@ func TestSubscriberDisable(t *testing.T) {
 	ts.checkTiDBScrape(t)
 
 	// disable
-	ts.service.AccessTiDBStream(func(s tipb.TopSQLPubSub_SubscribeServer) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, ts.service.AccessTiDBStream(ctx, func(s tipb.TopSQLPubSub_SubscribeServer) error {
 		retry := 0
 		for {
 			err := s.Send(&tipb.TopSQLSubResponse{})
@@ -179,7 +184,7 @@ func TestSubscriberDisable(t *testing.T) {
 			retry += 1
 			time.Sleep(10 * time.Millisecond)
 		}
-	})
+	}))
 	ts.varSubscriber <- disable
 }
 

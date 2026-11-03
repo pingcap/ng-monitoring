@@ -72,12 +72,30 @@ func (s *MockPubSub) Serve() error {
 	return s.server.Serve(s.listener)
 }
 
-func (s *MockPubSub) AccessTiDBStream(fn func(_ tipb.TopSQLPubSub_SubscribeServer) error) {
-	s.tidbAccessor <- fn
+// AccessTiDBStream waits for a subscription to receive fn, or for ctx or the
+// server to be canceled. It does not wait for fn to finish.
+func (s *MockPubSub) AccessTiDBStream(ctx context.Context, fn func(_ tipb.TopSQLPubSub_SubscribeServer) error) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	case s.tidbAccessor <- fn:
+		return nil
+	}
 }
 
-func (s *MockPubSub) AccessTiKVStream(fn func(_ rua.ResourceMeteringPubSub_SubscribeServer) error) {
-	s.tikvAccessor <- fn
+// AccessTiKVStream waits for a subscription to receive fn, or for ctx or the
+// server to be canceled. It does not wait for fn to finish.
+func (s *MockPubSub) AccessTiKVStream(ctx context.Context, fn func(_ rua.ResourceMeteringPubSub_SubscribeServer) error) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	case s.tikvAccessor <- fn:
+		return nil
+	}
 }
 
 func (s *MockPubSub) Stop() {

@@ -253,6 +253,10 @@ func TestScraperTiKVRestart(t *testing.T) {
 }
 
 func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *mock.MemStore) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	rand.Seed(time.Now().Unix())
 	tsSec := rand.Uint64()
 	cpuTimeMs := rand.Uint32()
@@ -262,7 +266,7 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	planDigest := fmt.Sprintf("mock_plan_digest_%d", meta)
 	planText := fmt.Sprintf("mock__normalized_plan_%d", meta)
 
-	pubsub.AccessTiDBStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
+	require.NoError(t, pubsub.AccessTiDBStream(ctx, func(stream tipb.TopSQLPubSub_SubscribeServer) error {
 		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
 			Record: &tipb.TopSQLRecord{
 				SqlDigest:  []byte(sqlDigest),
@@ -285,7 +289,7 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 			},
 		}}))
 		return nil
-	})
+	}))
 
 	require.True(t, store.Pred(func(store *mock.MemStore) bool {
 		if _, ok := store.TopSQLRecords[addr]; !ok {
@@ -320,6 +324,10 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 }
 
 func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *mock.MemStore) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	rand.Seed(time.Now().Unix())
 	tsSec := rand.Uint64()
 	cpuMs := rand.Uint32()
@@ -327,7 +335,7 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	wtKeys := rand.Uint32()
 	tag := fmt.Sprintf("mock_resource_group_tag_%d", rand.Int())
 
-	pubsub.AccessTiKVStream(func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
+	require.NoError(t, pubsub.AccessTiKVStream(ctx, func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
 		return stream.Send(&rua.ResourceUsageRecord{
 			RecordOneof: &rua.ResourceUsageRecord_Record{
 				Record: &rua.GroupTagRecord{
@@ -341,7 +349,7 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 				},
 			},
 		})
-	})
+	}))
 
 	require.True(t, store.Pred(func(store *mock.MemStore) bool {
 		if _, ok := store.ResourceMeteringRecords[addr]; !ok {
