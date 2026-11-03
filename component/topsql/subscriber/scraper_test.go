@@ -42,6 +42,69 @@ func TestScraperTiKVBasic(t *testing.T) {
 	testScraperTiKVBasic(t, serverTLS, clientTLS)
 }
 
+// TiUP deployments use client certificates as well as server verification.
+// Check that both subscriptions resume after an mTLS server restarts.
+func TestScraperMutualTLSRestart(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS, err := testutil.SetupCert()
+	require.NoError(t, err)
+	serverTLS.ClientAuth = tls.RequireAndVerifyClientCert
+	serverTLS.ClientCAs = clientTLS.RootCAs
+	clientTLS.Certificates = serverTLS.Certificates
+
+	for _, name := range []string{topology.ComponentTiDB, topology.ComponentTiKV} {
+		t.Run(name, func(t *testing.T) {
+			store := mock.NewMemStore()
+			defer store.Close()
+
+			pubsub := mock.NewMockPubSub()
+			ip, port, err := pubsub.Listen("127.0.0.1:0", serverTLS)
+			require.NoError(t, err)
+			go pubsub.Serve()
+			t.Cleanup(pubsub.Stop)
+
+			component := topology.Component{Name: name, IP: ip, Port: port, StatusPort: port}
+			scraper := subscriber.NewScraper(context.Background(), nil, component, store, clientTLS)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				scraper.Run()
+			}()
+			defer func() {
+				scraper.Close()
+				select {
+				case <-done:
+				case <-time.After(5 * time.Second):
+					t.Error("scraper did not stop after cancellation")
+				}
+			}()
+
+			addr := fmt.Sprintf("%s:%d", ip, port)
+			check := checkTiDBScrape
+			if name == topology.ComponentTiKV {
+				check = checkTiKVScrape
+			}
+			check(t, addr, pubsub, store)
+			pubsub.Stop()
+			// Require fresh records and metadata from the new connection.
+			store.Lock()
+			clear(store.TopSQLRecords)
+			clear(store.ResourceMeteringRecords)
+			clear(store.SQLMetas)
+			clear(store.PlanMetas)
+			store.Unlock()
+
+			pubsub = mock.NewMockPubSub()
+			_, _, err = pubsub.Listen(addr, serverTLS)
+			require.NoError(t, err)
+			go pubsub.Serve()
+			t.Cleanup(pubsub.Stop)
+			check(t, addr, pubsub, store)
+		})
+	}
+}
+
 func testScraperTiDBBasic(t *testing.T, serverTLS *tls.Config, clientTLS *tls.Config) {
 	store := mock.NewMemStore()
 	defer store.Close()
@@ -190,6 +253,10 @@ func TestScraperTiKVRestart(t *testing.T) {
 }
 
 func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *mock.MemStore) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	rand.Seed(time.Now().Unix())
 	tsSec := rand.Uint64()
 	cpuTimeMs := rand.Uint32()
@@ -199,7 +266,7 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	planDigest := fmt.Sprintf("mock_plan_digest_%d", meta)
 	planText := fmt.Sprintf("mock__normalized_plan_%d", meta)
 
-	pubsub.AccessTiDBStream(func(stream tipb.TopSQLPubSub_SubscribeServer) error {
+	require.NoError(t, pubsub.AccessTiDBStream(ctx, func(stream tipb.TopSQLPubSub_SubscribeServer) error {
 		require.NoError(t, stream.Send(&tipb.TopSQLSubResponse{RespOneof: &tipb.TopSQLSubResponse_Record{
 			Record: &tipb.TopSQLRecord{
 				SqlDigest:  []byte(sqlDigest),
@@ -222,7 +289,7 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 			},
 		}}))
 		return nil
-	})
+	}))
 
 	require.True(t, store.Pred(func(store *mock.MemStore) bool {
 		if _, ok := store.TopSQLRecords[addr]; !ok {
@@ -257,6 +324,10 @@ func checkTiDBScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 }
 
 func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *mock.MemStore) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	rand.Seed(time.Now().Unix())
 	tsSec := rand.Uint64()
 	cpuMs := rand.Uint32()
@@ -264,7 +335,7 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 	wtKeys := rand.Uint32()
 	tag := fmt.Sprintf("mock_resource_group_tag_%d", rand.Int())
 
-	pubsub.AccessTiKVStream(func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
+	require.NoError(t, pubsub.AccessTiKVStream(ctx, func(stream rua.ResourceMeteringPubSub_SubscribeServer) error {
 		return stream.Send(&rua.ResourceUsageRecord{
 			RecordOneof: &rua.ResourceUsageRecord_Record{
 				Record: &rua.GroupTagRecord{
@@ -278,7 +349,7 @@ func checkTiKVScrape(t *testing.T, addr string, pubsub *mock.MockPubSub, store *
 				},
 			},
 		})
-	})
+	}))
 
 	require.True(t, store.Pred(func(store *mock.MemStore) bool {
 		if _, ok := store.ResourceMeteringRecords[addr]; !ok {
