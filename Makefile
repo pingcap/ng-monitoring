@@ -1,5 +1,5 @@
 PACKAGE_LIST  := go list ./...| grep -E "github.com/pingcap/ng-monitoring/"
-PACKAGE_LIST_TESTS  := go list ./... | grep -E "github.com/pingcap/ng-monitoring/"
+PACKAGE_LIST_TESTS  := go list -f '{{if or (gt (len .TestGoFiles) 0) (gt (len .XTestGoFiles) 0)}}{{.ImportPath}}{{end}}' ./... | grep -E "github.com/pingcap/ng-monitoring/"
 PACKAGES  ?= $$($(PACKAGE_LIST))
 PACKAGES_TESTS ?= $$($(PACKAGE_LIST_TESTS))
 PACKAGE_DIRECTORIES := $(PACKAGE_LIST) | sed 's|github.com/pingcap/ng-monitoring/||'
@@ -48,4 +48,4 @@ lint: tools/bin/golangci-lint
 	GO111MODULE=on tools/bin/golangci-lint run -v $$($(PACKAGE_DIRECTORIES)) --config .golangci.yml
 
 tools/bin/golangci-lint:
-	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ./tools/bin v1.64.5
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ./tools/bin v2.4.0
