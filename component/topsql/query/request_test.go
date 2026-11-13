@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -183,4 +184,20 @@ func TestNegativeOtherDifferenceFailsQuery(t *testing.T) {
 // Keep the label length the same as the store's hex-encoded SHA-256 digest.
 func digestLabel(i int) string {
 	return fmt.Sprintf("%064x", i)
+}
+
+func TestSubtractSelectedTotalRounding(t *testing.T) {
+	// Integer metrics are exact below 2^53. Above it, the VM total and the
+	// Go sum of selected results can round differently.
+	const total = float64(1 << 53)
+	selected := math.Nextafter(total, math.Inf(1))
+	other, err := subtractSelectedTotal(total, selected)
+	require.NoError(t, err)
+	require.Zero(t, other)
+
+	_, err = subtractSelectedTotal(total, total+64)
+	require.ErrorContains(t, err, "total is smaller than selected")
+
+	_, err = subtractSelectedTotal(9, 10)
+	require.ErrorContains(t, err, "total is smaller than selected")
 }

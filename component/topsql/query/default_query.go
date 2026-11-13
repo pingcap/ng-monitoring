@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -982,12 +983,19 @@ func subtractTopFromTotal(totalSeries recordsMetricRespDataResult, top []records
 	return values, nil
 }
 
-// subtractSelectedTotal rejects a negative Other instead of hiding inconsistent
-// reads by clamping it. Otherwise curve parsing silently drops negative points
-// and auxiliary statistics can expose negative rates in a successful response.
+// subtractSelectedTotal rejects negative Other beyond a small rounding allowance.
 func subtractSelectedTotal(total, selected float64) (float64, error) {
 	other := total - selected
 	if other < 0 {
+		// Top SQL samples are nonnegative integers. Sums below 2^53 are exact.
+		// Above that boundary, allow up to four representable steps for rounding
+		// differences between VictoriaMetrics and Go's aggregation order.
+		if selected >= 1<<53 && !math.IsInf(selected, 0) {
+			ulp := selected - math.Nextafter(selected, 0)
+			if -other <= 4*ulp {
+				return 0, nil
+			}
+		}
 		return 0, fmt.Errorf("inconsistent Top SQL aggregates: total is smaller than selected (%g < %g)", total, selected)
 	}
 	return other, nil
