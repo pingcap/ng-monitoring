@@ -1,6 +1,7 @@
 package topsql_test
 
 import (
+	"context"
 	"encoding/hex"
 	"os"
 	"sort"
@@ -277,7 +278,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// normal case
 	var res []query.SummaryItem
-	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -333,7 +334,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// top 1
 	res = nil
-	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 1, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -370,13 +371,13 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// no data
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.Equal(len(res), 0)
 
 	// one point
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 40}
@@ -432,7 +433,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 
 	// two points
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, instanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
@@ -763,7 +764,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// normal case
 	var res []query.SummaryItem
-	err := s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
+	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList := []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -828,7 +829,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// top 1
 	res = nil
-	err = s.dq.Summary(int(testBaseTs), int(testBaseTs+40), 10, 1, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+40), 10, 1, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 0, testBaseTs + 10, testBaseTs + 20, testBaseTs + 30, testBaseTs + 40}
@@ -907,13 +908,13 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// no data
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+41), int(testBaseTs+100), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.Equal(len(res), 0)
 
 	// one point
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+40), int(testBaseTs+40), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 40}
@@ -991,7 +992,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 
 	// two points
 	res = nil
-	err = s.dq.Summary(int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, tikvInstanceType, &res)
+	err = s.dq.Summary(context.Background(), int(testBaseTs+19), int(testBaseTs+32), 10, 5, instance, tikvInstanceType, &res)
 	s.NoError(err)
 	s.sortSummary(res)
 	tsList = []uint64{testBaseTs + 22, testBaseTs + 32}
