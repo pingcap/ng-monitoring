@@ -34,27 +34,15 @@ var (
 )
 
 const (
+	// Keep complete expressions below the embedded TSDB query length limit.
+	maxTSDBQueryBytes = 15 * 1024
+
 	// AggLevelQuery is the query level aggregation
 	AggLevelQuery = "query"
 	// AggLevelTable is the table level aggregation
 	AggLevelTable = "table"
 	// AggLevelDB is the db level aggregation
 	AggLevelDB = "db"
-<<<<<<< HEAD
-=======
-	// AggLevelRegion is the region level aggregation (request parameter value)
-	AggLevelRegion = "region"
-
-	// AggByRegionID is the label key for region aggregation in timeseries DB.
-	AggByRegionID = "region_id"
-
-	// maxTSDBQueryBytes keeps every assembled TSDB query below VictoriaMetrics'
-	// -search.maxQueryLen (default 16 KiB); longer queries are rejected with a 422,
-	// which the summary handler reports as a 503. Composite metrics repeat the digest
-	// matcher several times, so the fully
-	// assembled query, not the matcher alone, is what must stay within the budget.
-	maxTSDBQueryBytes = 15 * 1024
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 )
 
 type DefaultQuery struct {
@@ -106,11 +94,7 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
 	var recordsResponse recordsMetricRespV2
-<<<<<<< HEAD
 	if err := dq.fetchRecordsFromTSDBBy(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, aggBy, top, &recordsResponse); err != nil {
-=======
-	if err := dq.fetchQueryRange(context.Background(), queryStr, alignStartSecs, endSecs, windowSecs, &recordsResponse); err != nil {
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 		return err
 	}
 	if len(recordsResponse.Data.Results) == 0 {
@@ -147,17 +131,13 @@ func (dq *DefaultQuery) SummaryBy(startSecs, endSecs, windowSecs, top int, insta
 	return nil
 }
 
-<<<<<<< HEAD
-func (dq *DefaultQuery) Summary(startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
-=======
-func (dq *DefaultQuery) Summary(ctx context.Context, startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem, orderBy string) error {
+func (dq *DefaultQuery) Summary(ctx context.Context, startSecs, endSecs, windowSecs, top int, instance, instanceType string, fill *[]SummaryItem) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if windowSecs <= 0 {
 		return fmt.Errorf("window must be greater than 0")
 	}
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 	if startSecs > endSecs {
 		return nil
 	}
@@ -165,47 +145,14 @@ func (dq *DefaultQuery) Summary(ctx context.Context, startSecs, endSecs, windowS
 	// adjust start to make result align to end
 	alignStartSecs := endSecs - (endSecs-startSecs)/windowSecs*windowSecs
 
-<<<<<<< HEAD
-	var recordsResponse recordsMetricResp
-	if err := dq.fetchRecordsFromTSDB(store.MetricNameCPUTime, alignStartSecs, endSecs, windowSecs, instance, instanceType, &recordsResponse); err != nil {
-		return err
-	}
-	if len(recordsResponse.Data.Results) == 0 {
-		return nil
-=======
-	orderBy = NormalizeOrderBy(orderBy)
-
-	fillName := store.MetricNameCPUTime
-	switch orderBy {
-	case "", OrderByCPU:
-		// already set
-	case OrderByNetwork:
-		fillName = metricNameNetworkBytes
-	case OrderByLogicalIO:
-		fillName = metricNameLogicalIoBytes
-	case OrderByLogicalRead:
-		fillName = store.MetricNameLogicalReadBytes
-	case OrderByLogicalWrite:
-		fillName = store.MetricNameLogicalWriteBytes
-	case OrderByBlockRead:
-		fillName = store.MetricNameRocksdbBlockReadCount
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
-	}
-
 	sqlGroups := sqlGroupSliceP.Get()
 	defer sqlGroupSliceP.Put(sqlGroups)
 
-<<<<<<< HEAD
-	if err := dq.fillText(store.MetricNameCPUTime, sqlGroups, func(item RecordItem) {
-=======
 	var topDigests []string
 	if top <= 0 {
 		// Every digest is returned, but tables must still be summed into one
 		// SQL/plan series so a curve never contains duplicate timestamps.
-		queryStr, err := buildOrderBySummaryQuery(orderBy, windowSecs, instance, instanceType)
-		if err != nil {
-			return err
-		}
+		queryStr := buildCPUSummaryQuery(windowSecs, summarySelector(instance, instanceType, ""), "sql_digest, plan_digest")
 		var recordsResponse recordsMetricResp
 		if err := dq.fetchQueryRange(ctx, queryStr, alignStartSecs, endSecs, windowSecs, &recordsResponse); err != nil {
 			return err
@@ -219,11 +166,11 @@ func (dq *DefaultQuery) Summary(ctx context.Context, startSecs, endSecs, windowS
 		// aggregated "others" series. Returning every digest's series to rank them here is
 		// what makes this endpoint slow on instances with many digests.
 		var err error
-		topDigests, err = dq.fetchTopSQLDigests(ctx, orderBy, alignStartSecs, endSecs, windowSecs, top, instance, instanceType)
+		topDigests, err = dq.fetchTopSQLDigests(ctx, alignStartSecs, endSecs, windowSecs, top, instance, instanceType)
 		if err != nil {
 			return err
 		}
-		results, err := dq.fetchTopSummarySeries(ctx, orderBy, alignStartSecs, endSecs, windowSecs, instance, instanceType, topDigests)
+		results, err := dq.fetchTopSummarySeries(ctx, alignStartSecs, endSecs, windowSecs, instance, instanceType, topDigests)
 		if err != nil {
 			return err
 		}
@@ -237,8 +184,7 @@ func (dq *DefaultQuery) Summary(ctx context.Context, startSecs, endSecs, windowS
 		}
 	}
 
-	if err := dq.fillText(ctx, fillName, sqlGroups, func(item RecordItem) {
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
+	if err := dq.fillText(ctx, store.MetricNameCPUTime, sqlGroups, func(item RecordItem) {
 		sumItem := SummaryItem{
 			SQLDigest: item.SQLDigest,
 			SQLText:   item.SQLText,
@@ -263,141 +209,7 @@ func (dq *DefaultQuery) Summary(ctx context.Context, startSecs, endSecs, windowS
 		return err
 	}
 
-<<<<<<< HEAD
-	// rangeSecs never to be 0 because startSecs <= endSecs
-	rangeSecs := float64(endSecs - startSecs + 1)
-
-	sumDurationMap := sumMapP.Get()
-	defer sumMapP.Put(sumDurationMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationSum, startSecs, endSecs, instance, instanceType, sumDurationMap); err != nil {
-		return err
-	}
-
-	sumDurationCountMap := sumMapP.Get()
-	defer sumMapP.Put(sumDurationCountMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameSQLDurationCount, startSecs, endSecs, instance, instanceType, sumDurationCountMap); err != nil {
-		return err
-	}
-
-	sumExecMap := sumMapP.Get()
-	defer sumMapP.Put(sumExecMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameSQLExecCount, startSecs, endSecs, instance, instanceType, sumExecMap); err != nil {
-		return err
-	}
-
-	sumReadRowMap := sumMapP.Get()
-	defer sumMapP.Put(sumReadRowMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameReadRow, startSecs, endSecs, instance, instanceType, sumReadRowMap); err != nil {
-		return err
-	}
-
-	sumReadIndexMap := sumMapP.Get()
-	defer sumMapP.Put(sumReadIndexMap)
-	if err := dq.fetchSumFromTSDB(store.MetricNameReadIndex, startSecs, endSecs, instance, instanceType, sumReadIndexMap); err != nil {
-		return err
-	}
-
-	var othersItem *SummaryItem
-	for i, item := range *fill {
-		if item.IsOther {
-			// don't know how it can happen, but we'd better be pessimists
-			if len(item.Plans) == 0 {
-				item.Plans = append(item.Plans, SummaryPlanItem{})
-			}
-
-			othersItem = &(*fill)[i]
-			continue
-		}
-
-		overallDurationNs := 0.0
-		overallDurationCount := 0.0
-		overallExecCount := 0.0
-		overallReadRows := 0.0
-		overallReadIndexes := 0.0
-		for i, p := range item.Plans {
-			durationNs := sumDurationMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumDurationMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			durationCount := sumDurationCountMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumDurationCountMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			execCount := sumExecMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumExecMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			readRow := sumReadRowMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumReadRowMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-			readIndex := sumReadIndexMap[RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest}]
-			delete(sumReadIndexMap, RecordKey{SQLDigest: item.SQLDigest, PlanDigest: p.PlanDigest})
-
-			if durationCount == 0.0 {
-				item.Plans[i].DurationPerExecMs = 0
-			} else {
-				item.Plans[i].DurationPerExecMs = durationNs / 1000000.0 / durationCount
-			}
-			item.Plans[i].ExecCountPerSec = execCount / rangeSecs
-			item.Plans[i].ScanRecordsPerSec = readRow / rangeSecs
-			item.Plans[i].ScanIndexesPerSec = readIndex / rangeSecs
-
-			overallDurationNs += durationNs
-			overallDurationCount += durationCount
-			overallExecCount += execCount
-			overallReadRows += readRow
-			overallReadIndexes += readIndex
-		}
-
-		if overallDurationCount == 0.0 {
-			(*fill)[i].DurationPerExecMs = 0
-		} else {
-			(*fill)[i].DurationPerExecMs = overallDurationNs / 1000000.0 / overallDurationCount
-		}
-		(*fill)[i].ExecCountPerSec = overallExecCount / rangeSecs
-		(*fill)[i].ScanRecordsPerSec = overallReadRows / rangeSecs
-		(*fill)[i].ScanIndexesPerSec = overallReadIndexes / rangeSecs
-	}
-
-	if othersItem != nil {
-		planItem := &(*othersItem).Plans[0]
-
-		othersDurationNs := 0.0
-		othersDurationCount := 0.0
-		othersExecCount := 0.0
-		othersReadRow := 0.0
-		othersReadIndex := 0.0
-		for _, s := range sumDurationMap {
-			othersDurationNs += s
-		}
-		for _, s := range sumDurationCountMap {
-			othersDurationCount += s
-		}
-		for _, s := range sumExecMap {
-			othersExecCount += s
-		}
-		for _, s := range sumReadRowMap {
-			othersReadRow += s
-		}
-		for _, s := range sumReadIndexMap {
-			othersReadIndex += s
-		}
-
-		if othersDurationCount == 0.0 {
-			othersItem.DurationPerExecMs = 0
-			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
-		} else {
-			othersItem.DurationPerExecMs = othersDurationNs / 1000000.0 / othersDurationCount
-			planItem.DurationPerExecMs = othersItem.DurationPerExecMs
-		}
-
-		othersItem.ExecCountPerSec = othersExecCount / rangeSecs
-		planItem.ExecCountPerSec = othersItem.ExecCountPerSec
-
-		othersItem.ScanRecordsPerSec = othersReadRow / rangeSecs
-		planItem.ScanRecordsPerSec = othersItem.ScanRecordsPerSec
-
-		othersItem.ScanIndexesPerSec = othersReadIndex / rangeSecs
-		planItem.ScanIndexesPerSec = othersItem.ScanIndexesPerSec
-	}
-
-	return nil
-=======
 	return dq.fillSummaryExtraFields(ctx, startSecs, endSecs, instance, instanceType, topDigests, top > 0, fill)
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 }
 
 func (dq *DefaultQuery) Instances(startSecs, endSecs int, fill *[]InstanceItem) error {
@@ -422,8 +234,6 @@ type sqlGroup struct {
 }
 
 func (dq *DefaultQuery) fetchRecordsFromTSDB(name string, startSecs int, endSecs int, windowSecs int, instance, instanceType string, metricResponse *recordsMetricResp) error {
-<<<<<<< HEAD
-=======
 	queryStr := fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", name, instance, instanceType, windowSecs)
 	return dq.fetchQueryRange(context.Background(), queryStr, startSecs, endSecs, windowSecs, metricResponse)
 }
@@ -447,7 +257,6 @@ func (dq *DefaultQuery) fetchQuery(ctx context.Context, path string, params url.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 	if dq.vmselectHandler == nil {
 		return fmt.Errorf("empty query handler")
 	}
@@ -464,17 +273,7 @@ func (dq *DefaultQuery) fetchQuery(ctx context.Context, path string, params url.
 	if err != nil {
 		return err
 	}
-<<<<<<< HEAD
-	reqQuery := req.URL.Query()
-	reqQuery.Set("query", fmt.Sprintf("sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])", name, instance, instanceType, windowSecs))
-	reqQuery.Set("start", strconv.Itoa(startSecs))
-	reqQuery.Set("end", strconv.Itoa(endSecs))
-	reqQuery.Set("step", strconv.Itoa(windowSecs))
-	reqQuery.Set("nocache", "1")
-	req.URL.RawQuery = reqQuery.Encode()
-=======
 	req.URL.RawQuery = params.Encode()
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 	req.Header.Set("Accept", "application/json")
 
 	bufResp := bytesP.Get()
@@ -493,8 +292,10 @@ func (dq *DefaultQuery) fetchQuery(ctx context.Context, path string, params url.
 		log.Warn("failed to fetch timeseries db", zap.String("error", errStr))
 		return errors.New(errStr)
 	}
-<<<<<<< HEAD
-	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
+	if err := json.Unmarshal(resp.Body.Bytes(), target); err != nil {
+		return err
+	}
+	return ctx.Err()
 }
 
 func (dq *DefaultQuery) fetchRecordsFromTSDBBy(name string, startSecs int, endSecs int, windowSecs int, instance, instanceType, by string, top int, metricResponse *recordsMetricRespV2) error {
@@ -530,12 +331,6 @@ func (dq *DefaultQuery) fetchRecordsFromTSDBBy(name string, startSecs int, endSe
 		return errors.New(errStr)
 	}
 	return json.Unmarshal(respR.Body.Bytes(), metricResponse)
-=======
-	if err := json.Unmarshal(resp.Body.Bytes(), target); err != nil {
-		return err
-	}
-	return ctx.Err()
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))
 }
 
 func (dq *DefaultQuery) fetchInstancesFromTSDB(startSecs, endSecs int, fill *[]InstanceItem) error {
@@ -609,20 +404,17 @@ func (dq *DefaultQuery) fetchInstantQuery(ctx context.Context, queryStr string, 
 	return dq.fetchQuery(ctx, "/api/v1/query", params, metricResponse)
 }
 
-// fetchTopSQLDigests returns the top SQL digests ranked by the orderBy metric summed over
+// fetchTopSQLDigests returns the top SQL digests ranked by CPU usage summed over
 // the points a range query on [alignStartSecs, endSecs] with step windowSecs would cover.
 // The ranking runs inside the TSDB so that only `top` series are returned.
 // The selection is fixed for this request. Ranking and later queries do not share
 // a read snapshot: late samples can change curves without re-ranking the selection.
-func (dq *DefaultQuery) fetchTopSQLDigests(ctx context.Context, orderBy string, alignStartSecs, endSecs, windowSecs, top int, instance, instanceType string) ([]string, error) {
+func (dq *DefaultQuery) fetchTopSQLDigests(ctx context.Context, alignStartSecs, endSecs, windowSecs, top int, instance, instanceType string) ([]string, error) {
 	// Each range point at t sums (t-windowSecs, t], so all points together cover
 	// (alignStartSecs-windowSecs, endSecs].
 	rangeSecs := endSecs - alignStartSecs + windowSecs
 	selector := summarySelector(instance, instanceType, `, sql_digest!=""`)
-	queryStr, err := buildTopSQLDigestsQuery(orderBy, rangeSecs, top, instanceType, selector)
-	if err != nil {
-		return nil, err
-	}
+	queryStr := fmt.Sprintf("topk(%d, %s)", top, buildCPUSummaryQuery(rangeSecs, selector, "sql_digest"))
 
 	var resp sumMetricResp
 	if err := dq.fetchInstantQuery(ctx, queryStr, endSecs, windowSecs, &resp); err != nil {
@@ -635,17 +427,6 @@ func (dq *DefaultQuery) fetchTopSQLDigests(ctx context.Context, orderBy string, 
 		}
 	}
 	return digests, nil
-}
-
-// buildTopSQLDigestsQuery returns the instant query ranking digests by the orderBy metric
-// summed over one window ending at endSecs. Composite metrics aggregate both sides
-// independently, so missing counterparts contribute zero in ranking and timelines.
-func buildTopSQLDigestsQuery(orderBy string, rangeSecs, top int, instanceType, selector string) (string, error) {
-	expr, err := buildAggregatedSummaryQuery(orderBy, rangeSecs, instanceType, selector, "sql_digest")
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("topk(%d, %s)", top, expr), nil
 }
 
 // fetchSumFromTSDB sums the metric over [startSecs, endSecs] per (sql digest, plan digest).
@@ -702,8 +483,8 @@ func (dq *DefaultQuery) fetchSumFromTSDB(ctx context.Context, name string, start
 
 	// Split the selected digests so every assembled query stays within maxTSDBQueryBytes;
 	// budget applies to the complete expression, including every matcher occurrence.
-	batches, err := splitTopSQLDigests(topDigests, func(matcher string) (string, error) {
-		return sumExpr(matcher), nil
+	batches, err := splitTopSQLDigests(topDigests, func(matcher string) string {
+		return sumExpr(matcher)
 	})
 	if err != nil {
 		return err
@@ -1051,12 +832,6 @@ func (t *tsHeap) Pop() interface{} {
 	*t = old[0 : n-1]
 	return x
 }
-<<<<<<< HEAD
-=======
-
-func buildOrderBySummaryQuery(orderBy string, windowSecs int, instance, instanceType string) (string, error) {
-	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ""), "sql_digest, plan_digest")
-}
 
 // summarySelector returns the label matchers selecting one instance, followed by extraMatchers
 // (which must start with ", " when not empty).
@@ -1073,60 +848,23 @@ func sqlDigestRegexp(digests []string) string {
 	return strconv.Quote(strings.Join(quoted, "|"))
 }
 
-// buildAggregatedSummaryQuery sums at the requested output granularity before
-// combining composite metrics. Each side is a direct sum over a rollup, allowing
-// VM's incremental aggregation instead of materializing raw series for vector
-// joins. The outer multi-argument sum includes either side when its counterpart
-// is absent. Keep the scans separate: a combined metric-name selector would count
-// both families against a single search.maxUniqueTimeseries scan limit.
-func buildAggregatedSummaryQuery(orderBy string, windowSecs int, instanceType, selector, groupBy string) (string, error) {
-	aggregate := func(expr string) string {
-		q := "sum(" + expr + ")"
-		if groupBy != "" {
-			q += " by (" + groupBy + ")"
-		}
-		return q
+// buildCPUSummaryQuery aggregates before VM returns the time series.
+func buildCPUSummaryQuery(windowSecs int, selector, groupBy string) string {
+	q := fmt.Sprintf("sum(sum_over_time(%s{%s}[%d]))", store.MetricNameCPUTime, selector, windowSecs)
+	if groupBy != "" {
+		q += " by (" + groupBy + ")"
 	}
-	var in, out string
-	switch NormalizeOrderBy(orderBy) {
-	case "", OrderByCPU:
-		in = store.MetricNameCPUTime
-	case OrderByNetwork:
-		in, out = store.MetricNameNetworkInBytes, store.MetricNameNetworkOutBytes
-		if instanceType == "tidb" {
-			in, out = store.MetricNameSQLNetworkIn, store.MetricNameSQLNetworkOut
-		}
-	case OrderByLogicalIO:
-		in, out = store.MetricNameLogicalReadBytes, store.MetricNameLogicalWriteBytes
-	case OrderByLogicalRead:
-		in = store.MetricNameLogicalReadBytes
-	case OrderByLogicalWrite:
-		in = store.MetricNameLogicalWriteBytes
-	case OrderByBlockRead:
-		in = store.MetricNameRocksdbBlockReadCount
-	default:
-		return "", fmt.Errorf("unknown orderBy: %s", orderBy)
-	}
-	side := func(metric string) string {
-		return aggregate(fmt.Sprintf("sum_over_time(%s{%s}[%d])", metric, selector, windowSecs))
-	}
-	if out == "" {
-		return side(in), nil
-	}
-	return aggregate(side(in) + ", " + side(out)), nil
+	return q
 }
 
 // splitTopSQLDigests splits digests into batches whose fully assembled tops query stays
 // within maxTSDBQueryBytes. buildQuery assembles the complete query from one batch's
 // positive matcher, which already starts with ", ". Every returned batch is non-empty and
 // the batches partition digests in order.
-func splitTopSQLDigests(digests []string, buildQuery func(matcher string) (string, error)) ([][]string, error) {
+func splitTopSQLDigests(digests []string, buildQuery func(matcher string) string) ([][]string, error) {
 	var batches [][]string
 	for i := 0; i < len(digests); {
-		first, err := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:i+1]))
-		if err != nil {
-			return nil, err
-		}
+		first := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:i+1]))
 		if len(first) > maxTSDBQueryBytes {
 			return nil, fmt.Errorf("Top SQL query exceeds %d bytes even with one digest", maxTSDBQueryBytes)
 		}
@@ -1136,10 +874,7 @@ func splitTopSQLDigests(digests []string, buildQuery func(matcher string) (strin
 		low, high := i+1, len(digests)
 		for low < high {
 			mid := low + (high-low+1)/2
-			queryStr, err := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:mid]))
-			if err != nil {
-				return nil, err
-			}
+			queryStr := buildQuery(", sql_digest=~" + sqlDigestRegexp(digests[i:mid]))
 			if len(queryStr) <= maxTSDBQueryBytes {
 				low = mid
 			} else {
@@ -1152,59 +887,21 @@ func splitTopSQLDigests(digests []string, buildQuery func(matcher string) (strin
 	return batches, nil
 }
 
-// buildTopSummaryBatchQuery returns a range query aggregating one batch of selected digests
-// per (sql digest, plan digest). matcher must start with ", ".
-func buildTopSummaryBatchQuery(orderBy string, windowSecs int, instance, instanceType, matcher string) (string, error) {
-	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, matcher), "sql_digest, plan_digest")
-}
-
-// buildTotalSummaryQuery returns a label-less range query summing the orderBy metric over
-// every series of the instance, selected digests or not.
-func buildTotalSummaryQuery(orderBy string, windowSecs int, instance, instanceType string) (string, error) {
-	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ""), "")
-}
-
-// buildTopOthersQuery returns the label-less query aggregating every digest not in
-// topDigests, including records without a digest.
-func buildTopOthersQuery(orderBy string, windowSecs int, instance, instanceType string, topDigests []string) (string, error) {
-	if len(topDigests) == 0 {
-		return buildTotalSummaryQuery(orderBy, windowSecs, instance, instanceType)
-	}
-	return buildAggregatedSummaryQuery(orderBy, windowSecs, instanceType, summarySelector(instance, instanceType, ", sql_digest!~"+sqlDigestRegexp(topDigests)), "")
-}
-
 // fetchTopSummarySeries fetches the timeline series of the selected digests plus one
 // label-less "others" series. Selected digests are split into batches so every assembled
-// query stays within maxTSDBQueryBytes even when the orderBy expression repeats the digest
-// matcher per metric (network, logical_io). The others series excludes all selected digests
+// query stays within maxTSDBQueryBytes. The others series excludes all selected digests
 // when that query fits the budget; otherwise it is derived as the unfiltered total minus
 // the fetched top series, so no query length grows with the selection size.
-func (dq *DefaultQuery) fetchTopSummarySeries(ctx context.Context, orderBy string, alignStartSecs, endSecs, windowSecs int, instance, instanceType string, topDigests []string) ([]recordsMetricRespDataResult, error) {
-	if len(topDigests) == 0 {
-		// Nothing is selected, so the whole range is one "others" series.
-		queryStr, err := buildTotalSummaryQuery(orderBy, windowSecs, instance, instanceType)
-		if err != nil {
-			return nil, err
-		}
-		var resp recordsMetricResp
-		if err := dq.fetchQueryRange(ctx, queryStr, alignStartSecs, endSecs, windowSecs, &resp); err != nil {
-			return nil, err
-		}
-		return resp.Data.Results, nil
-	}
-
-	batches, err := splitTopSQLDigests(topDigests, func(matcher string) (string, error) {
-		return buildTopSummaryBatchQuery(orderBy, windowSecs, instance, instanceType, matcher)
+func (dq *DefaultQuery) fetchTopSummarySeries(ctx context.Context, alignStartSecs, endSecs, windowSecs int, instance, instanceType string, topDigests []string) ([]recordsMetricRespDataResult, error) {
+	batches, err := splitTopSQLDigests(topDigests, func(matcher string) string {
+		return buildCPUSummaryQuery(windowSecs, summarySelector(instance, instanceType, matcher), "sql_digest, plan_digest")
 	})
 	if err != nil {
 		return nil, err
 	}
 	var topResults []recordsMetricRespDataResult
 	for _, batch := range batches {
-		queryStr, err := buildTopSummaryBatchQuery(orderBy, windowSecs, instance, instanceType, ", sql_digest=~"+sqlDigestRegexp(batch))
-		if err != nil {
-			return nil, err
-		}
+		queryStr := buildCPUSummaryQuery(windowSecs, summarySelector(instance, instanceType, ", sql_digest=~"+sqlDigestRegexp(batch)), "sql_digest, plan_digest")
 		var resp recordsMetricResp
 		if err := dq.fetchQueryRange(ctx, queryStr, alignStartSecs, endSecs, windowSecs, &resp); err != nil {
 			return nil, err
@@ -1212,10 +909,11 @@ func (dq *DefaultQuery) fetchTopSummarySeries(ctx context.Context, orderBy strin
 		topResults = append(topResults, resp.Data.Results...)
 	}
 
-	othersQuery, err := buildTopOthersQuery(orderBy, windowSecs, instance, instanceType, topDigests)
-	if err != nil {
-		return nil, err
+	otherMatcher := ""
+	if len(topDigests) > 0 {
+		otherMatcher = ", sql_digest!~" + sqlDigestRegexp(topDigests)
 	}
+	othersQuery := buildCPUSummaryQuery(windowSecs, summarySelector(instance, instanceType, otherMatcher), "")
 	if len(othersQuery) <= maxTSDBQueryBytes {
 		var resp recordsMetricResp
 		if err := dq.fetchQueryRange(ctx, othersQuery, alignStartSecs, endSecs, windowSecs, &resp); err != nil {
@@ -1224,10 +922,7 @@ func (dq *DefaultQuery) fetchTopSummarySeries(ctx context.Context, orderBy strin
 		return append(topResults, resp.Data.Results...), nil
 	}
 
-	totalQuery, err := buildTotalSummaryQuery(orderBy, windowSecs, instance, instanceType)
-	if err != nil {
-		return nil, err
-	}
+	totalQuery := buildCPUSummaryQuery(windowSecs, summarySelector(instance, instanceType, ""), "")
 	var resp recordsMetricResp
 	if err := dq.fetchQueryRange(ctx, totalQuery, alignStartSecs, endSecs, windowSecs, &resp); err != nil {
 		return nil, err
@@ -1298,84 +993,6 @@ func subtractSelectedTotal(total, selected float64) (float64, error) {
 	return other, nil
 }
 
-func buildOrderBySummaryByQuery(orderBy string, windowSecs int, instance, instanceType, aggBy string) (string, error) {
-	if aggBy == AggByRegionID {
-		switch NormalizeOrderBy(orderBy) {
-		case "", OrderByCPU:
-			return fmt.Sprintf(
-				"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
-				store.MetricNameRegionCPUTime, instance, instanceType, windowSecs, aggBy,
-			), nil
-		case OrderByNetwork:
-			return fmt.Sprintf(
-				"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
-				store.MetricNameRegionNetworkInBytes, instance, instanceType, windowSecs,
-				store.MetricNameRegionNetworkOutBytes, instance, instanceType, windowSecs,
-				aggBy,
-			), nil
-		case OrderByLogicalIO:
-			return fmt.Sprintf(
-				"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
-				store.MetricNameRegionLogicalReadBytes, instance, instanceType, windowSecs,
-				store.MetricNameRegionLogicalWriteBytes, instance, instanceType, windowSecs,
-				aggBy,
-			), nil
-		case OrderByLogicalRead:
-			return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRegionLogicalReadBytes, instance, instanceType, windowSecs, aggBy), nil
-		case OrderByLogicalWrite:
-			return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRegionLogicalWriteBytes, instance, instanceType, windowSecs, aggBy), nil
-		case OrderByBlockRead:
-			return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRegionRocksdbBlockReadCount, instance, instanceType, windowSecs, aggBy), nil
-		default:
-			return "", fmt.Errorf("unknown orderBy: %s", orderBy)
-		}
-	}
-	switch NormalizeOrderBy(orderBy) {
-	case "", OrderByCPU:
-		return fmt.Sprintf(
-			"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
-			store.MetricNameCPUTime, instance, instanceType, windowSecs, aggBy,
-		), nil
-	case OrderByNetwork:
-		in, out := store.MetricNameNetworkInBytes, store.MetricNameNetworkOutBytes
-		if instanceType == "tidb" {
-			in, out = store.MetricNameSQLNetworkIn, store.MetricNameSQLNetworkOut
-		}
-		return fmt.Sprintf(
-			"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
-			in, instance, instanceType, windowSecs,
-			out, instance, instanceType, windowSecs,
-			aggBy,
-		), nil
-	case OrderByLogicalIO:
-		return fmt.Sprintf(
-			"sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d]) + sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)",
-			store.MetricNameLogicalReadBytes, instance, instanceType, windowSecs,
-			store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs,
-			aggBy,
-		), nil
-	case OrderByLogicalRead:
-		return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameLogicalReadBytes, instance, instanceType, windowSecs, aggBy), nil
-	case OrderByLogicalWrite:
-		return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameLogicalWriteBytes, instance, instanceType, windowSecs, aggBy), nil
-	case OrderByBlockRead:
-		return fmt.Sprintf("sum(sum_over_time(%s{instance=\"%s\", instance_type=\"%s\"}[%d])) by (%s)", store.MetricNameRocksdbBlockReadCount, instance, instanceType, windowSecs, aggBy), nil
-	default:
-		return "", fmt.Errorf("unknown orderBy: %s", orderBy)
-	}
-}
-
-func buildOrderBySummaryByTopQuery(orderBy string, windowSecs int, instance, instanceType, aggBy string, top int) (string, error) {
-	if top <= 0 {
-		return buildOrderBySummaryByQuery(orderBy, windowSecs, instance, instanceType, aggBy)
-	}
-	base, err := buildOrderBySummaryByQuery(orderBy, windowSecs, instance, instanceType, aggBy)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("topk_avg(%d, %s, \"%s=other\")", top, base, aggBy), nil
-}
-
 func (dq *DefaultQuery) fillSummaryExtraFields(ctx context.Context, startSecs, endSecs int, instance, instanceType string, topDigests []string, topLimited bool, fill *[]SummaryItem) error {
 	// rangeSecs never to be 0 because startSecs <= endSecs
 	rangeSecs := float64(endSecs - startSecs + 1)
@@ -1418,7 +1035,7 @@ func (dq *DefaultQuery) fillSummaryExtraFields(ctx context.Context, startSecs, e
 		if item.IsOther {
 			// don't know how it can happen, but we'd better be pessimists
 			if len(item.Plans) == 0 {
-				item.Plans = append(item.Plans, SummaryPlanItem{})
+				(*fill)[i].Plans = append(item.Plans, SummaryPlanItem{})
 			}
 
 			othersItem = &(*fill)[i]
@@ -1513,4 +1130,3 @@ func (dq *DefaultQuery) fillSummaryExtraFields(ctx context.Context, startSecs, e
 
 	return ctx.Err()
 }
->>>>>>> 9d2cf4d (topsql: push down By Query ranking and bound request work (#373))

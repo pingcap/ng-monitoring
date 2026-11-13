@@ -47,8 +47,7 @@ func BenchmarkSummaryFanout(b *testing.B) {
 				for point := 0; point < points; point++ {
 					usage := sql * plan * table
 					for metric, value := range map[string]int{
-						"cpu_time": usage, "network_in_bytes": usage, "network_out_bytes": 1,
-						"logical_read_bytes": usage, "logical_write_bytes": 1,
+						"cpu_time":         usage,
 						"sql_duration_sum": 1000000, "sql_duration_count": 1,
 						"sql_exec_count": 1, "read_row": 1, "read_index": 1,
 					} {
@@ -72,23 +71,21 @@ func BenchmarkSummaryFanout(b *testing.B) {
 		// Read the existing VM buffer size without copying or re-decoding it.
 		returnedBytes += int64(w.(*utils.ResponseWriter).Body.Len())
 	}, summaryBenchmarkMeta{})
-	for _, orderBy := range []string{query.OrderByCPU, query.OrderByNetwork, query.OrderByLogicalIO} {
-		b.Run(orderBy, func(b *testing.B) {
-			for _, top := range []int{5, 100, 101, 150, 200} {
-				b.Run(fmt.Sprintf("top%d", top), func(b *testing.B) {
-					returnedBytes = 0
-					b.ReportAllocs()
-					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
-						var items []query.SummaryItem
-						if err := dq.Summary(context.Background(), base, base+(points-1)*6, 6, top, "benchmark", "tikv", &items, orderBy); err != nil {
-							b.Fatal(err)
-						}
+	b.Run("cpu", func(b *testing.B) {
+		for _, top := range []int{5, 100, 101, 150, 200} {
+			b.Run(fmt.Sprintf("top%d", top), func(b *testing.B) {
+				returnedBytes = 0
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					var items []query.SummaryItem
+					if err := dq.Summary(context.Background(), base, base+(points-1)*6, 6, top, "benchmark", "tikv", &items); err != nil {
+						b.Fatal(err)
 					}
-					b.StopTimer()
-					b.ReportMetric(float64(returnedBytes)/float64(b.N), "VM-JSON-B/op")
-				})
-			}
-		})
-	}
+				}
+				b.StopTimer()
+				b.ReportMetric(float64(returnedBytes)/float64(b.N), "VM-JSON-B/op")
+			})
+		}
+	})
 }

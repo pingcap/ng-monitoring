@@ -56,10 +56,9 @@ $ cat config/config.toml.example
 
 ## Top SQL By Query
 
-For `top > 0`, Summary ranks SQL digests by cumulative usage in the embedded
+For `top > 0`, Summary ranks SQL digests by cumulative CPU usage in the embedded
 VictoriaMetrics engine, then fetches the selected SQL/plan curves and an Other
-aggregate. Different table series for the same SQL/plan are summed. Network and
-logical IO summaries count a missing input/output or read/write side as zero.
+aggregate. Different table series for the same SQL/plan are summed.
 Large selections are batched to fit the query length limit; an oversized Other
 filter uses the overall total minus the selected totals.
 

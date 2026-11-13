@@ -80,7 +80,7 @@ func TestSummaryStopsAfterQueuedQuery(t *testing.T) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}, nil)
 	var items []SummaryItem
-	require.ErrorIs(t, dq.Summary(ctx, 1, 10, 6, 5, "instance", "tikv", &items, OrderByCPU), context.DeadlineExceeded)
+	require.ErrorIs(t, dq.Summary(ctx, 1, 10, 6, 5, "instance", "tikv", &items), context.DeadlineExceeded)
 	require.Equal(t, 1, calls, "ranking timeout must prevent timeline and auxiliary queries")
 	require.Empty(t, items)
 }
@@ -170,7 +170,7 @@ func TestNegativeOtherDifferenceFailsQuery(t *testing.T) {
 				require.False(t, hasOther)
 			} else {
 				var items []SummaryItem
-				err := dq.Summary(context.Background(), 100, 100, 6, len(digests), "instance", "tikv", &items, OrderByNetwork)
+				err := dq.Summary(context.Background(), 100, 100, 6, len(digests), "instance", "tikv", &items)
 				require.ErrorContains(t, err, "total is smaller than selected")
 				require.Empty(t, items, "do not return a successful response with a silently dropped negative point")
 			}
@@ -178,4 +178,9 @@ func TestNegativeOtherDifferenceFailsQuery(t *testing.T) {
 			require.Equal(t, 1, totalReads)
 		})
 	}
+}
+
+// Keep the label length the same as the store's hex-encoded SHA-256 digest.
+func digestLabel(i int) string {
+	return fmt.Sprintf("%064x", i)
 }
