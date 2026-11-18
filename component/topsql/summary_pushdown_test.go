@@ -114,7 +114,7 @@ func (s *testTopSQLSuite) importSummarySamples(lines string) {
 	w := httptest.NewRecorder()
 	timeseries.InsertHandler(w, req)
 	s.Require().Equal(http.StatusNoContent, w.Code, w.Body.String())
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 }
 
 func (s *testTopSQLSuite) TestSummaryUnlimitedTableAggregation() {

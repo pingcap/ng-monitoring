@@ -95,7 +95,7 @@ func (s *testTopSQLSuite) TestInstances() {
 	}})
 	s.NoError(err)
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 	var r []query.InstanceItem
 
 	r = nil
@@ -276,7 +276,7 @@ func (s *testTopSQLSuite) TestTiDBSummary() {
 		}
 	}
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	// normal case
 	var res []query.SummaryItem
@@ -591,7 +591,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryBy() {
 			}
 		}
 	}
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	// normal case
 	var res []query.SummaryByItem
@@ -637,7 +637,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryByIsOtherCompat() {
 	// table=1 has higher CPU and should be the top group.
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord(1, 100), nil))
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord(2, 1), nil))
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	var res []query.SummaryByItem
 	err := s.dq.SummaryBy(int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, query.AggLevelTable, &res, query.OrderByCPU)
@@ -813,7 +813,7 @@ func (s *testTopSQLSuite) TestTiKVSummary() {
 		}
 	}
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	// normal case
 	var res []query.SummaryItem
@@ -1158,7 +1158,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByNetwork() {
 	// sql-cpu-hi: high cpu, low network
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-cpu-hi", 1000, 1, 1), nil))
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	var res []query.SummaryItem
 	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByNetwork)
@@ -1216,7 +1216,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryMergesTables() {
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-a", 2, []uint32{300, 400}, []uint32{30, 40}), nil))
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-b", 1, []uint32{1, 1}, []uint32{1, 1}), nil))
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	var res []query.SummaryItem
 	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByCPU)
@@ -1279,7 +1279,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryOrderByResourceDimensions() {
 	// sql-cpu-hi: high cpu, low logical IO
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, mkRecord("sql-cpu-hi", 1000, 1, 1, 1000), nil))
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	var res []query.SummaryItem
 	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+10), 10, 1, instance, tikvInstanceType, &res, query.OrderByLogicalIO)
@@ -1343,7 +1343,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryByRegion() {
 		RecordOneof: &rsmetering.ResourceUsageRecord_RegionRecord{RegionRecord: rr},
 	}
 	s.NoError(s.ds.ResourceMeteringRecord(instance, tikvInstanceType, record, nil))
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	assertRegionMetric := func(orderBy string, values func(query.SummaryByItem) []uint64, total func(query.SummaryByItem) uint64) {
 		var res []query.SummaryByItem
@@ -1455,7 +1455,7 @@ network_out_bytes{instance=%q,instance_type="tikv",sql_digest=%q,plan_digest=%q}
 	timeseries.InsertHandler(w, req)
 	s.Equal(204, w.Code, w.Body.String())
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	var res []query.SummaryItem
 	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs+12), 6, 1, instance, "tikv", &res, query.OrderByNetwork)
@@ -1505,7 +1505,7 @@ func (s *testTopSQLSuite) TestTiKVSummaryNetworkLargeTopSplitsQueries() {
 		s.NoError(s.ds.ResourceMeteringRecord(instance, "tikv", mkRecord(fmt.Sprintf("%032x", i), 1, 1), nil))
 	}
 
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	var res []query.SummaryItem
 	err := s.dq.Summary(context.Background(), int(testBaseTs), int(testBaseTs), 6, 150, instance, "tikv", &res, query.OrderByNetwork)

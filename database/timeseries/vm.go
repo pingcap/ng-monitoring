@@ -13,9 +13,17 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/pingcap/log"
 	"go.uber.org/zap"
+)
+
+// These flags moved from vmselect to the standalone VictoriaMetrics main package.
+// Register them here to preserve the embedded query limits and their defaults.
+var (
+	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", min(cgroup.AvailableCPUs()*2, 16), "The maximum number of concurrent search requests")
+	maxQueueDuration      = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time a search request waits for execution")
 )
 
 func Init(cfg *config.Config) {
@@ -56,8 +64,8 @@ func Init(cfg *config.Config) {
 	_ = flag.CommandLine.Parse(nil)
 
 	startTime := time.Now()
-	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
-	vmselect.Init()
+	vmstorage.Init(*maxConcurrentRequests, promql.ResetRollupResultCacheIfNeeded)
+	vmselect.Init(*maxConcurrentRequests, *maxQueueDuration)
 	vminsert.Init()
 
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())

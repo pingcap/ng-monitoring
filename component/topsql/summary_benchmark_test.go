@@ -64,7 +64,7 @@ func BenchmarkSummaryFanout(b *testing.B) {
 	if response.Code != http.StatusNoContent {
 		b.Fatal(response.Body.String())
 	}
-	vmstorage.Storage.DebugFlush()
+	vmstorage.DebugFlush()
 
 	var returnedBytes int64
 	dq := query.NewDefaultQuery(func(w http.ResponseWriter, r *http.Request) {
