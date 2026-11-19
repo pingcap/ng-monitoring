@@ -72,18 +72,22 @@ func TestQueryRemainingCallerDeadline(t *testing.T) {
 }
 
 func TestSummaryStopsAfterQueuedQuery(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
-	defer cancel()
-	calls := 0
-	dq := NewDefaultQuery(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		<-r.Context().Done()
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}, nil)
-	var items []SummaryItem
-	require.ErrorIs(t, dq.Summary(ctx, 1, 10, 6, 5, "instance", "tikv", &items), context.DeadlineExceeded)
-	require.Equal(t, 1, calls, "ranking timeout must prevent timeline and auxiliary queries")
-	require.Empty(t, items)
+	for _, orderBy := range []string{OrderByCPU, OrderByNetwork, OrderByLogicalIO} {
+		t.Run(orderBy, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			defer cancel()
+			calls := 0
+			dq := NewDefaultQuery(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				<-r.Context().Done()
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}, nil)
+			var items []SummaryItem
+			require.ErrorIs(t, dq.Summary(ctx, 1, 10, 6, 5, "instance", "tikv", &items, orderBy), context.DeadlineExceeded)
+			require.Equal(t, 1, calls, "ranking timeout must prevent timeline and auxiliary queries")
+			require.Empty(t, items)
+		})
+	}
 }
 
 type cancelMetadataDB struct {
@@ -171,7 +175,7 @@ func TestNegativeOtherDifferenceFailsQuery(t *testing.T) {
 				require.False(t, hasOther)
 			} else {
 				var items []SummaryItem
-				err := dq.Summary(context.Background(), 100, 100, 6, len(digests), "instance", "tikv", &items)
+				err := dq.Summary(context.Background(), 100, 100, 6, len(digests), "instance", "tikv", &items, OrderByCPU)
 				require.ErrorContains(t, err, "total is smaller than selected")
 				require.Empty(t, items, "do not return a successful response with a silently dropped negative point")
 			}
@@ -186,14 +190,13 @@ func digestLabel(i int) string {
 	return fmt.Sprintf("%064x", i)
 }
 
-func TestSubtractSelectedTotalRounding(t *testing.T) {
-	// Integer metrics are exact below 2^53. Above it, the VM total and the
-	// Go sum of selected results can round differently.
+func TestSubtractSelectedTotalRejectsNegativeResidual(t *testing.T) {
+	// Match release-8.5: even a one-step floating-point difference must fail
+	// when the selected aggregate exceeds the total.
 	const total = float64(1 << 53)
 	selected := math.Nextafter(total, math.Inf(1))
-	other, err := subtractSelectedTotal(total, selected)
-	require.NoError(t, err)
-	require.Zero(t, other)
+	_, err := subtractSelectedTotal(total, selected)
+	require.ErrorContains(t, err, "total is smaller than selected")
 
 	_, err = subtractSelectedTotal(total, total+64)
 	require.ErrorContains(t, err, "total is smaller than selected")

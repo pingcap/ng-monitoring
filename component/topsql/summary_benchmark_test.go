@@ -79,7 +79,7 @@ func BenchmarkSummaryFanout(b *testing.B) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
 					var items []query.SummaryItem
-					if err := dq.Summary(context.Background(), base, base+(points-1)*6, 6, top, "benchmark", "tikv", &items); err != nil {
+					if err := dq.Summary(context.Background(), base, base+(points-1)*6, 6, top, "benchmark", "tikv", &items, query.OrderByCPU); err != nil {
 						b.Fatal(err)
 					}
 				}

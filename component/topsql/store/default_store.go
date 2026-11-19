@@ -165,6 +165,24 @@ func topSQLProtoToMetrics(
 			PlanDigest:   planDigest,
 		},
 	}
+	mNetworkIn := Metric{
+		Metric: recordTags{
+			Name:         MetricNameSQLNetworkIn,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
+	mNetworkOut := Metric{
+		Metric: recordTags{
+			Name:         MetricNameSQLNetworkOut,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+		},
+	}
 	mKvExecCount := map[string]*Metric{}
 
 	for _, item := range record.Items {
@@ -181,6 +199,12 @@ func topSQLProtoToMetrics(
 
 		mDurationCount.TimestampMs = append(mDurationCount.TimestampMs, tsMillis)
 		mDurationCount.Values = append(mDurationCount.Values, item.StmtDurationCount)
+
+		mNetworkIn.TimestampMs = append(mNetworkIn.TimestampMs, tsMillis)
+		mNetworkIn.Values = append(mNetworkIn.Values, item.StmtNetworkInBytes)
+
+		mNetworkOut.TimestampMs = append(mNetworkOut.TimestampMs, tsMillis)
+		mNetworkOut.Values = append(mNetworkOut.Values, item.StmtNetworkOutBytes)
 
 		for target, execCount := range item.StmtKvExecCount {
 			metric, ok := mKvExecCount[target]
@@ -201,7 +225,7 @@ func topSQLProtoToMetrics(
 		}
 	}
 
-	ms = append(ms, mCpu, mExecCount, mDurationSum, mDurationCount)
+	ms = append(ms, mCpu, mExecCount, mDurationSum, mDurationCount, mNetworkIn, mNetworkOut)
 	for _, m := range mKvExecCount {
 		ms = append(ms, *m)
 	}
@@ -214,8 +238,22 @@ func rsMeteringProtoToMetrics(
 	record *rsmetering.ResourceUsageRecord,
 	schemaInfo *sync.Map,
 ) (ms []Metric, err error) {
+	if record == nil {
+		return nil, nil
+	}
+
+	// New protocol adds RegionRecord as another record type. Handle it explicitly.
+	if rr := record.GetRegionRecord(); rr != nil {
+		return rsMeteringRegionProtoToMetrics(instance, instanceType, rr), nil
+	}
+
+	gr := record.GetRecord()
+	if gr == nil {
+		return nil, nil
+	}
+
 	var tag tipb.ResourceGroupTag
-	tag, err = resource_group_tag.Decode(record.GetRecord().ResourceGroupTag)
+	tag, err = resource_group_tag.Decode(gr.ResourceGroupTag)
 	if err != nil {
 		return
 	}
@@ -289,8 +327,52 @@ func rsMeteringProtoToMetrics(
 			Table:        tableName,
 		},
 	}
+	mNetworkIn := Metric{
+		Metric: recordTags{
+			Name:         MetricNameNetworkInBytes,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
+		},
+	}
+	mNetworkOut := Metric{
+		Metric: recordTags{
+			Name:         MetricNameNetworkOutBytes,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
+		},
+	}
+	mLogicalRead := Metric{
+		Metric: recordTags{
+			Name:         MetricNameLogicalReadBytes,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
+		},
+	}
+	mLogicalWrite := Metric{
+		Metric: recordTags{
+			Name:         MetricNameLogicalWriteBytes,
+			Instance:     instance,
+			InstanceType: instanceType,
+			SQLDigest:    sqlDigest,
+			PlanDigest:   planDigest,
+			DB:           schemaName,
+			Table:        tableName,
+		},
+	}
 
-	for _, item := range record.GetRecord().GetItems() {
+	for _, item := range gr.GetItems() {
 		tsMillis := item.TimestampSec * 1000
 
 		mCpu.TimestampMs = append(mCpu.TimestampMs, tsMillis)
@@ -298,9 +380,63 @@ func rsMeteringProtoToMetrics(
 
 		appendMetricRowIndex(tsMillis, item.ReadKeys, &mReadRow, &mReadIndex, tag.Label)
 		appendMetricRowIndex(tsMillis, item.WriteKeys, &mWriteRow, &mWriteIndex, tag.Label)
+
+		mNetworkIn.TimestampMs = append(mNetworkIn.TimestampMs, tsMillis)
+		mNetworkIn.Values = append(mNetworkIn.Values, item.NetworkInBytes)
+
+		mNetworkOut.TimestampMs = append(mNetworkOut.TimestampMs, tsMillis)
+		mNetworkOut.Values = append(mNetworkOut.Values, item.NetworkOutBytes)
+
+		mLogicalRead.TimestampMs = append(mLogicalRead.TimestampMs, tsMillis)
+		mLogicalRead.Values = append(mLogicalRead.Values, item.LogicalReadBytes)
+
+		mLogicalWrite.TimestampMs = append(mLogicalWrite.TimestampMs, tsMillis)
+		mLogicalWrite.Values = append(mLogicalWrite.Values, item.LogicalWriteBytes)
 	}
-	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex)
+	ms = append(ms, mCpu, mReadRow, mReadIndex, mWriteRow, mWriteIndex, mNetworkIn, mNetworkOut, mLogicalRead, mLogicalWrite)
 	return
+}
+
+func rsMeteringRegionProtoToMetrics(instance, instanceType string, rr *rsmetering.RegionRecord) []Metric {
+	if rr == nil {
+		return nil
+	}
+
+	regionID := strconv.FormatUint(rr.GetRegionId(), 10)
+	mCpu := Metric{Metric: regionTags{Name: MetricNameRegionCPUTime, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+	mReadKeys := Metric{Metric: regionTags{Name: MetricNameRegionReadKeys, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+	mWriteKeys := Metric{Metric: regionTags{Name: MetricNameRegionWriteKeys, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+	mNetworkIn := Metric{Metric: regionTags{Name: MetricNameRegionNetworkInBytes, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+	mNetworkOut := Metric{Metric: regionTags{Name: MetricNameRegionNetworkOutBytes, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+	mLogicalRead := Metric{Metric: regionTags{Name: MetricNameRegionLogicalReadBytes, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+	mLogicalWrite := Metric{Metric: regionTags{Name: MetricNameRegionLogicalWriteBytes, Instance: instance, InstanceType: instanceType, RegionID: regionID}}
+
+	for _, item := range rr.GetItems() {
+		tsMillis := item.TimestampSec * 1000
+
+		mCpu.TimestampMs = append(mCpu.TimestampMs, tsMillis)
+		mCpu.Values = append(mCpu.Values, uint64(item.CpuTimeMs))
+
+		mReadKeys.TimestampMs = append(mReadKeys.TimestampMs, tsMillis)
+		mReadKeys.Values = append(mReadKeys.Values, uint64(item.ReadKeys))
+
+		mWriteKeys.TimestampMs = append(mWriteKeys.TimestampMs, tsMillis)
+		mWriteKeys.Values = append(mWriteKeys.Values, uint64(item.WriteKeys))
+
+		mNetworkIn.TimestampMs = append(mNetworkIn.TimestampMs, tsMillis)
+		mNetworkIn.Values = append(mNetworkIn.Values, item.NetworkInBytes)
+
+		mNetworkOut.TimestampMs = append(mNetworkOut.TimestampMs, tsMillis)
+		mNetworkOut.Values = append(mNetworkOut.Values, item.NetworkOutBytes)
+
+		mLogicalRead.TimestampMs = append(mLogicalRead.TimestampMs, tsMillis)
+		mLogicalRead.Values = append(mLogicalRead.Values, item.LogicalReadBytes)
+
+		mLogicalWrite.TimestampMs = append(mLogicalWrite.TimestampMs, tsMillis)
+		mLogicalWrite.Values = append(mLogicalWrite.Values, item.LogicalWriteBytes)
+	}
+
+	return []Metric{mCpu, mReadKeys, mWriteKeys, mNetworkIn, mNetworkOut, mLogicalRead, mLogicalWrite}
 }
 
 // appendMetricRowIndex only used in rsMeteringProtoToMetrics, just used to reduce repetition.
