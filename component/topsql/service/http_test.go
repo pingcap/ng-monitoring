@@ -16,27 +16,66 @@ import (
 type summaryQueryStub struct {
 	calls     int
 	onSummary func(context.Context) error
+	orderBy   string
+	groupBy   string
 }
 
 func (s *summaryQueryStub) Records(string, int, int, int, int, string, string, *[]query.RecordItem) error {
 	return nil
 }
 
-func (s *summaryQueryStub) Summary(ctx context.Context, _ int, _ int, _ int, _ int, _ string, _ string, _ *[]query.SummaryItem) error {
+func (s *summaryQueryStub) Summary(ctx context.Context, _ int, _ int, _ int, _ int, _ string, _ string, _ *[]query.SummaryItem, orderBy string) error {
 	s.calls++
+	s.orderBy = orderBy
 	if s.onSummary != nil {
 		return s.onSummary(ctx)
 	}
 	return nil
 }
 
-func (s *summaryQueryStub) SummaryBy(_ int, _ int, _ int, _ int, _ string, _ string, _ string, _ *[]query.SummaryByItem) error {
+func (s *summaryQueryStub) SummaryBy(_ int, _ int, _ int, _ int, _ string, _ string, groupBy string, _ *[]query.SummaryByItem, orderBy string) error {
 	s.calls++
+	s.orderBy = orderBy
+	s.groupBy = groupBy
 	return nil
 }
 
 func (s *summaryQueryStub) Instances(int, int, *[]query.InstanceItem) error { return nil }
 func (s *summaryQueryStub) Close()                                          {}
+
+func TestSummaryHandlerOrderBy(t *testing.T) {
+	for _, tc := range []struct {
+		name, params, orderBy, groupBy string
+		status                         int
+	}{
+		{"default", "", query.OrderByCPU, "", http.StatusOK},
+		{"snake case", "&order_by=network", query.OrderByNetwork, "", http.StatusOK},
+		{"camel case", "&orderBy=NETWORK", query.OrderByNetwork, "", http.StatusOK},
+		{"logical IO alias", "&order_by=%20LogicalIO%20", query.OrderByLogicalIO, "", http.StatusOK},
+		{"precedence", "&orderBy=cpu&order_by=network", query.OrderByCPU, "", http.StatusOK},
+		{"table", "&group_by=table&order_by=network", query.OrderByNetwork, query.AggLevelTable, http.StatusOK},
+		{"database", "&group_by=db&order_by=logical_io", query.OrderByLogicalIO, query.AggLevelDB, http.StatusOK},
+		{"region", "&group_by=region&order_by=network", query.OrderByNetwork, query.AggByRegionID, http.StatusOK},
+		{"invalid order", "&order_by=invalid", "", "", http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := &summaryQueryStub{}
+			router := gin.New()
+			router.GET("/v1/summary", NewService(stub).summaryHandler)
+			r := httptest.NewRequest(http.MethodGet, "/v1/summary?instance=test&instance_type=tikv&start=1&end=2"+tc.params, nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, r)
+			require.Equal(t, tc.status, w.Code, w.Body.String())
+			require.Equal(t, tc.orderBy, stub.orderBy)
+			require.Equal(t, tc.groupBy, stub.groupBy)
+			if tc.status == http.StatusBadRequest {
+				require.Zero(t, stub.calls)
+			} else {
+				require.Equal(t, 1, stub.calls)
+			}
+		})
+	}
+}
 
 func TestSummaryHandlerCallerDeadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)

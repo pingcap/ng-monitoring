@@ -10,6 +10,21 @@ const (
 	MetricNameSQLExecCount     = "sql_exec_count"
 	MetricNameSQLDurationSum   = "sql_duration_sum"
 	MetricNameSQLDurationCount = "sql_duration_count"
+	MetricNameSQLNetworkIn     = "sql_network_in_bytes"
+	MetricNameSQLNetworkOut    = "sql_network_out_bytes"
+
+	MetricNameNetworkInBytes    = "network_in_bytes"
+	MetricNameNetworkOutBytes   = "network_out_bytes"
+	MetricNameLogicalReadBytes  = "logical_read_bytes"
+	MetricNameLogicalWriteBytes = "logical_write_bytes"
+
+	MetricNameRegionCPUTime           = "region_cpu_time"
+	MetricNameRegionReadKeys          = "region_read_keys"
+	MetricNameRegionWriteKeys         = "region_write_keys"
+	MetricNameRegionNetworkInBytes    = "region_network_in_bytes"
+	MetricNameRegionNetworkOutBytes   = "region_network_out_bytes"
+	MetricNameRegionLogicalReadBytes  = "region_logical_read_bytes"
+	MetricNameRegionLogicalWriteBytes = "region_logical_write_bytes"
 )
 
 type Metric struct {
@@ -38,4 +53,11 @@ type instanceTags struct {
 	Name         string `json:"__name__"`
 	Instance     string `json:"instance"`
 	InstanceType string `json:"instance_type"`
+}
+
+type regionTags struct {
+	Name         string `json:"__name__"`
+	Instance     string `json:"instance"`
+	InstanceType string `json:"instance_type"`
+	RegionID     string `json:"region_id"`
 }
